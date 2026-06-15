@@ -1,0 +1,22 @@
+# Root gitignore for AgriApp
+
+# Backend ignores
+backend/node_modules/
+backend/.env
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Frontend ignores (in addition to frontend/.gitignore)
+frontend/node_modules/
+frontend/dist/
+
+# OS/IDE ignores
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db

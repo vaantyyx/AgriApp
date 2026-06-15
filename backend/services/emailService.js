@@ -1,0 +1,136 @@
+import nodemailer from 'nodemailer';
+
+function createTransporter() {
+  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+
+  if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASS) {
+    // TODO(security): Configure SMTP credentials in .env for production.
+    console.warn('[EMAIL] SMTP credentials not configured. Emails will not be sent.');
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host: EMAIL_HOST,
+    port: parseInt(EMAIL_PORT || '587'),
+    secure: parseInt(EMAIL_PORT || '587') === 465,
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASS,
+    },
+  });
+}
+
+export async function sendVerificationEmail(to, name, token) {
+  const transporter = createTransporter();
+  const APP_URL = process.env.APP_URL || 'http://localhost:5173';
+  const verifyUrl = `${APP_URL}/verify-email?token=${token}`;
+
+  // Always log the link to the console for easy developer/local verification
+  console.log(`\n==================================================`);
+  console.log(`[EMAIL DEV] Verification link for ${to}:`);
+  console.log(`👉 ${verifyUrl}`);
+  console.log(`==================================================\n`);
+
+  if (!transporter) {
+    return; // Silently skip in dev when not configured
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Confirmez votre email — AgriEnchères</title>
+    </head>
+    <body style="margin:0;padding:0;background:#0b0f12;font-family:'Segoe UI',Arial,sans-serif;">
+      <div style="max-width:560px;margin:40px auto;background:rgba(18,26,32,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;">
+        
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#10b981,#059669);padding:32px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">🌿</div>
+          <h1 style="color:#fff;margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;">AgriEnchères</h1>
+          <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:0.9rem;">Plateforme d'Enchères Agricoles</p>
+        </div>
+
+        <!-- Content -->
+        <div style="padding:40px 32px;">
+          <h2 style="color:#f3f4f6;font-size:1.4rem;margin:0 0 12px;font-weight:700;">Bonjour, ${name} 👋</h2>
+          <p style="color:#9ca3af;line-height:1.7;margin:0 0 28px;font-size:0.95rem;">
+            Merci de vous être inscrit sur <strong style="color:#f3f4f6;">AgriEnchères</strong>. 
+            Confirmez votre adresse email pour activer votre compte et accéder à la plateforme.
+          </p>
+
+          <div style="text-align:center;margin:32px 0;">
+            <a href="${verifyUrl}" 
+               style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:1rem;letter-spacing:0.01em;box-shadow:0 4px 14px rgba(16,185,129,0.4);">
+              ✅ Confirmer mon email
+            </a>
+          </div>
+
+          <p style="color:#6b7280;font-size:0.8rem;line-height:1.6;margin:0 0 16px;">
+            Ce lien expire dans <strong>24 heures</strong>. Si vous n'avez pas créé de compte, ignorez cet email.
+          </p>
+
+          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;margin-top:20px;">
+            <p style="color:#4b5563;font-size:0.75rem;margin:0;">
+              Lien ne fonctionne pas ? Copiez et collez l'URL ci-dessous :<br>
+              <span style="color:#10b981;word-break:break-all;">${verifyUrl}</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:rgba(0,0,0,0.2);padding:20px 32px;text-align:center;">
+          <p style="color:#4b5563;font-size:0.75rem;margin:0;">
+            © ${new Date().getFullYear()} AgriEnchères — Plateforme d'Enchères Inversées Agricoles en Algérie
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"AgriEnchères" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: '✅ Confirmez votre adresse email — AgriEnchères',
+      html,
+    });
+  } catch (err) {
+    console.error('[EMAIL] Failed to send verification email via SMTP:', err.message);
+  }
+}
+
+
+export async function sendWelcomeEmail(to, name, role) {
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.log(`[EMAIL DEV] Welcome email would be sent to ${to}`);
+    return;
+  }
+
+  const roleLabel = role === 'buyer' ? 'Acheteur' : 'Producteur';
+
+  try {
+    await transporter.sendMail({
+      from: `"AgriEnchères" <${process.env.EMAIL_USER}>`,
+      to,
+      subject: '🌿 Bienvenue sur AgriEnchères !',
+      html: `
+        <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;font-family:Arial,sans-serif;color:#f3f4f6;">
+          <h1 style="color:#10b981;">🎉 Bienvenue, ${name} !</h1>
+          <p style="color:#9ca3af;">Votre compte <strong>${roleLabel}</strong> est maintenant actif.</p>
+          <p style="color:#9ca3af;">Connectez-vous pour commencer à utiliser AgriEnchères.</p>
+          <a href="${process.env.APP_URL || 'http://localhost:5173'}" 
+             style="display:inline-block;background:#10b981;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:20px;">
+            Accéder à la plateforme
+          </a>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[EMAIL] Failed to send welcome email via SMTP:', err.message);
+  }
+}
