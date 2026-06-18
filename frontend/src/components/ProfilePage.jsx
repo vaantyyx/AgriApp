@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, MapPin, FileText, Camera, Tractor, ShoppingBag, Edit3, Save, X, CheckCircle, AlertCircle, BarChart2 } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 const BACKEND_URL = 'http://127.0.0.1:3001';
 
@@ -8,6 +9,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
+  const { t, dir } = useTranslation();
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -44,7 +46,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
           fontSize: '0.9rem',
           outline: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          textAlign: 'left',
+          textAlign: 'start',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -75,7 +77,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
           <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
             <input
               type="text"
-              placeholder="Rechercher..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               autoFocus
@@ -88,6 +90,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
                 color: 'var(--text-main)',
                 fontSize: '0.9rem',
                 outline: 'none',
+                textAlign: 'start',
               }}
             />
           </div>
@@ -95,7 +98,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {filteredOptions.length === 0 ? (
               <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
-                Aucun résultat
+                {t('noResult')}
               </div>
             ) : (
               filteredOptions.map(opt => {
@@ -115,7 +118,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
                       border: 'none',
                       color: isSelected ? 'var(--primary)' : 'var(--text-main)',
                       fontSize: '0.9rem',
-                      textAlign: 'left',
+                      textAlign: 'start',
                       cursor: 'pointer',
                       outline: 'none',
                       transition: 'background 0.2s',
@@ -169,6 +172,7 @@ function Avatar({ photoUrl, name, size = 96 }) {
 }
 
 export default function ProfilePage({ token, user: initialUser, onUserUpdate, onNavigateToDashboard }) {
+  const { t, dir, locale } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -236,7 +240,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
         });
       }
     } catch {
-      showToast('Impossible de charger le profil.', 'error');
+      showToast(t('updateError'), 'error');
     } finally {
       setLoading(false);
     }
@@ -326,12 +330,12 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
         setProfile(prev => ({ ...prev, ...payload }));
         onUserUpdate({ ...initialUser, name: form.name });
         setEditing(false);
-        showToast('Profil mis à jour avec succès.');
+        showToast(t('updateSuccess'));
       } else {
-        showToast(data.error || 'Erreur lors de la sauvegarde.', 'error');
+        showToast(data.error || t('updateError'), 'error');
       }
     } catch {
-      showToast('Erreur de connexion.', 'error');
+      showToast(t('serverError'), 'error');
     } finally {
       setSaving(false);
     }
@@ -363,12 +367,12 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       const data = await res.json();
       if (res.ok) {
         setProfile(prev => ({ ...prev, profilePhoto: data.photoUrl.split('/uploads/')[1] }));
-        showToast('Photo de profil mise à jour.');
+        showToast(t('updateSuccess'));
       } else {
-        showToast(data.error || 'Erreur lors de l\'envoi.', 'error');
+        showToast(data.error || t('updateError'), 'error');
       }
     } catch {
-      showToast('Erreur lors de l\'envoi de la photo.', 'error');
+      showToast(t('serverError'), 'error');
     } finally {
       setUploadingPhoto(false);
     }
@@ -379,7 +383,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
           <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-          Chargement du profil…
+          {t('verifLoading')}
         </div>
       </div>
     );
@@ -389,7 +393,6 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
   const locationParts = [profile?.commune, profile?.wilaya].filter(Boolean);
   const displayLocation = locationParts.length > 0 ? locationParts.join(', ') : null;
 
-  // Map lists to searchable options format
   const wilayaOptions = wilayas.map(w => ({
     value: w.wilaya_id,
     label: `${String(w.wilaya_id).padStart(2, '0')} - ${w.wilaya_name_latin}`,
@@ -400,17 +403,20 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
     label: c.commune_name_latin,
   }));
 
+  const memberDateStr = profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : (locale === 'fr' ? 'fr-DZ' : 'en-US'), { month: 'long', year: 'numeric' }) : '—';
+
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '32px 24px' }}>
       {/* Toast notification */}
       {toast && (
         <div style={{
-          position: 'fixed', top: '80px', right: '24px', zIndex: 1000,
+          position: 'fixed', top: '80px', right: dir === 'ltr' ? '24px' : 'auto', left: dir === 'rtl' ? '24px' : 'auto', zIndex: 1000,
           background: toast.type === 'success' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
           border: `1px solid ${toast.type === 'success' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
           color: toast.type === 'success' ? 'var(--primary)' : 'var(--danger)',
           padding: '12px 20px', borderRadius: '10px',
           display: 'flex', alignItems: 'center', gap: '8px',
+          flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
           backdropFilter: 'blur(10px)', animation: 'fadeIn 0.3s ease',
           boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
         }}>
@@ -421,7 +427,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
 
       {/* Profile Header Card */}
       <div className="glass-panel" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '28px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '28px', flexWrap: 'wrap', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <Avatar photoUrl={photoUrl} name={profile?.name} size={96} />
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoChange} />
@@ -430,7 +436,9 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
               disabled={uploadingPhoto}
               title="Modifier la photo de profil"
               style={{
-                position: 'absolute', bottom: '0', right: '0',
+                position: 'absolute', bottom: '0',
+                right: dir === 'ltr' ? '0' : 'auto',
+                left: dir === 'rtl' ? '0' : 'auto',
                 width: '32px', height: '32px', borderRadius: '50%',
                 background: 'var(--primary)', border: '2px solid var(--bg-main)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -446,8 +454,8 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
             </button>
           </div>
 
-          <div style={{ flex: 1, minWidth: '200px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px', textAlign: 'start' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px', flexWrap: 'wrap', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
               <h1 style={{ fontSize: '1.6rem', margin: 0 }}>{profile?.name}</h1>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -455,42 +463,43 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
                 background: profile?.role === 'buyer' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
                 color: profile?.role === 'buyer' ? '#3b82f6' : '#f59e0b',
                 border: `1px solid ${profile?.role === 'buyer' ? 'rgba(59,130,246,0.3)' : 'rgba(245,158,11,0.3)'}`,
+                flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
               }}>
                 {profile?.role === 'buyer' ? <ShoppingBag size={11} /> : <Tractor size={11} />}
-                {profile?.role === 'buyer' ? 'Acheteur' : 'Producteur'}
+                {profile?.role === 'buyer' ? t('role_buyer') : t('role_producer')}
               </span>
             </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0 0 4px' }}>{profile?.email}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0 0 4px', direction: 'ltr', textAlign: dir === 'rtl' ? 'right' : 'left' }}>{profile?.email}</p>
             {displayPhone && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', margin: '0 0 2px' }}>
-                <Phone size={13} /> {displayPhone}
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', margin: '0 0 2px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+                <Phone size={13} /> <span style={{ direction: 'ltr' }}>{displayPhone}</span>
               </p>
             )}
             {displayLocation && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
-                <MapPin size={13} /> {displayLocation}
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', margin: 0, flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+                <MapPin size={13} /> <span>{displayLocation}</span>
               </p>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
             {!editing ? (
               <>
                 <button onClick={() => setEditing(true)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
-                  <Edit3 size={15} /> Modifier
+                  <Edit3 size={15} /> {t('validateBtn') === 'Valider' ? 'Modifier' : (locale === 'ar' ? 'تعديل' : 'Edit')}
                 </button>
                 <button onClick={onNavigateToDashboard} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
-                  Tableau de bord
+                  {t('backToDash')}
                 </button>
               </>
             ) : (
               <>
                 <button onClick={() => setEditing(false)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
-                  <X size={15} /> Annuler
+                  <X size={15} /> {locale === 'fr' ? 'Annuler' : (locale === 'ar' ? 'إلغاء' : 'Cancel')}
                 </button>
                 <button onClick={handleSave} disabled={saving} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
                   {saving ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Save size={15} />}
-                  Enregistrer
+                  {t('saveBtn')}
                 </button>
               </>
             )}
@@ -498,23 +507,57 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '24px', flexWrap: 'wrap' }}>
-        <div className="glass-panel">
-          <h3 style={{ fontSize: '0.8rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <User size={14} /> Informations personnelles
+      <div style={{ display: 'grid', gridTemplateColumns: dir === 'rtl' ? '320px 1fr' : '1fr 320px', gap: '24px', flexWrap: 'wrap' }}>
+        
+        {dir === 'rtl' && (
+          /* Stats Card on left for Arabic */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="glass-panel" style={{ textAlign: 'start' }}>
+              <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+                <BarChart2 size={14} /> <span>{locale === 'ar' ? 'الإحصائيات' : 'Statistics'}</span>
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {profile?.role === 'buyer' ? (
+                  <StatItem value={profile?.stats?.auctionsCount ?? 0} label={locale === 'ar' ? 'المناقصات المنشأة' : 'Auctions created'} color="var(--secondary)" dir={dir} />
+                ) : (
+                  <StatItem value={profile?.stats?.bidsCount ?? 0} label={locale === 'ar' ? 'العروض المقدمة' : 'Bids submitted'} color="var(--accent)" dir={dir} />
+                )}
+                <StatItem
+                  value={memberDateStr}
+                  label={locale === 'ar' ? 'عضو منذ' : 'Member since'}
+                  color="var(--primary)"
+                  isText
+                  dir={dir}
+                />
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ textAlign: 'center' }}>
+              <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(16,185,129,0.1)', marginBottom: '12px' }}>
+                <CheckCircle size={24} style={{ color: 'var(--primary)' }} />
+              </div>
+              <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)', margin: '0 0 4px' }}>{locale === 'ar' ? 'حساب مؤكد' : 'Account Verified'}</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{locale === 'ar' ? 'تم تأكيد البريد الإلكتروني' : 'Email address confirmed'}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="glass-panel" style={{ textAlign: 'start' }}>
+          <h3 style={{ fontSize: '0.8rem', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+            <User size={14} /> <span>{t('personalInfo')}</span>
           </h3>
 
           {!editing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {[
-                { icon: <User size={16} />, label: 'Nom', value: profile?.name },
-                { icon: <Mail size={16} />, label: 'E-mail', value: profile?.email },
-                { icon: <Phone size={16} />, label: 'Téléphone', value: displayPhone || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
-                { icon: <MapPin size={16} />, label: 'Wilaya', value: profile?.wilaya || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseignée</span> },
-                { icon: <MapPin size={16} />, label: 'Commune', value: profile?.commune || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseignée</span> },
-                { icon: <FileText size={16} />, label: 'Bio', value: profile?.bio || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Aucune description</span> },
+                { icon: <User size={16} />, label: t('fullNameLabel'), value: profile?.name },
+                { icon: <Mail size={16} />, label: t('emailLabel'), value: profile?.email },
+                { icon: <Phone size={16} />, label: t('phoneLabel'), value: displayPhone || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('phoneNotProvided')}</span> },
+                { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: profile?.wilaya || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
+                { icon: <MapPin size={16} />, label: t('communeLabel'), value: profile?.commune || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
+                { icon: <FileText size={16} />, label: t('bioLabel'), value: profile?.bio || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('bioPlaceholder')}</span> },
               ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                   <div style={{ color: 'var(--text-muted)', marginTop: '2px', flexShrink: 0 }}>{item.icon}</div>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>{item.label}</div>
@@ -527,27 +570,39 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Name */}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label htmlFor="edit-name">Nom complet / Dénomination</label>
+                <label htmlFor="edit-name">{t('fullNameLabel')}</label>
                 <div style={{ position: 'relative' }}>
                   <input
-                    id="edit-name" type="text" placeholder="Votre nom ou organisation"
+                    id="edit-name" type="text" placeholder={t('fullNamePlaceholder')}
                     value={form.name || ''}
                     onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                    style={{ width: '100%', paddingLeft: '40px' }}
+                    style={{
+                      width: '100%',
+                      paddingLeft: dir === 'ltr' ? '40px' : '16px',
+                      paddingRight: dir === 'rtl' ? '40px' : '16px',
+                      textAlign: 'start'
+                    }}
                   />
-                  <User size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <User size={15} style={{
+                    position: 'absolute',
+                    left: dir === 'ltr' ? '12px' : 'auto',
+                    right: dir === 'rtl' ? '12px' : 'auto',
+                    top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)'
+                  }} />
                 </div>
               </div>
 
-              {/* Phone with +213 prefix */}
+              {/* Phone */}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label htmlFor="edit-phone">Téléphone</label>
-                <div style={{ display: 'flex' }}>
+                <label htmlFor="edit-phone">{t('phoneLabel')}</label>
+                <div style={{ display: 'flex', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '8px',
                     padding: '0 12px', background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid var(--border)', borderRight: 'none',
-                    borderRadius: '8px 0 0 8px', whiteSpace: 'nowrap',
+                    border: '1px solid var(--border)',
+                    borderRight: dir === 'ltr' ? 'none' : '1px solid var(--border)',
+                    borderLeft: dir === 'rtl' ? 'none' : '1px solid var(--border)',
+                    borderRadius: dir === 'ltr' ? '8px 0 0 8px' : '0 8px 8px 0', whiteSpace: 'nowrap',
                     color: 'var(--text-muted)', fontSize: '0.88rem', minWidth: '80px',
                   }}>
                     <svg width="20" height="14" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '2px', flexShrink: 0 }}>
@@ -566,60 +621,63 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
                     onChange={handlePhoneChange}
                     style={{
                       flex: 1, background: 'var(--bg-input)',
-                      border: '1px solid var(--border)', borderLeft: 'none',
-                      borderRadius: '0 8px 8px 0', padding: '11px 14px',
+                      border: '1px solid var(--border)',
+                      borderLeft: dir === 'ltr' ? 'none' : '1px solid var(--border)',
+                      borderRight: dir === 'rtl' ? 'none' : '1px solid var(--border)',
+                      borderRadius: dir === 'ltr' ? '0 8px 8px 0' : '8px 0 0 8px', padding: '11px 14px',
                       color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none',
+                      textAlign: 'start',
                     }}
                   />
                 </div>
               </div>
 
-              {/* Wilaya Searchable Dropdown */}
+              {/* Wilaya dropdown */}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Wilaya</label>
+                <label>{t('wilayaLabel')}</label>
                 <SearchableSelect
                   options={wilayaOptions}
                   value={form.wilaya_id}
                   onChange={handleWilayaChange}
-                  placeholder="Sélectionner une wilaya..."
+                  placeholder={t('selectPlaceholder')}
                 />
                 {profile?.wilaya && !form.wilaya_id && (
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Actuellement : <strong>{profile.wilaya}</strong>
+                    {locale === 'fr' ? 'Actuellement' : (locale === 'ar' ? 'حالياً' : 'Currently')} : <strong>{profile.wilaya}</strong>
                   </p>
                 )}
               </div>
 
-              {/* Commune Searchable Dropdown */}
+              {/* Commune dropdown */}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label>Commune</label>
+                <label>{t('communeLabel')}</label>
                 <SearchableSelect
                   options={communeOptions}
                   value={form.commune_id}
                   onChange={handleCommuneChange}
-                  placeholder={form.wilaya_id ? "Sélectionner une commune..." : "Sélectionnez d'abord une wilaya..."}
+                  placeholder={form.wilaya_id ? t('selectPlaceholder') : t('wilayaFirst')}
                   disabled={communes.length === 0}
                 />
                 {profile?.commune && !form.commune_id && (
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Actuellement : <strong>{profile.commune}</strong>
+                    {locale === 'fr' ? 'Actuellement' : (locale === 'ar' ? 'حالياً' : 'Currently')} : <strong>{profile.commune}</strong>
                   </p>
                 )}
               </div>
 
               {/* Bio */}
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label htmlFor="edit-bio">Bio / Description</label>
+                <label htmlFor="edit-bio">{t('bioLabel')}</label>
                 <textarea
                   id="edit-bio"
-                  placeholder="Décrivez votre activité, vos spécialités, vos produits…"
+                  placeholder={t('bioPlaceholder')}
                   value={form.bio || ''}
                   onChange={e => setForm(prev => ({ ...prev, bio: e.target.value }))}
                   rows={4}
                   maxLength={500}
-                  style={{ width: '100%', resize: 'vertical' }}
+                  style={{ width: '100%', resize: 'vertical', textAlign: 'start' }}
                 />
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'right', display: 'block' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: dir === 'rtl' ? 'left' : 'right', display: 'block' }}>
                   {(form.bio || '').length}/500
                 </span>
               </div>
@@ -627,43 +685,51 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
           )}
         </div>
 
-        {/* Stats Card */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="glass-panel">
-            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <BarChart2 size={14} /> Statistiques
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {profile?.role === 'buyer' ? (
-                <StatItem value={profile?.stats?.auctionsCount ?? 0} label="Enchères créées" color="var(--secondary)" />
-              ) : (
-                <StatItem value={profile?.stats?.bidsCount ?? 0} label="Offres soumises" color="var(--accent)" />
-              )}
-              <StatItem
-                value={profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('fr-DZ', { month: 'long', year: 'numeric' }) : '—'}
-                label="Membre depuis"
-                color="var(--primary)"
-                isText
-              />
+        {dir === 'ltr' && (
+          /* Stats Card on right for LTR (FR/EN) */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="glass-panel" style={{ textAlign: 'start' }}>
+              <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BarChart2 size={14} /> Statistiques
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {profile?.role === 'buyer' ? (
+                  <StatItem value={profile?.stats?.auctionsCount ?? 0} label="Enchères créées" color="var(--secondary)" dir={dir} />
+                ) : (
+                  <StatItem value={profile?.stats?.bidsCount ?? 0} label="Offres soumises" color="var(--accent)" dir={dir} />
+                )}
+                <StatItem
+                  value={memberDateStr}
+                  label="Membre depuis"
+                  color="var(--primary)"
+                  isText
+                  dir={dir}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="glass-panel" style={{ textAlign: 'center' }}>
-            <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(16,185,129,0.1)', marginBottom: '12px' }}>
-              <CheckCircle size={24} style={{ color: 'var(--primary)' }} />
+            <div className="glass-panel" style={{ textAlign: 'center' }}>
+              <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(16,185,129,0.1)', marginBottom: '12px' }}>
+                <CheckCircle size={24} style={{ color: 'var(--primary)' }} />
+              </div>
+              <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)', margin: '0 0 4px' }}>Compte vérifié</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Adresse e-mail confirmée</p>
             </div>
-            <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)', margin: '0 0 4px' }}>Compte vérifié</p>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Adresse e-mail confirmée</p>
           </div>
-        </div>
+        )}
+
       </div>
     </div>
   );
 }
 
-function StatItem({ value, label, color, isText }) {
+function StatItem({ value, label, color, isText, dir }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '12px 0', borderBottom: '1px solid var(--border)',
+      flexDirection: dir === 'rtl' ? 'row-reverse' : 'row'
+    }}>
       <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{label}</span>
       <span style={{ fontWeight: '800', color, fontSize: isText ? '0.85rem' : '1.25rem' }}>{value}</span>
     </div>

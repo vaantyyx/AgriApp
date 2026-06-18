@@ -1,114 +1,258 @@
 import React from 'react';
-import { Sprout, Tractor, ShoppingBag, Zap, ShieldCheck, Image, ArrowRight } from 'lucide-react';
+import {
+  Leaf, Tractor, ShoppingBag, Zap, ShieldCheck, ImageIcon,
+  ArrowRight, TrendingUp, Users, Clock, CheckCircle2
+} from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
-export default function LandingPage({ onNavigateToLogin }) {
+export default function LandingPage({ onNavigateToLogin, onNavigateToRegister }) {
+  const { t, dir } = useTranslation();
+
+  const features = [
+    {
+      icon: <ShoppingBag size={22} />,
+      titleKey: 'stepBuyerTitle',
+      descKey: 'stepBuyerDesc',
+    },
+    {
+      icon: <Tractor size={22} />,
+      titleKey: 'stepProducerTitle',
+      descKey: 'stepProducerDesc',
+    },
+    {
+      icon: <Zap size={22} />,
+      titleKey: 'stepSocketTitle',
+      descKey: 'stepSocketDesc',
+    },
+    {
+      icon: <ImageIcon size={22} />,
+      titleKey: 'stepGalleryTitle',
+      descKey: 'stepGalleryDesc',
+    },
+  ];
+
+  const trust = [
+    { icon: <ShieldCheck size={18} />, key: 'trustSafe' },
+    { icon: <Clock size={18} />, key: 'trustRealtime' },
+    { icon: <Users size={18} />, key: 'trustCommunity' },
+    { icon: <TrendingUp size={18} />, key: 'trustGrowth' },
+  ];
+
   return (
-    <div className="animate-fade-in">
-      {/* Hero Section */}
+    <div className="animate-fade-in" dir={dir}>
+
+      {/* ── HERO ── */}
       <section className="hero-section">
-        <h1 className="hero-title">
-          Le Premier Marché d'Enchères Inversées Agricoles en Algérie
-        </h1>
-        <p className="hero-subtitle">
-          Acheteurs, exprimez vos besoins en gros. Producteurs, proposez vos prix et remportez des contrats en temps réel. Simple, direct et transparent.
-        </p>
-        <div className="hero-cta">
-          <button onClick={onNavigateToLogin} className="btn btn-primary" style={{ padding: '14px 28px', fontSize: '1rem' }}>
-            Rejoindre la Plateforme
-            <ArrowRight size={18} />
+        <div className="hero-inner">
+          <div className="hero-eyebrow">
+            <Leaf size={13} />
+            {t('heroBadge')}
+          </div>
+
+          <h1 className="hero-title">
+            {t('heroTitlePart1')}{' '}
+            <em>{t('heroTitleAccent')}</em>
+            {t('heroTitlePart2') ? <><br />{t('heroTitlePart2')}</> : null}
+          </h1>
+
+          <p className="hero-subtitle">{t('heroSubtitle')}</p>
+
+          <div className="hero-cta">
+            <button
+              id="hero-cta-primary"
+              className="btn-hero-primary"
+              onClick={onNavigateToRegister || onNavigateToLogin}
+            >
+              {t('joinPlatform')}
+              <ArrowRight size={17} style={{ transform: dir === 'rtl' ? 'rotate(180deg)' : 'none' }} />
+            </button>
+            <button
+              id="hero-cta-login"
+              className="btn-hero-secondary"
+              onClick={onNavigateToLogin}
+            >
+              {t('accessLogin')}
+            </button>
+          </div>
+
+          {/* Trust badges */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '20px',
+            marginTop: '40px',
+          }}>
+            {trust.map((item) => (
+              <div key={item.key} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: 'rgba(255,255,255,0.75)',
+                fontSize: '0.82rem',
+                fontWeight: 500,
+              }}>
+                {item.icon}
+                {t(item.key)}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── STATS BAND ── */}
+      <div className="stats-band">
+        <div className="stats-band-inner">
+          <div className="stat-item">
+            <div className="stat-number">{t('statProducts')}</div>
+            <div className="stat-label">{t('statProductsLabel')}</div>
+          </div>
+          <div className="stat-divider" />
+          <div className="stat-item">
+            <div className="stat-number">{t('statCommission')}</div>
+            <div className="stat-label">{t('statCommissionLabel')}</div>
+          </div>
+          <div className="stat-divider" />
+          <div className="stat-item">
+            <div className="stat-number">{t('statDirect')}</div>
+            <div className="stat-label">{t('statDirectLabel')}</div>
+          </div>
+          <div className="stat-divider" />
+          <div className="stat-item">
+            <div className="stat-number">{t('statCountries') || '10+'}</div>
+            <div className="stat-label">{t('statCountriesLabel') || t('statDirectLabel')}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── HOW IT WORKS ── */}
+      <section className="how-section">
+        <div style={{ textAlign: 'center', marginBottom: '0' }}>
+          <span className="section-label">{t('howItWorksTag')}</span>
+          <h2 className="section-title">{t('howItWorks')}</h2>
+          <p className="section-sub">{t('howItWorksSub')}</p>
+        </div>
+
+        <div className="features-grid" style={{ maxWidth: 1240, padding: '0 24px' }}>
+          {features.map((f, i) => (
+            <div key={i} className="feature-card">
+              <div className="feature-icon-box">{f.icon}</div>
+              <h3>{t(f.titleKey)}</h3>
+              <p>{t(f.descKey)}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── HOW TO JOIN (2 columns) ── */}
+      <section style={{
+        background: 'var(--bg-white)',
+        padding: '72px 24px',
+        borderTop: '1px solid var(--border)',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <div style={{ maxWidth: 1080, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <span className="section-label">{t('getStartedTag')}</span>
+            <h2 className="section-title">{t('getStartedTitle')}</h2>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '24px',
+          }}>
+            {/* Buyer card */}
+            <div style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '32px',
+              borderTop: '4px solid var(--primary)',
+            }}>
+              <div style={{
+                width: 52, height: 52,
+                borderRadius: 14,
+                background: 'var(--primary-soft)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--primary)',
+                marginBottom: 20,
+              }}>
+                <ShoppingBag size={24} />
+              </div>
+              <h3 style={{ fontSize: '1.2rem', marginBottom: 12 }}>{t('buyerRoleTitle')}</h3>
+              {[t('buyerBenefit1'), t('buyerBenefit2'), t('buyerBenefit3')].filter(Boolean).map((b, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                  <CheckCircle2 size={15} style={{ color: 'var(--primary)', marginTop: 2, flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{b}</span>
+                </div>
+              ))}
+              <button
+                id="join-as-buyer"
+                className="btn btn-primary w-full mt-4"
+                style={{ marginTop: 20 }}
+                onClick={onNavigateToRegister || onNavigateToLogin}
+              >
+                {t('joinAsBuyer')}
+              </button>
+            </div>
+
+            {/* Producer card */}
+            <div style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '32px',
+              borderTop: '4px solid var(--accent)',
+            }}>
+              <div style={{
+                width: 52, height: 52,
+                borderRadius: 14,
+                background: 'var(--accent-soft)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--accent)',
+                marginBottom: 20,
+              }}>
+                <Tractor size={24} />
+              </div>
+              <h3 style={{ fontSize: '1.2rem', marginBottom: 12 }}>{t('producerRoleTitle')}</h3>
+              {[t('producerBenefit1'), t('producerBenefit2'), t('producerBenefit3')].filter(Boolean).map((b, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                  <CheckCircle2 size={15} style={{ color: 'var(--accent)', marginTop: 2, flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{b}</span>
+                </div>
+              ))}
+              <button
+                id="join-as-producer"
+                className="btn btn-accent w-full"
+                style={{ marginTop: 20 }}
+                onClick={onNavigateToRegister || onNavigateToLogin}
+              >
+                {t('joinAsProducer')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FINAL CTA ── */}
+      <section className="cta-section">
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <Leaf size={40} style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }} />
+          <h2>{t('readyToModernize')}</h2>
+          <p>{t('readyToModernizeSub')}</p>
+          <button
+            id="cta-final"
+            className="btn-hero-primary"
+            onClick={onNavigateToRegister || onNavigateToLogin}
+            style={{ margin: '0 auto' }}
+          >
+            {t('joinPlatform')}
+            <ArrowRight size={17} style={{ transform: dir === 'rtl' ? 'rotate(180deg)' : 'none' }} />
           </button>
         </div>
       </section>
 
-      {/* Stats Bar */}
-      <div className="stats-bar glass-panel">
-        <div className="stat-item">
-          <div className="stat-number">50k+ Tonnes</div>
-          <div className="stat-label">Produits échangés</div>
-        </div>
-        <div className="stat-item" style={{ borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)', padding: '0 40px' }}>
-          <div className="stat-number">DA 0</div>
-          <div className="stat-label">Frais de commission</div>
-        </div>
-        <div className="stat-item">
-          <div className="stat-number">100% Direct</div>
-          <div className="stat-label">Producteur à Acheteur</div>
-        </div>
-      </div>
-
-      {/* Features Grid */}
-      <section style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Comment ça fonctionne ?</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Découvrez les avantages de la négociation directe en temps réel</p>
-        </div>
-
-        <div className="features-grid">
-          {/* Card 1: Buyers */}
-          <div className="glass-panel feature-card">
-            <div className="feature-icon-box">
-              <ShoppingBag size={24} />
-            </div>
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>Acheteurs : Publiez vos besoins</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              Exprimez vos demandes d'achats en gros. Indiquez la quantité, le prix cible maximum et joignez des photos de référence pour guider les producteurs.
-            </p>
-          </div>
-
-          {/* Card 2: Producers */}
-          <div className="glass-panel feature-card">
-            <div className="feature-icon-box">
-              <Tractor size={24} />
-            </div>
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>Producteurs : Proposez vos prix</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              Parcourez les offres actives des acheteurs de toutes les Wilayas. Faites vos offres de prix en Dinars Algériens (DA) et ajustez vos tarifs selon la concurrence.
-            </p>
-          </div>
-
-          {/* Card 3: Real-time */}
-          <div className="glass-panel feature-card">
-            <div className="feature-icon-box">
-              <Zap size={24} />
-            </div>
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>En Temps Réel (Sockets)</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              Grâce aux technologies WebSocket, les offres et validations s'affichent instantanément sans rafraîchir la page, vous offrant une réactivité maximale.
-            </p>
-          </div>
-
-          {/* Card 4: Photos */}
-          <div className="glass-panel feature-card">
-            <div className="feature-icon-box">
-              <Image size={24} />
-            </div>
-            <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>Galerie Photo Transparente</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              Les acheteurs peuvent ajouter plusieurs clichés de la qualité attendue. Les producteurs visualisent instantanément les photos pour chiffrer l'offre au plus juste.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Final Call to Action */}
-      <section style={{ 
-        maxWidth: '800px', 
-        margin: '60px auto 100px auto', 
-        padding: '40px', 
-        textAlign: 'center',
-        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(59, 130, 246, 0.05))',
-        border: '1px solid var(--border)',
-        borderRadius: '16px'
-      }}>
-        <Sprout size={40} style={{ color: 'var(--primary)', marginBottom: '16px' }} />
-        <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>Prêt à moderniser vos transactions ?</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1rem' }}>
-          Connectez-vous pour tester le système d'enchères inversées instantané.
-        </p>
-        <button onClick={onNavigateToLogin} className="btn btn-primary" style={{ padding: '12px 24px' }}>
-          Accéder à la connexion
-        </button>
-      </section>
     </div>
   );
 }

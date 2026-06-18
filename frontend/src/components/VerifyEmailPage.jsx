@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, XCircle, Loader, Sprout } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader, Leaf } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 const BACKEND_URL = 'http://127.0.0.1:3001';
 
 export default function VerifyEmailPage({ onNavigateToLogin }) {
+  const { t, dir } = useTranslation();
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
   const [message, setMessage] = useState('');
 
@@ -13,7 +15,7 @@ export default function VerifyEmailPage({ onNavigateToLogin }) {
 
     if (!token) {
       setStatus('error');
-      setMessage('Lien de vérification invalide ou incomplet.');
+      setMessage(t('verifErrorTitle'));
       return;
     }
 
@@ -25,61 +27,99 @@ export default function VerifyEmailPage({ onNavigateToLogin }) {
           setMessage(data.error);
         } else {
           setStatus('success');
-          setMessage(data.message || 'Email confirmé avec succès !');
+          setMessage(data.message || t('verifSuccessSub'));
         }
       })
       .catch(() => {
         setStatus('error');
-        setMessage('Impossible de se connecter au serveur.');
+        setMessage(t('serverError'));
       });
-  }, []);
+  }, [t]);
 
   return (
-    <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
-      <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '460px', textAlign: 'center' }}>
+    <div className="verify-page animate-fade-in" dir={dir}>
+      <div className="verify-card">
+
         {/* Logo */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-          <div style={{ padding: '12px', borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)' }}>
-            <Sprout size={28} />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          <div style={{
+            width: 52, height: 52,
+            background: 'linear-gradient(135deg, var(--primary), var(--primary-light))',
+            borderRadius: 14,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Leaf size={26} color="white" />
           </div>
+        </div>
+
+        <div style={{
+          fontFamily: 'var(--font-heading)',
+          fontSize: '1.25rem',
+          fontWeight: 800,
+          color: 'var(--primary)',
+          marginBottom: 28,
+        }}>
+          {t('appName')}
         </div>
 
         {status === 'loading' && (
           <>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-              <Loader size={48} style={{ color: 'var(--primary)', animation: 'spin 1s linear infinite' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+              <Loader size={44} style={{ color: 'var(--primary)', animation: 'spin 1s linear infinite' }} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Vérification en cours…</h2>
-            <p style={{ color: 'var(--text-muted)' }}>Validation de votre adresse email, veuillez patienter.</p>
+            <h2 style={{ fontSize: '1.4rem', marginBottom: 10 }}>{t('verifLoading')}</h2>
+            <p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>{t('verifLoadingSub')}</p>
           </>
         )}
 
         {status === 'success' && (
           <>
-            <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', marginBottom: '20px' }}>
-              <CheckCircle size={48} style={{ color: 'var(--primary)' }} />
+            <div style={{
+              display: 'inline-flex',
+              padding: 16,
+              borderRadius: '50%',
+              background: 'var(--success-soft)',
+              marginBottom: 20,
+            }}>
+              <CheckCircle2 size={44} style={{ color: 'var(--success)' }} />
             </div>
-            <h2 style={{ fontSize: '1.6rem', marginBottom: '12px' }}>Email confirmé ! 🎉</h2>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.7', marginBottom: '32px' }}>
-              {message}<br />Votre compte est maintenant actif. Vous pouvez vous connecter.
+            <h2 style={{ fontSize: '1.5rem', marginBottom: 10 }}>{t('verifSuccessTitle')}</h2>
+            <p style={{ color: 'var(--text-muted)', lineHeight: 1.65, marginBottom: 28 }}>
+              {message}
             </p>
-            <button onClick={onNavigateToLogin} className="btn btn-primary" style={{ width: '100%', padding: '14px', fontSize: '1rem' }}>
-              Se connecter maintenant
+            <button
+              id="verify-login-btn"
+              onClick={onNavigateToLogin}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '12px' }}
+            >
+              {t('verifSuccessBtn')}
             </button>
           </>
         )}
 
         {status === 'error' && (
           <>
-            <div style={{ display: 'inline-flex', padding: '16px', borderRadius: '50%', background: 'rgba(239,68,68,0.15)', marginBottom: '20px' }}>
-              <XCircle size={48} style={{ color: 'var(--danger)' }} />
+            <div style={{
+              display: 'inline-flex',
+              padding: 16,
+              borderRadius: '50%',
+              background: 'var(--danger-soft)',
+              marginBottom: 20,
+            }}>
+              <XCircle size={44} style={{ color: 'var(--danger)' }} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Échec de la vérification</h2>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.7', marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '1.4rem', marginBottom: 10 }}>{t('verifErrorTitle')}</h2>
+            <p style={{ color: 'var(--text-muted)', lineHeight: 1.65, marginBottom: 28 }}>
               {message}
             </p>
-            <button onClick={onNavigateToLogin} className="btn btn-secondary" style={{ width: '100%', padding: '12px' }}>
-              Retour à la connexion
+            <button
+              id="verify-back-btn"
+              onClick={onNavigateToLogin}
+              className="btn btn-secondary"
+              style={{ width: '100%', padding: '12px' }}
+            >
+              {t('verifErrorBtn')}
             </button>
           </>
         )}

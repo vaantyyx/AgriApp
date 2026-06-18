@@ -41,7 +41,7 @@ export async function sendVerificationEmail(to, name, token) {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Confirmez votre email — AgriEnchères</title>
+      <title>Confirmez votre email — Sougra</title>
     </head>
     <body style="margin:0;padding:0;background:#0b0f12;font-family:'Segoe UI',Arial,sans-serif;">
       <div style="max-width:560px;margin:40px auto;background:rgba(18,26,32,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;">
@@ -49,7 +49,7 @@ export async function sendVerificationEmail(to, name, token) {
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#10b981,#059669);padding:32px;text-align:center;">
           <div style="font-size:32px;margin-bottom:8px;">🌿</div>
-          <h1 style="color:#fff;margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;">AgriEnchères</h1>
+          <h1 style="color:#fff;margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;">Sougra</h1>
           <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:0.9rem;">Plateforme d'Enchères Agricoles</p>
         </div>
 
@@ -57,7 +57,7 @@ export async function sendVerificationEmail(to, name, token) {
         <div style="padding:40px 32px;">
           <h2 style="color:#f3f4f6;font-size:1.4rem;margin:0 0 12px;font-weight:700;">Bonjour, ${name} 👋</h2>
           <p style="color:#9ca3af;line-height:1.7;margin:0 0 28px;font-size:0.95rem;">
-            Merci de vous être inscrit sur <strong style="color:#f3f4f6;">AgriEnchères</strong>. 
+            Merci de vous être inscrit sur <strong style="color:#f3f4f6;">Sougra</strong>. 
             Confirmez votre adresse email pour activer votre compte et accéder à la plateforme.
           </p>
 
@@ -83,7 +83,7 @@ export async function sendVerificationEmail(to, name, token) {
         <!-- Footer -->
         <div style="background:rgba(0,0,0,0.2);padding:20px 32px;text-align:center;">
           <p style="color:#4b5563;font-size:0.75rem;margin:0;">
-            © ${new Date().getFullYear()} AgriEnchères — Plateforme d'Enchères Inversées Agricoles en Algérie
+            © ${new Date().getFullYear()} Sougra — Plateforme d'Enchères Inversées Agricoles en Algérie
           </p>
         </div>
       </div>
@@ -93,9 +93,9 @@ export async function sendVerificationEmail(to, name, token) {
 
   try {
     await transporter.sendMail({
-      from: `"AgriEnchères" <${process.env.EMAIL_USER}>`,
+      from: `"Sougra" <${process.env.EMAIL_USER}>`,
       to,
-      subject: '✅ Confirmez votre adresse email — AgriEnchères',
+      subject: '✅ Confirmez votre adresse email — Sougra',
       html,
     });
   } catch (err) {
@@ -115,14 +115,14 @@ export async function sendWelcomeEmail(to, name, role) {
 
   try {
     await transporter.sendMail({
-      from: `"AgriEnchères" <${process.env.EMAIL_USER}>`,
+      from: `"Sougra" <${process.env.EMAIL_USER}>`,
       to,
-      subject: '🌿 Bienvenue sur AgriEnchères !',
+      subject: '🌿 Bienvenue sur Sougra !',
       html: `
         <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;font-family:Arial,sans-serif;color:#f3f4f6;">
           <h1 style="color:#10b981;">🎉 Bienvenue, ${name} !</h1>
           <p style="color:#9ca3af;">Votre compte <strong>${roleLabel}</strong> est maintenant actif.</p>
-          <p style="color:#9ca3af;">Connectez-vous pour commencer à utiliser AgriEnchères.</p>
+          <p style="color:#9ca3af;">Connectez-vous pour commencer à utiliser Sougra.</p>
           <a href="${process.env.APP_URL || 'http://localhost:5173'}" 
              style="display:inline-block;background:#10b981;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:20px;">
             Accéder à la plateforme

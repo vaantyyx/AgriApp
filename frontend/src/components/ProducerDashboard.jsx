@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Send, Tag, MessageSquare, Check, User, Tractor, Inbox, Trophy, X } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFlashIds }) {
+  const { t, dir, locale } = useTranslation();
   const [inputs, setInputs] = useState({});
   const [activeZoomImage, setActiveZoomImage] = useState(null);
 
@@ -19,7 +21,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
     e.preventDefault();
     const auctionInput = inputs[auctionId];
     if (!auctionInput || !auctionInput.price || parseFloat(auctionInput.price) <= 0) {
-      alert('Veuillez entrer un prix valide.');
+      alert(t('enterValidPrice'));
       return;
     }
 
@@ -48,15 +50,15 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
   ).length;
 
   return (
-    <div className="dashboard-grid has-sidebar">
+    <div className="dashboard-grid has-sidebar" style={{ direction: dir }}>
       {/* Sidebar: Producer Stats & Info */}
-      <div className="glass-panel animate-fade-in" style={{ height: 'fit-content' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+      <div className="glass-panel animate-fade-in" style={{ height: 'fit-content', textAlign: 'start' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
           <div style={{ padding: '10px', borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)' }}>
             <Tractor size={24} />
           </div>
           <div>
-            <h3 style={{ fontSize: '1.25rem' }}>Espace Producteur</h3>
+            <h3 style={{ fontSize: '1.25rem' }}>{t('producerSpace')}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{user.name}</p>
           </div>
         </div>
@@ -64,7 +66,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
-              Enchères actives avec vos offres
+              {t('activeBidsProducer')}
             </div>
             <div style={{ fontSize: '2rem', fontWeight: '800', marginTop: '4px', color: 'var(--secondary)' }}>
               {activeBidsCount}
@@ -73,10 +75,10 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px' }}>
             <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
-              Enchères remportées
+              {t('wonAuctions')}
             </div>
-            <div style={{ fontSize: '2rem', fontWeight: '800', marginTop: '4px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {wonAuctionsCount}
+            <div style={{ fontSize: '2rem', fontWeight: '800', marginTop: '4px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row', justifyContent: 'flex-start' }}>
+              <span>{wonAuctionsCount}</span>
               {wonAuctionsCount > 0 && <Trophy size={24} style={{ color: 'var(--accent)' }} />}
             </div>
           </div>
@@ -84,15 +86,15 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
       </div>
 
       {/* Main Content: List of active buyer auctions */}
-      <div>
-        <h2 style={{ fontSize: '1.75rem', marginBottom: '24px' }}>Demandes Publiques Disponibles</h2>
+      <div style={{ textAlign: 'start' }}>
+        <h2 style={{ fontSize: '1.75rem', marginBottom: '24px' }}>{t('availablePublicDemands')}</h2>
 
         {auctions.length === 0 ? (
           <div className="glass-panel empty-state">
             <Inbox className="empty-icon" size={48} />
             <div>
-              <h4 style={{ fontSize: '1.25rem', marginBottom: '6px', color: 'var(--text-main)' }}>Aucune enchère en cours</h4>
-              <p>Dès qu'un acheteur publiera un besoin, il apparaîtra ici en temps réel pour que vous puissiez faire une offre.</p>
+              <h4 style={{ fontSize: '1.25rem', marginBottom: '6px', color: 'var(--text-main)' }}>{t('noAuctionInCurrent')}</h4>
+              <p>{t('noAuctionInCurrentSub')}</p>
             </div>
           </div>
         ) : (
@@ -112,36 +114,50 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
               return (
                 <div key={auction.id} className="auction-card animate-fade-in" style={{
-                  borderLeft: isWinner ? '4px solid var(--primary)' : (myBidOnThis ? '4px solid var(--secondary)' : '1px solid var(--border)')
+                  borderLeft: dir === 'ltr' ? (isWinner ? '4px solid var(--primary)' : (myBidOnThis ? '4px solid var(--secondary)' : '1px solid var(--border)')) : '1px solid var(--border)',
+                  borderRight: dir === 'rtl' ? (isWinner ? '4px solid var(--primary)' : (myBidOnThis ? '4px solid var(--secondary)' : '1px solid var(--border)')) : '1px solid var(--border)',
+                  textAlign: 'start'
                 }}>
-                  <div className="auction-header">
+                  <div className="auction-header" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                     <div>
                       <h3 className="auction-title">
-                        {auction.product} - {auction.quantity} {auction.unit}
+                        {auction.product} - {auction.quantity} {t('unit_' + auction.unit)}
                       </h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <User size={14} /> Acheteur: <strong style={{ color: 'var(--text-main)' }}>{auction.buyerName}</strong> 
-                        &bull; Publié à {new Date(auction.createdAt).toLocaleTimeString()}
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+                        <User size={14} /> 
+                        <span>
+                          {t('buyerLabelText', { name: auction.buyerName })}
+                          {' '}&bull;{' '}
+                          {t('publishedAt', { time: new Date(auction.createdAt).toLocaleTimeString() })}
+                        </span>
                       </p>
                     </div>
                     <div>
                       <span className={`badge ${isClosed ? 'badge-closed' : 'badge-open'}`}>
-                        {isClosed ? 'Validée' : 'En cours'}
+                        {isClosed ? t('statusClosed') : t('statusOpen')}
                       </span>
                     </div>
                   </div>
 
                   {auction.description && (
-                    <p style={{ background: 'rgba(255,255,255,0.01)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', marginBottom: '16px', borderLeft: '3px solid rgba(255,255,255,0.1)' }}>
-                      <strong>Spécifications :</strong> {auction.description}
+                    <p style={{
+                      background: 'rgba(255,255,255,0.01)',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      marginBottom: '16px',
+                      borderLeft: dir === 'ltr' ? '3px solid rgba(255,255,255,0.1)' : 'none',
+                      borderRight: dir === 'rtl' ? '3px solid rgba(255,255,255,0.1)' : 'none',
+                    }}>
+                      <strong>{locale === 'fr' ? 'Spécifications :' : (locale === 'ar' ? 'المواصفات :' : 'Specifications:')}</strong> {auction.description}
                     </p>
                   )}
 
                   {/* Photo gallery display for producer */}
                   {auction.images && auction.images.length > 0 && (
                     <div style={{ marginBottom: '16px' }}>
-                      <label style={{ fontSize: '0.75rem', display: 'block', marginBottom: '6px' }}>Photos jointes :</label>
-                      <div className="auction-gallery">
+                      <label style={{ fontSize: '0.75rem', display: 'block', marginBottom: '6px' }}>{t('photosAttached')}</label>
+                      <div className="auction-gallery" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                         {auction.images.map((img, idx) => (
                           <div 
                             key={idx} 
@@ -155,15 +171,15 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                     </div>
                   )}
 
-                  <div className="auction-details">
+                  <div className="auction-details" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                     {auction.targetPrice && (
-                      <div className="detail-item">
+                      <div className="detail-item" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                         <Tag size={16} />
-                        <span>Budget Cible : <span className="detail-highlight">{auction.targetPrice} DA/{auction.unit}</span></span>
+                        <span>{t('targetBudget', { price: auction.targetPrice, unit: t('unit_' + auction.unit) })}</span>
                       </div>
                     )}
                     <div className="detail-item">
-                      <span>Total Offres : <span className="detail-highlight">{auction.bids.length}</span></span>
+                      <span>{locale === 'fr' ? 'Total Offres :' : (locale === 'ar' ? 'إجمالي العروض :' : 'Total Bids:')} <span className="detail-highlight">{auction.bids.length}</span></span>
                     </div>
                   </div>
 
@@ -177,35 +193,37 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                       marginBottom: '16px',
                       marginTop: '16px'
                     }}>
-                      <h4 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '10px', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                        Faire une offre
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '10px', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.03em', textAlign: 'start' }}>
+                        {t('makeOfferTitle')}
                       </h4>
                       <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr auto', gap: '12px', alignItems: 'end' }}>
                         <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label style={{ fontSize: '0.75rem' }}>Prix (DA / {auction.unit}) *</label>
+                          <label style={{ fontSize: '0.75rem', textAlign: 'start' }}>{t('priceLabel', { unit: t('unit_' + auction.unit) })}</label>
                           <input
                             type="number"
                             step="0.01"
-                            placeholder="Prix"
+                            placeholder={t('pricePlaceholder')}
                             value={auctionInput.price}
                             onChange={(e) => handleInputChange(auction.id, 'price', e.target.value)}
                             required
+                            style={{ textAlign: 'start' }}
                           />
                         </div>
 
                         <div className="form-group" style={{ marginBottom: 0 }}>
-                          <label style={{ fontSize: '0.75rem' }}>Commentaire (Dispo, délai, qualité...)</label>
+                          <label style={{ fontSize: '0.75rem', textAlign: 'start' }}>{t('commentLabel')}</label>
                           <input
                             type="text"
-                            placeholder="Ex: Récolté ce matin, Bio..."
+                            placeholder={t('commentPlaceholder')}
                             value={auctionInput.comments}
                             onChange={(e) => handleInputChange(auction.id, 'comments', e.target.value)}
+                            style={{ textAlign: 'start' }}
                           />
                         </div>
 
-                        <button type="submit" className="btn btn-primary" style={{ height: '45px', padding: '0 16px' }}>
+                        <button type="submit" className="btn btn-primary" style={{ height: '45px', padding: '0 16px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                           <Send size={16} />
-                          Proposer
+                          {t('submitBidBtn')}
                         </button>
                       </div>
                     </form>
@@ -219,20 +237,22 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                       marginTop: '16px',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '12px'
+                      gap: '12px',
+                      flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+                      textAlign: 'start'
                     }}>
                       {isWinner ? (
                         <>
                           <Trophy style={{ color: 'var(--accent)' }} size={20} />
                           <div>
-                            <strong className="text-success">Félicitations !</strong> Votre offre de <strong>{winningBid.price} DA/{auction.unit}</strong> a été validée par l'acheteur.
+                            {t('bidWinnerCongrats', { price: winningBid.price, unit: t('unit_' + auction.unit) })}
                           </div>
                         </>
                       ) : (
                         <>
                           <Check size={20} style={{ color: 'var(--text-muted)' }} />
                           <div>
-                            L'enchère est clôturée. L'offre de <strong>{winningBid?.producerName}</strong> à <strong>{winningBid?.price} DA/{auction.unit}</strong> a été retenue.
+                            {t('bidClosedWinner', { name: winningBid?.producerName, price: winningBid?.price, unit: t('unit_' + auction.unit) })}
                           </div>
                         </>
                       )}
@@ -241,13 +261,13 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
                   {/* List of existing bids for transparency */}
                   <div className="bids-container">
-                    <h5 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '700', textTransform: 'uppercase' }}>
-                      Historique des offres ({auction.bids.length})
+                    <h5 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '700', textTransform: 'uppercase', textAlign: 'start' }}>
+                      {t('historyOffers', { count: auction.bids.length })}
                     </h5>
                     
                     {auction.bids.length === 0 ? (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                        Aucune offre pour le moment. Soyez le premier à proposer !
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'start' }}>
+                        {t('noOfferYet')}
                       </p>
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -266,29 +286,30 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                                   padding: '8px 12px',
                                   fontSize: '0.85rem',
                                   background: isMyBid ? 'rgba(59, 130, 246, 0.04)' : 'rgba(255,255,255,0.01)',
-                                  borderColor: isMyBid ? 'rgba(59, 130, 246, 0.25)' : 'var(--border)'
+                                  borderColor: isMyBid ? 'rgba(59, 130, 246, 0.25)' : 'var(--border)',
+                                  flexDirection: dir === 'rtl' ? 'row-reverse' : 'row'
                                 }}
                               >
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'start' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                                     <span style={{ fontWeight: 600, color: isMyBid ? 'var(--secondary)' : 'var(--text-main)' }}>
-                                      {bid.producerName} {isMyBid && '(Vous)'}
+                                      {bid.producerName} {isMyBid && t('youLabel')}
                                     </span>
                                     {isSelected && (
                                       <span className="badge badge-open" style={{ fontSize: '0.6rem', padding: '1px 4px', background: 'var(--primary)', color: 'var(--text-inverse)', border: 'none' }}>
-                                        Gagnant
+                                        {t('winnerLabel')}
                                       </span>
                                     )}
                                   </div>
                                   {bid.comments && (
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                                       <MessageSquare size={10} />
                                       {bid.comments}
                                     </span>
                                   )}
                                 </div>
-                                <div style={{ fontWeight: '800', color: 'var(--accent)', fontSize: '0.95rem' }}>
-                                  {bid.price} DA/{auction.unit}
+                                <div style={{ fontWeight: '800', color: 'var(--accent)', fontSize: '0.95rem', direction: 'ltr' }}>
+                                  {bid.price} DA/{t('unit_' + auction.unit)}
                                 </div>
                               </div>
                             );
@@ -306,7 +327,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
       {activeZoomImage && (
         <div className="lightbox-modal" onClick={() => setActiveZoomImage(null)}>
           <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <button className="lightbox-close" onClick={() => setActiveZoomImage(null)}>
+            <button className="lightbox-close" onClick={() => setActiveZoomImage(null)} style={{ right: dir === 'ltr' ? 0 : 'auto', left: dir === 'rtl' ? 0 : 'auto' }}>
               <X size={20} />
             </button>
             <img src={activeZoomImage} alt="Zoom produit" />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprout, Mail, Lock, User, Tractor, ShoppingBag, ShieldAlert, Eye, EyeOff, CheckCircle, Phone, MapPin } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 const BACKEND_URL = 'http://127.0.0.1:3001';
 
@@ -8,6 +9,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
+  const { t, dir } = useTranslation();
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -44,7 +46,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
           fontSize: '0.95rem',
           outline: 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          textAlign: 'left',
+          textAlign: 'start',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -52,7 +54,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
         }}
       >
         <span>{selectedOption ? selectedOption[labelKey] : placeholder}</span>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>▼</span>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginInlineStart: '8px' }}>▼</span>
       </button>
 
       {isOpen && (
@@ -75,7 +77,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
           <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
             <input
               type="text"
-              placeholder="Rechercher..."
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               autoFocus
@@ -88,6 +90,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
                 color: 'var(--text-main)',
                 fontSize: '0.9rem',
                 outline: 'none',
+                textAlign: 'start',
               }}
             />
           </div>
@@ -95,7 +98,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {filteredOptions.length === 0 ? (
               <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
-                Aucun résultat
+                {t('noResult')}
               </div>
             ) : (
               filteredOptions.map(opt => {
@@ -115,7 +118,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
                       border: 'none',
                       color: isSelected ? 'var(--primary)' : 'var(--text-main)',
                       fontSize: '0.9rem',
-                      textAlign: 'left',
+                      textAlign: 'start',
                       cursor: 'pointer',
                       outline: 'none',
                       transition: 'background 0.2s',
@@ -140,6 +143,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
 }
 
 export default function RegisterPage({ onNavigateToLogin }) {
+  const { t, dir } = useTranslation();
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirmPassword: '',
     role: '', phone: '', wilaya: '', commune: '',
@@ -180,21 +184,20 @@ export default function RegisterPage({ onNavigateToLogin }) {
   }, [form.wilaya, allCommunes]);
 
   const handleChange = (field) => (val) => {
-    // If it's a standard event target
     const value = val && val.target ? val.target.value : val;
     setForm(prev => ({ ...prev, [field]: value }));
     setError('');
   };
 
   const validatePassword = (pwd) => {
-    if (pwd.length < 8) return 'Le mot de passe doit contenir au moins 8 caractères.';
+    if (pwd.length < 8) return t('passwordMinChar');
     return null;
   };
 
   const validatePhone = (phone) => {
     if (!phone) return null;
     const digits = phone.replace(/\s/g, '');
-    if (!/^[0-9]{9,10}$/.test(digits)) return 'Numéro de téléphone invalide (9-10 chiffres sans le préfixe).';
+    if (!/^[0-9]{9,10}$/.test(digits)) return t('phoneInvalid');
     return null;
   };
 
@@ -203,13 +206,13 @@ export default function RegisterPage({ onNavigateToLogin }) {
     const { name, email, password, confirmPassword, role, phone, wilaya, commune } = form;
 
     if (!name || !email || !password || !confirmPassword || !role) {
-      setError('Les champs Nom, Email, Mot de passe et Rôle sont obligatoires.');
+      setError(t('fieldsRequired'));
       return;
     }
 
     const pwdError = validatePassword(password);
     if (pwdError) { setError(pwdError); return; }
-    if (password !== confirmPassword) { setError('Les mots de passe ne correspondent pas.'); return; }
+    if (password !== confirmPassword) { setError(t('passwordMismatch')); return; }
 
     const phoneError = validatePhone(phone);
     if (phoneError) { setError(phoneError); return; }
@@ -238,12 +241,12 @@ export default function RegisterPage({ onNavigateToLogin }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Une erreur est survenue.');
+        setError(data.error || t('serverError'));
       } else {
         setSuccess(true);
       }
     } catch {
-      setError('Impossible de se connecter au serveur.');
+      setError(t('serverError'));
     } finally {
       setLoading(false);
     }
@@ -256,31 +259,29 @@ export default function RegisterPage({ onNavigateToLogin }) {
           <div style={{ display: 'inline-flex', padding: '20px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', marginBottom: '24px' }}>
             <CheckCircle size={48} style={{ color: 'var(--primary)' }} />
           </div>
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>Compte créé avec succès</h2>
+          <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>{t('regSuccessTitle')}</h2>
           <p style={{ color: 'var(--text-muted)', lineHeight: '1.7', marginBottom: '8px' }}>
-            Un e-mail de confirmation a été envoyé à <strong style={{ color: 'var(--text-main)' }}>{form.email}</strong>.
+            {t('regSuccessEmailSent', { email: form.email })}
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '32px' }}>
-            Veuillez cliquer sur le lien dans l'e-mail pour activer votre compte. Pensez à vérifier vos courriers indésirables.
+            {t('regSuccessVerifyLink')}
           </p>
           <div style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '14px', marginBottom: '28px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            💡 Le lien de confirmation s'affiche également dans la console du serveur backend.
+            {t('regSuccessDevTip')}
           </div>
           <button onClick={onNavigateToLogin} className="btn btn-primary" style={{ width: '100%', padding: '14px' }}>
-            Accéder à la connexion
+            {t('accessLogin')}
           </button>
         </div>
       </div>
     );
   }
 
-  // Map wilayas list to dropdown format
   const wilayaOptions = wilayas.map(w => ({
     value: w.wilaya_id,
     label: `${String(w.wilaya_id).padStart(2, '0')} - ${w.wilaya_name_latin}`,
   }));
 
-  // Map communes list to dropdown format
   const communeOptions = communes.map(c => ({
     value: c.commune_id,
     label: c.commune_name_latin,
@@ -294,19 +295,19 @@ export default function RegisterPage({ onNavigateToLogin }) {
           <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)', marginBottom: '12px' }}>
             <Sprout size={28} />
           </div>
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '6px' }}>Créer un compte</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Rejoignez la plateforme AgriEnchères</p>
+          <h2 style={{ fontSize: '1.75rem', marginBottom: '6px' }}>{t('registerTitle')}</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('joinSougra')}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
 
           {/* Role Selection */}
           <div className="form-group" style={{ marginBottom: '24px' }}>
-            <label>Type de compte</label>
+            <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('accountType')}</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
               {[
-                { value: 'buyer', label: 'Acheteur', icon: <ShoppingBag size={20} />, desc: 'Je recherche des produits agricoles' },
-                { value: 'producer', label: 'Producteur', icon: <Tractor size={20} />, desc: 'Je propose mes récoltes' },
+                { value: 'buyer', label: t('buyerLabel'), icon: <ShoppingBag size={20} />, desc: t('buyerDesc') },
+                { value: 'producer', label: t('producerLabel'), icon: <Tractor size={20} />, desc: t('producerDesc') },
               ].map(opt => (
                 <button
                   key={opt.value}
@@ -316,7 +317,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
                     padding: '16px', borderRadius: '10px', border: '2px solid',
                     borderColor: form.role === opt.value ? 'var(--primary)' : 'var(--border)',
                     background: form.role === opt.value ? 'var(--primary-glow)' : 'var(--bg-input)',
-                    color: 'var(--text-main)', cursor: 'pointer', textAlign: 'left',
+                    color: 'var(--text-main)', cursor: 'pointer', textAlign: 'start',
                     transition: 'all 0.2s ease',
                   }}
                 >
@@ -330,37 +331,64 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           {/* Name */}
           <div className="form-group">
-            <label htmlFor="reg-name">Nom complet / Dénomination</label>
+            <label htmlFor="reg-name" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('fullNameLabel')}</label>
             <div style={{ position: 'relative' }}>
-              <input id="reg-name" type="text" placeholder="Ex : Coopérative Agricole El Harrach"
+              <input id="reg-name" type="text" placeholder={t('fullNamePlaceholder')}
                 value={form.name} onChange={handleChange('name')}
-                style={{ width: '100%', paddingLeft: '44px' }} required />
-              <User size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                style={{
+                  width: '100%',
+                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
+                  paddingRight: dir === 'rtl' ? '44px' : '16px',
+                  textAlign: 'start'
+                }} required />
+              <User size={18} style={{
+                position: 'absolute',
+                left: dir === 'ltr' ? '14px' : 'auto',
+                right: dir === 'rtl' ? '14px' : 'auto',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)'
+              }} />
             </div>
           </div>
 
           {/* Email */}
           <div className="form-group">
-            <label htmlFor="reg-email">Adresse e-mail</label>
+            <label htmlFor="reg-email" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('emailLabel')}</label>
             <div style={{ position: 'relative' }}>
-              <input id="reg-email" type="email" placeholder="Ex : contact@cooperative.dz"
+              <input id="reg-email" type="email" placeholder={t('emailPlaceholder')}
                 value={form.email} onChange={handleChange('email')}
-                style={{ width: '100%', paddingLeft: '44px' }} required />
-              <Mail size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                style={{
+                  width: '100%',
+                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
+                  paddingRight: dir === 'rtl' ? '44px' : '16px',
+                  textAlign: 'start'
+                }} required />
+              <Mail size={18} style={{
+                position: 'absolute',
+                left: dir === 'ltr' ? '14px' : 'auto',
+                right: dir === 'rtl' ? '14px' : 'auto',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)'
+              }} />
             </div>
           </div>
 
           {/* Phone */}
           <div className="form-group">
-            <label htmlFor="reg-phone">Numéro de téléphone <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>(optionnel)</span></label>
-            <div style={{ display: 'flex', gap: '0', alignItems: 'stretch' }}>
+            <label htmlFor="reg-phone" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+              {t('phoneLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>{t('optional')}</span>
+            </label>
+            <div style={{ display: 'flex', gap: '0', alignItems: 'stretch', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '0 14px',
                 background: 'rgba(255,255,255,0.04)',
                 border: '1px solid var(--border)',
-                borderRight: 'none',
-                borderRadius: '8px 0 0 8px',
+                borderRight: dir === 'ltr' ? 'none' : '1px solid var(--border)',
+                borderLeft: dir === 'rtl' ? 'none' : '1px solid var(--border)',
+                borderRadius: dir === 'ltr' ? '8px 0 0 8px' : '0 8px 8px 0',
                 whiteSpace: 'nowrap',
                 color: 'var(--text-muted)',
                 fontSize: '0.9rem',
@@ -385,38 +413,44 @@ export default function RegisterPage({ onNavigateToLogin }) {
                   flex: 1,
                   background: 'var(--bg-input)',
                   border: '1px solid var(--border)',
-                  borderLeft: 'none',
-                  borderRadius: '0 8px 8px 0',
+                  borderLeft: dir === 'ltr' ? 'none' : '1px solid var(--border)',
+                  borderRight: dir === 'rtl' ? 'none' : '1px solid var(--border)',
+                  borderRadius: dir === 'ltr' ? '0 8px 8px 0' : '8px 0 0 8px',
                   padding: '12px 14px',
                   color: 'var(--text-main)',
                   fontSize: '0.95rem',
                   outline: 'none',
+                  textAlign: 'start',
                 }}
               />
             </div>
           </div>
 
-          {/* Wilaya + Commune side by side with searchable select dropdowns */}
+          {/* Wilaya + Commune */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             {/* Wilaya */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Wilaya <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>(optionnel)</span></label>
+              <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+                {t('wilayaLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>{t('optional')}</span>
+              </label>
               <SearchableSelect
                 options={wilayaOptions}
                 value={form.wilaya}
                 onChange={handleChange('wilaya')}
-                placeholder="Sélectionner..."
+                placeholder={t('selectPlaceholder')}
               />
             </div>
 
             {/* Commune */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Commune <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>(optionnel)</span></label>
+              <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+                {t('communeLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>{t('optional')}</span>
+              </label>
               <SearchableSelect
                 options={communeOptions}
                 value={form.commune}
                 onChange={handleChange('commune')}
-                placeholder={form.wilaya ? "Sélectionner..." : "Wilaya d'abord"}
+                placeholder={form.wilaya ? t('selectPlaceholder') : t('wilayaFirst')}
                 disabled={communes.length === 0}
               />
             </div>
@@ -424,27 +458,50 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           {/* Password */}
           <div className="form-group">
-            <label htmlFor="reg-password">
-              Mot de passe <span style={{ color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', fontSize: '0.8rem' }}>(minimum 8 caractères)</span>
+            <label htmlFor="reg-password" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+              {t('passwordLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', fontSize: '0.8rem' }}>{t('passwordHelp')}</span>
             </label>
             <div style={{ position: 'relative' }}>
               <input id="reg-password" type={showPassword ? 'text' : 'password'}
-                placeholder="Choisissez un mot de passe sécurisé"
+                placeholder={t('passwordHelpPlaceholder')}
                 value={form.password} onChange={handleChange('password')}
-                style={{ width: '100%', paddingLeft: '44px', paddingRight: '44px' }} required />
-              <Lock size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                style={{
+                  width: '100%',
+                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
+                  paddingRight: dir === 'rtl' ? '44px' : '16px',
+                  textAlign: 'start'
+                }} required />
+              <Lock size={18} style={{
+                position: 'absolute',
+                left: dir === 'ltr' ? '14px' : 'auto',
+                right: dir === 'rtl' ? '14px' : 'auto',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)'
+              }} />
               <button type="button" onClick={() => setShowPassword(p => !p)}
-                style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}>
+                style={{
+                  position: 'absolute',
+                  right: dir === 'ltr' ? '14px' : 'auto',
+                  left: dir === 'rtl' ? '14px' : 'auto',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: 0
+                }}>
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
             {form.password && (
-              <div style={{ display: 'flex', gap: '4px', marginTop: '6px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '4px', marginTop: '6px', alignItems: 'center', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                 {[8, 12, 16].map((len, i) => (
                   <div key={i} style={{ flex: 1, height: '3px', borderRadius: '2px', background: form.password.length >= len ? (i === 0 ? '#f59e0b' : i === 1 ? '#10b981' : '#3b82f6') : 'var(--border)', transition: 'background 0.3s' }} />
                 ))}
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', minWidth: '55px', textAlign: 'right' }}>
-                  {form.password.length < 8 ? 'Faible' : form.password.length < 12 ? 'Moyen' : form.password.length < 16 ? 'Fort' : 'Très fort'}
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', minWidth: '55px', textAlign: dir === 'rtl' ? 'left' : 'right' }}>
+                  {form.password.length < 8 ? t('strengthWeak') : form.password.length < 12 ? t('strengthMedium') : form.password.length < 16 ? t('strengthStrong') : t('strengthVeryStrong')}
                 </span>
               </div>
             )}
@@ -452,24 +509,54 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           {/* Confirm Password */}
           <div className="form-group" style={{ marginBottom: '24px' }}>
-            <label htmlFor="reg-confirm">Confirmer le mot de passe</label>
+            <label htmlFor="reg-confirm" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('confirmPasswordLabel')}</label>
             <div style={{ position: 'relative' }}>
-              <input id="reg-confirm" type="password" placeholder="Répétez votre mot de passe"
+              <input id="reg-confirm" type="password" placeholder={t('confirmPasswordPlaceholder')}
                 value={form.confirmPassword} onChange={handleChange('confirmPassword')}
                 style={{
-                  width: '100%', paddingLeft: '44px',
+                  width: '100%',
+                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
+                  paddingRight: dir === 'rtl' ? '44px' : '16px',
+                  textAlign: 'start',
                   borderColor: form.confirmPassword && form.password !== form.confirmPassword ? 'var(--danger)' : undefined,
                 }} required />
-              <Lock size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <Lock size={18} style={{
+                position: 'absolute',
+                left: dir === 'ltr' ? '14px' : 'auto',
+                right: dir === 'rtl' ? '14px' : 'auto',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)'
+              }} />
               {form.confirmPassword && form.password === form.confirmPassword && (
-                <CheckCircle size={16} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--primary)' }} />
+                <CheckCircle size={16} style={{
+                  position: 'absolute',
+                  right: dir === 'ltr' ? '14px' : 'auto',
+                  left: dir === 'rtl' ? '14px' : 'auto',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--primary)'
+                }} />
               )}
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div style={{ color: 'var(--danger)', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.875rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              color: 'var(--danger)',
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              fontSize: '0.875rem',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
+              textAlign: 'start'
+            }}>
               <ShieldAlert size={16} />
               <span>{error}</span>
             </div>
@@ -477,18 +564,18 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px' }} disabled={loading}>
             {loading ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <span style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                Création en cours…
+                {t('registering')}
               </span>
-            ) : 'Créer mon compte'}
+            ) : t('registerBtn')}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          Vous avez déjà un compte ?{' '}
+          {t('alreadyHaveAccount')}{' '}
           <button onClick={onNavigateToLogin} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem' }}>
-            Se connecter
+            {t('login')}
           </button>
         </p>
       </div>
