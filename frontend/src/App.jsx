@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { Sprout, LogOut, Tractor, ShoppingBag, RefreshCw, Wifi, WifiOff, LogIn, Home, User } from 'lucide-react';
+import { Sprout, LogOut, Tractor, ShoppingBag, RefreshCw, Wifi, WifiOff, LogIn, Home, Bell } from 'lucide-react';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
@@ -12,6 +12,7 @@ import VerifyEmailPage from './components/VerifyEmailPage';
 const BACKEND_URL = 'http://127.0.0.1:3001';
 
 // Helper: get token from sessionStorage
+// TODO(security): In production, migrate to HttpOnly cookies to prevent XSS token theft.
 function getStoredToken() {
   try { return sessionStorage.getItem('agri_token') || null; } catch { return null; }
 }
@@ -40,6 +41,35 @@ export default function App() {
   const [newBidFlashIds, setNewBidFlashIds] = useState([]);
   const socketRef = useRef(null);
 
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifPanelRef = useRef(null);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Close notif panel on outside click
+  useEffect(() => {
+    function handler(e) {
+      if (notifPanelRef.current && !notifPanelRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    }
+    if (notifOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [notifOpen]);
+
+  // Load notifications from API on login (producers)
+  useEffect(() => {
+    if (!token || !user || user.role !== 'producer') return;
+    fetch(`${BACKEND_URL}/api/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setNotifications(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [token, user]);
+
   // Socket.IO — connect only when authenticated
   useEffect(() => {
     if (!token) {
@@ -55,22 +85,16 @@ export default function App() {
     const socket = io(BACKEND_URL, { auth: { token } });
     socketRef.current = socket;
 
-    socket.on('connect', () => {
-      console.log('Connected to WebSocket server');
-      setConnected(true);
-    });
-    socket.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
-      setConnected(false);
-    });
-    socket.on('connect_error', (err) => {
-      console.error('Socket connection error:', err.message);
-      setConnected(false);
-    });
+    socket.on('connect', () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
+    socket.on('connect_error', () => setConnected(false));
+
     socket.on('auctions_list', (data) => setAuctions(data));
+
     socket.on('auction_created', (newAuction) => {
       setAuctions(prev => prev.some(a => a.id === newAuction.id) ? prev : [newAuction, ...prev]);
     });
+
     socket.on('auction_updated', (updatedAuction) => {
       setAuctions(prev => {
         const old = prev.find(a => a.id === updatedAuction.id);
@@ -86,7 +110,19 @@ export default function App() {
         return prev.map(a => a.id === updatedAuction.id ? updatedAuction : a);
       });
     });
-    socket.on('data_reset', () => setAuctions([]));
+
+    socket.on('data_reset', () => {
+      setAuctions([]);
+      setNotifications([]);
+    });
+
+    // New notification for producers
+    socket.on('new_notification', (notif) => {
+      setNotifications(prev => [notif, ...prev]);
+      // Show a brief flash on the page title
+      document.title = '🔔 AgriEnchères — Nouveau besoin à proximité !';
+      setTimeout(() => { document.title = 'AgriEnchères - Enchères Inversées Agricoles en Temps Réel'; }, 5000);
+    });
 
     return () => { socket.disconnect(); };
   }, [token]);
@@ -103,6 +139,8 @@ export default function App() {
     setToken(null);
     setUser(null);
     setPage('landing');
+    setNotifications([]);
+    setNotifOpen(false);
     sessionStorage.removeItem('agri_token');
     sessionStorage.removeItem('agri_user');
   };
@@ -115,17 +153,24 @@ export default function App() {
   const handleCreateAuction = (data) => socketRef.current?.emit('create_auction', data);
   const handlePlaceBid = (data) => socketRef.current?.emit('place_bid', data);
   const handleAcceptBid = (auctionId, bidId) => socketRef.current?.emit('accept_bid', { auctionId, bidId });
+  const handleRateProducer = (auctionId, rating) => socketRef.current?.emit('rate_producer', { auctionId, rating });
 
   const handleResetData = async () => {
     if (!window.confirm('Voulez-vous vraiment réinitialiser toutes les enchères ?')) return;
-    try {
-      await fetch(`${BACKEND_URL}/api/reset`, { method: 'POST' });
-    } catch (err) {
-      console.error('Error resetting data:', err);
-    }
+    try { await fetch(`${BACKEND_URL}/api/reset`, { method: 'POST' }); } catch {}
   };
 
-  // Avatar component for header
+  const handleMarkAllRead = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/notifications/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch {}
+  };
+
+  // Avatar
   const photoUrl = user?.profilePhoto ? `${BACKEND_URL}/uploads/${user.profilePhoto}` : null;
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
   const avatarColors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
@@ -176,6 +221,60 @@ export default function App() {
                   <RefreshCw size={14} /> Réinitialiser
                 </button>
 
+                {/* Notification bell (producers only) */}
+                {user.role === 'producer' && (
+                  <div ref={notifPanelRef} style={{ position: 'relative' }}>
+                    <button
+                      id="notif-bell-btn"
+                      className="notif-bell-btn"
+                      onClick={() => {
+                        setNotifOpen(o => !o);
+                        if (!notifOpen && unreadCount > 0) handleMarkAllRead();
+                      }}
+                      title="Notifications"
+                      aria-label={`${unreadCount} notifications non lues`}
+                    >
+                      <Bell size={18} />
+                      {unreadCount > 0 && (
+                        <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                      )}
+                    </button>
+
+                    {notifOpen && (
+                      <div className="notif-panel animate-fade-in">
+                        <div className="notif-panel-header">
+                          <span>Notifications</span>
+                          {notifications.length > 0 && (
+                            <button className="notif-clear-btn" onClick={handleMarkAllRead}>Tout marquer lu</button>
+                          )}
+                        </div>
+                        <div className="notif-list">
+                          {notifications.length === 0 ? (
+                            <div className="notif-empty">Aucune notification</div>
+                          ) : (
+                            notifications.map(n => (
+                              <div key={n.id} className={`notif-item ${n.read ? '' : 'notif-unread'}`}>
+                                <div className="notif-dot" />
+                                <div className="notif-content">
+                                  <div className="notif-title">
+                                    Nouveau besoin à <strong>{n.distanceKm} km</strong>
+                                  </div>
+                                  <div className="notif-body">
+                                    {n.product} — {n.quantity} {n.unit}
+                                  </div>
+                                  <div className="notif-time">
+                                    {new Date(n.createdAt).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* User avatar + name (clickable → profile) */}
                 <button
                   onClick={() => setPage('profile')}
@@ -190,7 +289,6 @@ export default function App() {
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; }}
                   onMouseLeave={e => { if (page !== 'profile') { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'var(--border)'; } }}
                 >
-                  {/* Mini avatar */}
                   {photoUrl ? (
                     <img src={photoUrl} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />
                   ) : (
@@ -230,9 +328,21 @@ export default function App() {
         )}
         {page === 'dashboard' && user && (
           user.role === 'buyer' ? (
-            <BuyerDashboard user={user} auctions={auctions} onCreateAuction={handleCreateAuction} onAcceptBid={handleAcceptBid} newBidFlashIds={newBidFlashIds} />
+            <BuyerDashboard
+              user={user}
+              auctions={auctions}
+              onCreateAuction={handleCreateAuction}
+              onAcceptBid={handleAcceptBid}
+              onRateProducer={handleRateProducer}
+              newBidFlashIds={newBidFlashIds}
+            />
           ) : (
-            <ProducerDashboard user={user} auctions={auctions} onPlaceBid={handlePlaceBid} newBidFlashIds={newBidFlashIds} />
+            <ProducerDashboard
+              user={user}
+              auctions={auctions}
+              onPlaceBid={handlePlaceBid}
+              newBidFlashIds={newBidFlashIds}
+            />
           )
         )}
       </main>

@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import { connectToDatabase, getDb } from './db.js';
 import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
+import notificationsRoutes from './routes/notifications.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,20 +38,21 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // ─── Security Headers ─────────────────────────────────────────────────────
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // TODO(security): geolocation is used client-side for map; if removed, re-enable this restriction
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
   next();
 });
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+  windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -60,7 +62,6 @@ app.use('/api/auth', authLimiter);
 
 // ─── Static File Serving (uploads) ────────────────────────────────────────
 app.use('/uploads', (req, res, next) => {
-  // Secure headers for file serving
   res.setHeader('Content-Disposition', 'inline');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cache-Control', 'public, max-age=3600');
@@ -70,6 +71,7 @@ app.use('/uploads', (req, res, next) => {
 // ─── Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -78,18 +80,53 @@ app.get('/health', async (req, res) => {
     const count = await db.collection('auctions').countDocuments();
     res.json({ status: 'ok', auctionsCount: count });
   } catch (error) {
-    res.status(500).json({ status: 'error', error: error.message });
+    res.status(500).json({ status: 'error', error: 'Erreur serveur.' });
   }
 });
 
-// Auctions REST (debug)
+// Auctions REST (debug — returns raw data, no anonymization)
 app.get('/api/auctions', async (req, res) => {
   try {
     const db = getDb();
     const auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).toArray();
     res.json(auctions);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// Producers count within a radius
+app.get('/api/producers/count', async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radius = parseFloat(req.query.radius) || 100;
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ error: 'Coordonnées lat/lng invalides.' });
+    }
+
+    const db = getDb();
+    const producers = await db.collection('users').find({ role: 'producer', isVerified: true }).toArray();
+
+    let count = 0;
+    for (const producer of producers) {
+      const pCoords = producer.commune
+        ? getCommuneCoords(producer.wilaya || '', producer.commune)
+        : getWilayaCoords(producer.wilaya || '');
+
+      if (!pCoords) continue;
+
+      const dist = haversineKm(lat, lng, pCoords.lat, pCoords.lng);
+      if (dist <= radius) {
+        count++;
+      }
+    }
+
+    res.json({ count });
+  } catch (error) {
+    console.error('[API] Error counting producers:', error.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
 
@@ -98,122 +135,394 @@ app.post('/api/reset', async (req, res) => {
   try {
     const db = getDb();
     await db.collection('auctions').deleteMany({});
+    await db.collection('notifications').deleteMany({});
     io.emit('data_reset');
     res.json({ message: 'Data reset successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
+
+// ─── Geographic Helpers (Haversine) ───────────────────────────────────────
+// Approximate centers of Algeria's 69 wilayas
+const WILAYA_COORDS = {
+  1:{lat:27.87,lng:-0.29},2:{lat:36.17,lng:1.33},3:{lat:33.80,lng:2.88},
+  4:{lat:35.93,lng:7.11},5:{lat:35.56,lng:6.17},6:{lat:36.75,lng:5.08},
+  7:{lat:34.85,lng:5.73},8:{lat:31.61,lng:-2.21},9:{lat:36.47,lng:2.83},
+  10:{lat:36.37,lng:3.90},11:{lat:22.79,lng:5.52},12:{lat:35.40,lng:8.12},
+  13:{lat:34.88,lng:-1.32},14:{lat:35.37,lng:1.32},15:{lat:36.71,lng:4.05},
+  16:{lat:36.73,lng:3.09},17:{lat:34.67,lng:3.25},18:{lat:36.82,lng:5.77},
+  19:{lat:36.19,lng:5.41},20:{lat:34.83,lng:0.15},21:{lat:36.90,lng:6.91},
+  22:{lat:35.19,lng:-0.63},23:{lat:36.90,lng:7.77},24:{lat:36.46,lng:7.43},
+  25:{lat:36.37,lng:6.61},26:{lat:36.27,lng:2.75},27:{lat:35.93,lng:0.09},
+  28:{lat:35.70,lng:4.54},29:{lat:35.40,lng:0.14},30:{lat:31.95,lng:5.33},
+  31:{lat:35.70,lng:-0.63},32:{lat:33.68,lng:1.02},33:{lat:26.50,lng:8.47},
+  34:{lat:36.07,lng:4.76},35:{lat:36.77,lng:3.48},36:{lat:36.77,lng:8.31},
+  37:{lat:27.67,lng:-8.14},38:{lat:35.59,lng:1.81},39:{lat:33.37,lng:6.86},
+  40:{lat:35.43,lng:7.14},41:{lat:36.29,lng:7.94},42:{lat:36.58,lng:2.46},
+  43:{lat:36.45,lng:6.27},44:{lat:36.26,lng:1.97},45:{lat:33.27,lng:-0.31},
+  46:{lat:35.30,lng:-1.14},47:{lat:32.49,lng:3.67},48:{lat:35.73,lng:0.56},
+  49:{lat:29.26,lng:0.23},50:{lat:21.33,lng:0.95},51:{lat:34.42,lng:5.07},
+  52:{lat:30.13,lng:-2.16},53:{lat:27.22,lng:2.47},54:{lat:19.57,lng:5.77},
+  55:{lat:33.09,lng:6.06},56:{lat:24.56,lng:9.48},57:{lat:33.93,lng:6.13},
+  58:{lat:30.58,lng:2.88},59:{lat:33.81,lng:2.01},60:{lat:32.89,lng:0.53},
+  61:{lat:34.22,lng:-1.26},62:{lat:35.02,lng:5.73},63:{lat:35.38,lng:5.37},
+  64:{lat:35.21,lng:4.18},65:{lat:35.01,lng:7.94},66:{lat:35.88,lng:2.75},
+  67:{lat:35.18,lng:2.32},68:{lat:35.45,lng:2.64},69:{lat:34.15,lng:3.55},
+};
+
+const WILAYA_NAME_TO_ID = {
+  'adrar':1,'chlef':2,'laghouat':3,'oum el bouaghi':4,'batna':5,'bejaia':6,
+  'biskra':7,'bechar':8,'blida':9,'bouira':10,'tamanrasset':11,'tebessa':12,
+  'tlemcen':13,'tiaret':14,'tizi ouzou':15,'alger':16,'djelfa':17,'jijel':18,
+  'setif':19,'saida':20,'skikda':21,'sidi bel abbes':22,'annaba':23,'guelma':24,
+  'constantine':25,'medea':26,'mostaganem':27,"m'sila":28,'mascara':29,
+  'ouargla':30,'oran':31,'el bayadh':32,'illizi':33,'bordj bou arreridj':34,
+  'boumerdes':35,'el tarf':36,'tindouf':37,'tissemsilt':38,'el oued':39,
+  'khenchela':40,'souk ahras':41,'tipaza':42,'mila':43,'ain defla':44,
+  'naama':45,'ain temouchent':46,'ghardaia':47,'relizane':48,'timimoun':49,
+  'bordj badji mokhtar':50,'ouled djellal':51,'beni abbes':52,'in salah':53,
+  'in guezzam':54,'touggourt':55,'djanet':56,"el m'ghair":57,'el meniaa':58,
+  'aflou':59,'el abiodh sidi cheikh':60,'el aricha':61,'el kantara':62,
+  'barika':63,'bou saada':64,'bir el ater':65,'ksar el boukhari':66,
+  'ksar chellala':67,'ain oussara':68,'messaad':69,
+};
+
+function toRad(d) { return d * Math.PI / 180; }
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Returns approximate coordinates for a wilaya by name. */
+function getWilayaCoords(wilayaName) {
+  if (!wilayaName) return null;
+  const id = WILAYA_NAME_TO_ID[wilayaName.toLowerCase().trim()];
+  return id ? WILAYA_COORDS[id] : null;
+}
+
+/** Deterministic commune offset so each commune has a unique stable position. */
+function getCommuneCoords(wilayaName, communeName) {
+  const base = getWilayaCoords(wilayaName);
+  if (!base) return null;
+  // Derive a numeric seed from communeName characters
+  let seed = 0;
+  for (let i = 0; i < communeName.length; i++) {
+    seed = (seed * 31 + communeName.charCodeAt(i)) >>> 0;
+  }
+  const u1 = ((seed & 0xFFFF) / 0xFFFF) - 0.5;
+  const u2 = (((seed >>> 16) & 0xFFFF) / 0xFFFF) - 0.5;
+  return { lat: base.lat + u1 * 0.45, lng: base.lng + u2 * 0.45 };
+}
+
+// ─── Anonymization helper ─────────────────────────────────────────────────
+/**
+ * Strips real names from auction/bid data for a given requesting user.
+ * - Buyer requesting: sees their own name, all producers are anonymized.
+ * - Producer requesting: sees anonymous buyer, own bids labelled "(Vous)", competitors anonymized.
+ * Also injects per-producer average rating from bids metadata.
+ */
+function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
+  return auctions.map(auction => {
+    // Sanitize buyer name
+    const buyerDisplay = requestingUserId === auction.buyerId
+      ? auction.buyerName
+      : 'Acheteur Anonyme';
+
+    // Build a stable anonymous alias per producer within this auction
+    const producerAliasMap = {};
+    let aliasCounter = 1;
+    auction.bids.forEach(bid => {
+      if (!producerAliasMap[bid.producerId]) {
+        if (bid.producerId === requestingUserId) {
+          producerAliasMap[bid.producerId] = 'Vous';
+        } else {
+          producerAliasMap[bid.producerId] = `Producteur #${aliasCounter++}`;
+        }
+      }
+    });
+
+    const sanitizedBids = auction.bids.map(bid => ({
+      id: bid.id,
+      price: bid.price,
+      comments: bid.comments || '',
+      timestamp: bid.timestamp,
+      images: bid.images || [],
+      producerAlias: producerAliasMap[bid.producerId] || 'Producteur Anonyme',
+      // Rating info is safe to expose (anonymous average)
+      producerRating: bid.producerRating ?? null,
+      producerRatingCount: bid.producerRatingCount ?? 0,
+    }));
+
+    return {
+      id: auction.id,
+      buyerDisplay,
+      // Only buyer sees their own real demand location context
+      product: auction.product,
+      quantity: auction.quantity,
+      unit: auction.unit,
+      description: auction.description,
+      targetPrice: auction.targetPrice,
+      status: auction.status,
+      createdAt: auction.createdAt,
+      bids: sanitizedBids,
+      acceptedBidId: auction.acceptedBidId,
+      // Indicates if current user is the buyer of this auction
+      isOwner: auction.buyerId === requestingUserId,
+      // Producer's own bid reference
+      myBidId: requestingRole === 'producer'
+        ? (auction.bids.find(b => b.producerId === requestingUserId)?.id ?? null)
+        : null,
+      // Buyer: already rated flag
+      alreadyRated: auction.alreadyRated || false,
+    };
+  });
+}
 
 // ─── Socket.IO Server ─────────────────────────────────────────────────────
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  maxHttpBufferSize: 1e7,
+  maxHttpBufferSize: 5e7, // 50MB to accommodate images in bids
   cors: {
     origin: allowedOrigins,
     methods: ['GET', 'POST'],
   },
 });
 
+// Map of connected userId → Set of socket IDs for targeted delivery
+const connectedUsers = new Map(); // userId → Set<socketId>
+
 // Socket.IO auth middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
-  if (!token) {
-    return next(new Error('Authentication required'));
-  }
+  if (!token) return next(new Error('Authentication required'));
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     socket.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     next(new Error('Invalid token'));
   }
 });
 
 io.on('connection', async (socket) => {
-  console.log(`User connected: ${socket.user.email} (${socket.id})`);
+  const uid = socket.user.userId;
+  const role = socket.user.role;
 
+  // Register connected user
+  if (!connectedUsers.has(uid)) connectedUsers.set(uid, new Set());
+  connectedUsers.get(uid).add(socket.id);
+
+  console.log(`User connected: ${socket.user.email} [${role}] (${socket.id})`);
+
+  // Send initial auctions list (sanitized for requesting user)
   try {
     const db = getDb();
     const auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).toArray();
-    socket.emit('auctions_list', auctions);
+    const sanitized = sanitizeAuctions(auctions, uid, role);
+    socket.emit('auctions_list', sanitized);
   } catch (err) {
-    console.error('Error fetching auctions for connected user:', err);
+    console.error('[WS] Error fetching initial auctions:', err.message);
   }
 
+  // ── Create Auction (Buyer only) ──────────────────────────────────────
   socket.on('create_auction', async (data) => {
-    const { buyerName, product, quantity, unit, description, targetPrice, images } = data;
-    if (!buyerName || !product || !quantity || !unit) {
+    if (role !== 'buyer') {
+      socket.emit('error', { message: 'Seuls les acheteurs peuvent créer des enchères.' });
+      return;
+    }
+
+    const { product, quantity, unit, description, targetPrice, radius } = data;
+    if (!product || !quantity || !unit) {
       socket.emit('error', { message: 'Champs obligatoires manquants.' });
       return;
     }
-    const newAuction = {
-      id: `auc_${Date.now()}_${randomBytes(4).toString('hex')}`,
-      buyerName,
-      product,
-      quantity: parseFloat(quantity),
-      unit,
-      description: description || '',
-      targetPrice: targetPrice ? parseFloat(targetPrice) : null,
-      images: images || [],
-      status: 'open',
-      createdAt: new Date().toISOString(),
-      bids: [],
-      acceptedBidId: null,
-    };
+
     try {
       const db = getDb();
+
+      // Fetch buyer's profile to get wilaya/commune
+      const { ObjectId } = await import('mongodb');
+      const buyer = await db.collection('users').findOne(
+        { _id: new ObjectId(uid) },
+        { projection: { name: 1, wilaya: 1, commune: 1 } }
+      );
+
+      // Resolve buyer's approximate coordinates
+      const buyerCoords = buyer?.commune
+        ? getCommuneCoords(buyer.wilaya || '', buyer.commune)
+        : getWilayaCoords(buyer?.wilaya || '');
+
+      const radiusKm = Math.min(Math.max(parseFloat(radius) || 100, 10), 1000);
+
+      const newAuction = {
+        id: `auc_${Date.now()}_${randomBytes(4).toString('hex')}`,
+        buyerId: uid,
+        buyerName: buyer?.name || 'Acheteur',
+        buyerWilaya: buyer?.wilaya || '',
+        buyerCommune: buyer?.commune || '',
+        buyerLat: buyerCoords?.lat ?? null,
+        buyerLng: buyerCoords?.lng ?? null,
+        radiusKm,
+        product: String(product).slice(0, 200),
+        quantity: parseFloat(quantity),
+        unit: String(unit).slice(0, 50),
+        description: String(description || '').slice(0, 1000),
+        targetPrice: targetPrice ? parseFloat(targetPrice) : null,
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        bids: [],
+        acceptedBidId: null,
+        alreadyRated: false,
+      };
+
       await db.collection('auctions').insertOne(newAuction);
-      io.emit('auction_created', newAuction);
+
+      // Notify all producers within radius ─────────────────────────────
+      if (buyerCoords) {
+        const producers = await db.collection('users').find(
+          { role: 'producer', isVerified: true }
+        ).toArray();
+
+        for (const producer of producers) {
+          // Determine producer's approximate coordinates
+          const pCoords = producer.commune
+            ? getCommuneCoords(producer.wilaya || '', producer.commune)
+            : getWilayaCoords(producer.wilaya || '');
+
+          if (!pCoords) continue;
+
+          const distKm = haversineKm(buyerCoords.lat, buyerCoords.lng, pCoords.lat, pCoords.lng);
+          if (distKm > radiusKm) continue;
+
+          // Create persistent notification in DB
+          const notifId = `notif_${Date.now()}_${randomBytes(3).toString('hex')}`;
+          const notification = {
+            id: notifId,
+            userId: producer._id.toString(),
+            type: 'new_auction',
+            auctionId: newAuction.id,
+            product: newAuction.product,
+            quantity: newAuction.quantity,
+            unit: newAuction.unit,
+            distanceKm: Math.round(distKm),
+            read: false,
+            createdAt: new Date().toISOString(),
+          };
+          await db.collection('notifications').insertOne(notification);
+
+          // Push real-time notification if producer is connected
+          const producerSockets = connectedUsers.get(producer._id.toString());
+          if (producerSockets && producerSockets.size > 0) {
+            producerSockets.forEach(sid => {
+              io.to(sid).emit('new_notification', notification);
+            });
+          }
+        }
+      }
+
+      // Broadcast new auction to all (sanitized per receiver)
+      const allSockets = await io.fetchSockets();
+      for (const s of allSockets) {
+        const [sanitized] = sanitizeAuctions([newAuction], s.user.userId, s.user.role);
+        s.emit('auction_created', sanitized);
+      }
     } catch (err) {
-      console.error('Error creating auction:', err);
-      socket.emit('error', { message: 'Échec de la création de l\'enchère.' });
+      console.error('[WS] Error creating auction:', err.message);
+      socket.emit('error', { message: "Échec de la création de l'enchère." });
     }
   });
 
+  // ── Place Bid (Producer only) ────────────────────────────────────────
   socket.on('place_bid', async (data) => {
-    const { auctionId, producerName, price, comments } = data;
-    if (!auctionId || !producerName || price === undefined) {
+    if (role !== 'producer') {
+      socket.emit('error', { message: 'Seuls les producteurs peuvent faire des offres.' });
+      return;
+    }
+
+    const { auctionId, price, comments, images } = data;
+    if (!auctionId || price === undefined) {
       socket.emit('error', { message: 'Champs obligatoires manquants.' });
       return;
     }
-    const newBid = {
-      id: `bid_${Date.now()}_${randomBytes(4).toString('hex')}`,
-      producerName,
-      price: parseFloat(price),
-      comments: comments || '',
-      timestamp: new Date().toISOString(),
-    };
+
+    // Validate images array (max 5 Base64 strings)
+    const safeImages = Array.isArray(images)
+      ? images.slice(0, 5).filter(img => typeof img === 'string' && img.startsWith('data:image/'))
+      : [];
+
     try {
       const db = getDb();
+
+      // Fetch producer's current rating averages
+      const { ObjectId } = await import('mongodb');
+      const producerUser = await db.collection('users').findOne(
+        { _id: new ObjectId(uid) },
+        { projection: { averageRating: 1, ratingCount: 1 } }
+      );
+
+      const newBid = {
+        id: `bid_${Date.now()}_${randomBytes(4).toString('hex')}`,
+        producerId: uid,
+        price: parseFloat(price),
+        comments: String(comments || '').slice(0, 500),
+        images: safeImages,
+        producerRating: producerUser?.averageRating ?? null,
+        producerRatingCount: producerUser?.ratingCount ?? 0,
+        timestamp: new Date().toISOString(),
+      };
+
       const result = await db.collection('auctions').updateOne(
         { id: auctionId, status: 'open' },
         { $push: { bids: newBid } }
       );
+
       if (result.matchedCount === 0) {
         const auction = await db.collection('auctions').findOne({ id: auctionId });
         socket.emit('error', { message: !auction ? 'Enchère introuvable.' : 'Enchère déjà clôturée.' });
         return;
       }
+
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
-      io.emit('auction_updated', updatedAuction);
+
+      // Broadcast updated auction (sanitized per receiver)
+      const allSockets = await io.fetchSockets();
+      for (const s of allSockets) {
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        s.emit('auction_updated', sanitized);
+      }
     } catch (err) {
-      console.error('Error placing bid:', err);
-      socket.emit('error', { message: 'Échec du dépôt d\'offre.' });
+      console.error('[WS] Error placing bid:', err.message);
+      socket.emit('error', { message: "Échec du dépôt d'offre." });
     }
   });
 
+  // ── Accept Bid (Buyer only) ──────────────────────────────────────────
   socket.on('accept_bid', async (data) => {
+    if (role !== 'buyer') {
+      socket.emit('error', { message: 'Seuls les acheteurs peuvent valider une offre.' });
+      return;
+    }
+
     const { auctionId, bidId } = data;
     if (!auctionId || !bidId) {
       socket.emit('error', { message: 'Données manquantes.' });
       return;
     }
+
     try {
       const db = getDb();
       const auction = await db.collection('auctions').findOne({ id: auctionId });
       if (!auction) { socket.emit('error', { message: 'Enchère introuvable.' }); return; }
       if (auction.status !== 'open') { socket.emit('error', { message: 'Enchère non ouverte.' }); return; }
+      if (auction.buyerId !== uid) { socket.emit('error', { message: 'Non autorisé.' }); return; }
+
       const bid = auction.bids.find(b => b.id === bidId);
       if (!bid) { socket.emit('error', { message: 'Offre introuvable.' }); return; }
 
@@ -221,16 +530,120 @@ io.on('connection', async (socket) => {
         { id: auctionId },
         { $set: { status: 'closed', acceptedBidId: bidId } }
       );
-      auction.status = 'closed';
-      auction.acceptedBidId = bidId;
-      io.emit('auction_updated', auction);
+
+      const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
+
+      const allSockets = await io.fetchSockets();
+      for (const s of allSockets) {
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        s.emit('auction_updated', sanitized);
+      }
     } catch (err) {
-      console.error('Error accepting bid:', err);
+      console.error('[WS] Error accepting bid:', err.message);
       socket.emit('error', { message: 'Échec de la validation.' });
     }
   });
 
+  // ── Rate Producer (Buyer, after accepting bid) ──────────────────────
+  socket.on('rate_producer', async (data) => {
+    if (role !== 'buyer') {
+      socket.emit('error', { message: 'Seuls les acheteurs peuvent noter les producteurs.' });
+      return;
+    }
+
+    const { auctionId, rating } = data;
+    const ratingNum = parseFloat(rating);
+    if (!auctionId || isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+      socket.emit('error', { message: 'Données de notation invalides.' });
+      return;
+    }
+
+    try {
+      const db = getDb();
+      const { ObjectId } = await import('mongodb');
+
+      const auction = await db.collection('auctions').findOne({ id: auctionId });
+      if (!auction) { socket.emit('error', { message: 'Enchère introuvable.' }); return; }
+      if (auction.buyerId !== uid) { socket.emit('error', { message: 'Non autorisé.' }); return; }
+      if (auction.status !== 'closed' || !auction.acceptedBidId) {
+        socket.emit('error', { message: 'L\'enchère doit être clôturée pour noter.' });
+        return;
+      }
+      if (auction.alreadyRated) {
+        socket.emit('error', { message: 'Vous avez déjà noté ce producteur pour cette enchère.' });
+        return;
+      }
+
+      // Find accepted bid to identify the producer
+      const acceptedBid = auction.bids.find(b => b.id === auction.acceptedBidId);
+      if (!acceptedBid) { socket.emit('error', { message: 'Offre acceptée introuvable.' }); return; }
+
+      const producerId = acceptedBid.producerId;
+
+      // Update producer's average rating using $inc for atomic update
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(producerId) },
+        [
+          {
+            $set: {
+              ratingSum: { $add: [{ $ifNull: ['$ratingSum', 0] }, ratingNum] },
+              ratingCount: { $add: [{ $ifNull: ['$ratingCount', 0] }, 1] },
+            },
+          },
+          {
+            $set: {
+              averageRating: { $divide: ['$ratingSum', '$ratingCount'] },
+            },
+          },
+        ]
+      );
+
+      // Mark auction as rated so buyer cannot rate twice
+      await db.collection('auctions').updateOne(
+        { id: auctionId },
+        { $set: { alreadyRated: true } }
+      );
+
+      // Store individual rating in ratings collection for audit
+      await db.collection('ratings').insertOne({
+        auctionId,
+        buyerId: uid,
+        producerId,
+        rating: ratingNum,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Fetch updated producer rating
+      const updatedProducer = await db.collection('users').findOne(
+        { _id: new ObjectId(producerId) },
+        { projection: { averageRating: 1, ratingCount: 1 } }
+      );
+
+      socket.emit('rating_submitted', {
+        auctionId,
+        averageRating: updatedProducer?.averageRating ?? ratingNum,
+        ratingCount: updatedProducer?.ratingCount ?? 1,
+      });
+
+      // Update auction's alreadyRated flag across all connections
+      const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
+      const allSockets = await io.fetchSockets();
+      for (const s of allSockets) {
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        s.emit('auction_updated', sanitized);
+      }
+    } catch (err) {
+      console.error('[WS] Error rating producer:', err.message);
+      socket.emit('error', { message: 'Échec de la notation.' });
+    }
+  });
+
   socket.on('disconnect', () => {
+    const sockets = connectedUsers.get(uid);
+    if (sockets) {
+      sockets.delete(socket.id);
+      if (sockets.size === 0) connectedUsers.delete(uid);
+    }
     console.log(`User disconnected: ${socket.user.email} (${socket.id})`);
   });
 });
@@ -242,10 +655,12 @@ async function startServer() {
   try {
     await connectToDatabase();
 
-    // Ensure indexes for performance and data integrity
     const db = getDb();
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
     await db.collection('users').createIndex({ verificationToken: 1 }, { sparse: true });
+    await db.collection('auctions').createIndex({ id: 1 }, { unique: true });
+    await db.collection('notifications').createIndex({ userId: 1, read: 1 });
+    await db.collection('ratings').createIndex({ auctionId: 1, buyerId: 1 }, { unique: true });
 
     httpServer.listen(PORT, '127.0.0.1', () => {
       console.log(`✅ Server running on http://127.0.0.1:${PORT}`);
