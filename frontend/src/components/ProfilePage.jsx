@@ -486,7 +486,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
             {!editing ? (
               <>
                 <button onClick={() => setEditing(true)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
-                  <Edit3 size={15} /> {t('validateBtn') === 'Valider' ? 'Modifier' : (locale === 'ar' ? 'تعديل' : 'Edit')}
+                  <Edit3 size={15} /> {t('editBtn')}
                 </button>
                 <button onClick={onNavigateToDashboard} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
                   {t('backToDash')}
@@ -495,7 +495,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
             ) : (
               <>
                 <button onClick={() => setEditing(false)} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
-                  <X size={15} /> {locale === 'fr' ? 'Annuler' : (locale === 'ar' ? 'إلغاء' : 'Cancel')}
+                  <X size={15} /> {t('cancelBtn')}
                 </button>
                 <button onClick={handleSave} disabled={saving} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.875rem' }}>
                   {saving ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Save size={15} />}
@@ -514,17 +514,17 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="glass-panel" style={{ textAlign: 'start' }}>
               <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-                <BarChart2 size={14} /> <span>{locale === 'ar' ? 'الإحصائيات' : 'Statistics'}</span>
+                <BarChart2 size={14} /> <span>{t('statistics')}</span>
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {profile?.role === 'buyer' ? (
-                  <StatItem value={profile?.stats?.auctionsCount ?? 0} label={locale === 'ar' ? 'المناقصات المنشأة' : 'Auctions created'} color="var(--secondary)" dir={dir} />
+                  <StatItem value={profile?.stats?.auctionsCount ?? 0} label={t('auctionsCreated')} color="var(--secondary)" dir={dir} />
                 ) : (
-                  <StatItem value={profile?.stats?.bidsCount ?? 0} label={locale === 'ar' ? 'العروض المقدمة' : 'Bids submitted'} color="var(--accent)" dir={dir} />
+                  <StatItem value={profile?.stats?.bidsCount ?? 0} label={t('bidsSubmitted')} color="var(--accent)" dir={dir} />
                 )}
                 <StatItem
                   value={memberDateStr}
-                  label={locale === 'ar' ? 'عضو منذ' : 'Member since'}
+                  label={t('memberSinceLabel')}
                   color="var(--primary)"
                   isText
                   dir={dir}
@@ -536,8 +536,8 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
               <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(16,185,129,0.1)', marginBottom: '12px' }}>
                 <CheckCircle size={24} style={{ color: 'var(--primary)' }} />
               </div>
-              <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)', margin: '0 0 4px' }}>{locale === 'ar' ? 'حساب مؤكد' : 'Account Verified'}</p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{locale === 'ar' ? 'تم تأكيد البريد الإلكتروني' : 'Email address confirmed'}</p>
+              <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)', margin: '0 0 4px' }}>{t('accountVerified')}</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{t('emailConfirmed')}</p>
             </div>
           </div>
         )}
@@ -690,17 +690,17 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="glass-panel" style={{ textAlign: 'start' }}>
               <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BarChart2 size={14} /> Statistiques
+                <BarChart2 size={14} /> {t('statistics')}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {profile?.role === 'buyer' ? (
-                  <StatItem value={profile?.stats?.auctionsCount ?? 0} label="Enchères créées" color="var(--secondary)" dir={dir} />
+                  <StatItem value={profile?.stats?.auctionsCount ?? 0} label={t('auctionsCreated')} color="var(--secondary)" dir={dir} />
                 ) : (
-                  <StatItem value={profile?.stats?.bidsCount ?? 0} label="Offres soumises" color="var(--accent)" dir={dir} />
+                  <StatItem value={profile?.stats?.bidsCount ?? 0} label={t('bidsSubmitted')} color="var(--accent)" dir={dir} />
                 )}
                 <StatItem
                   value={memberDateStr}
-                  label="Membre depuis"
+                  label={t('memberSinceLabel')}
                   color="var(--primary)"
                   isText
                   dir={dir}
@@ -712,8 +712,8 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
               <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(16,185,129,0.1)', marginBottom: '12px' }}>
                 <CheckCircle size={24} style={{ color: 'var(--primary)' }} />
               </div>
-              <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)', margin: '0 0 4px' }}>Compte vérifié</p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>Adresse e-mail confirmée</p>
+              <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary)', margin: '0 0 4px' }}>{t('accountVerified')}</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{t('emailConfirmed')}</p>
             </div>
           </div>
         )}

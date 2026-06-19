@@ -34,7 +34,7 @@ export default function RoleSelection({ onSelect }) {
             <Sprout size={36} />
           </div>
           <h2 style={{ fontSize: '2rem', marginBottom: '8px' }}>Sougra</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Enchères inversées agricoles en temps réel</p>
+          <p style={{ color: 'var(--text-muted)' }}>Achat et vente directe de récoltes agricoles</p>
         </div>
 
         <form onSubmit={handleSubmit}>

@@ -173,6 +173,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         role: user.role,
         profilePhoto: user.profilePhoto || null,
+        wilaya: user.wilaya || '',
+        commune: user.commune || '',
       },
     });
   } catch (err) {
