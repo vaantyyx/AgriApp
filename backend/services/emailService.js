@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import fs from 'fs';
 
 function createTransporter() {
   const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
@@ -30,6 +31,12 @@ export async function sendVerificationEmail(to, name, token) {
   console.log(`[EMAIL DEV] Verification link for ${to}:`);
   console.log(`👉 ${verifyUrl}`);
   console.log(`==================================================\n`);
+
+  try {
+    fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] VERIFY for ${to}: ${verifyUrl}\n`);
+  } catch (err) {
+    console.error('Failed to write dev email log:', err.message);
+  }
 
   if (!transporter) {
     return; // Silently skip in dev when not configured
@@ -134,3 +141,56 @@ export async function sendWelcomeEmail(to, name, role) {
     console.error('[EMAIL] Failed to send welcome email via SMTP:', err.message);
   }
 }
+
+export async function sendOtpEmail(to, name, otp, minutes, title, subject, desc) {
+  const transporter = createTransporter();
+  console.log(`\n==================================================`);
+  console.log(`[EMAIL DEV] OTP Code for ${to} (${name}):`);
+  console.log(`👉 ${otp} (Expires in ${minutes} minutes)`);
+  console.log(`==================================================\n`);
+
+  try {
+    fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] OTP for ${to}: ${otp}\n`);
+  } catch (err) {
+    console.error('Failed to write dev OTP log:', err.message);
+  }
+
+  if (!transporter) {
+    return; // Silently skip in dev when not configured
+  }
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <title>${subject}</title>
+    </head>
+    <body style="margin:0;padding:0;background:#0b0f12;font-family:Arial,sans-serif;color:#f3f4f6;">
+      <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;border:1px solid rgba(255,255,255,0.08);">
+        <h1 style="color:#10b981;font-size:1.6rem;margin-top:0;">${title}</h1>
+        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">Bonjour ${name},</p>
+        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">${desc}</p>
+        <div style="text-align:center;margin:32px 0;">
+          <span style="display:inline-block;background:#1b252c;color:#10b981;padding:14px 28px;font-size:24px;font-weight:bold;letter-spacing:6px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);">
+            ${otp}
+          </span>
+        </div>
+        <p style="color:#6b7280;font-size:0.8rem;">Ce code est valide pendant ${minutes} minutes. S'il ne provient pas de vous, ignorez ce message.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"Sougra" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error('[EMAIL] Failed to send OTP email via SMTP:', err.message);
+  }
+}
+

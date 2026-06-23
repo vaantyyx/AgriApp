@@ -1,8 +1,121 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, MapPin, FileText, Camera, Tractor, ShoppingBag, Edit3, Save, X, CheckCircle, AlertCircle, BarChart2 } from 'lucide-react';
+import { User, Mail, Phone, MapPin, FileText, Camera, Tractor, ShoppingBag, Edit3, Save, X, CheckCircle, AlertCircle, BarChart2, Shield, Key, Lock, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 
 const BACKEND_URL = 'http://127.0.0.1:3001';
+
+const secTrans = {
+  fr: {
+    securityTab: "Sécurité & Accès",
+    profileTab: "Informations du profil",
+    twoFactorTitle: "Double authentification (2FA)",
+    twoFactorDesc: "Ajoutez une couche de sécurité supplémentaire à votre compte. Lors de la connexion, vous devrez saisir un code envoyé par e-mail ou SMS.",
+    enable2FA: "Activer la double authentification",
+    twoFactorMethod: "Méthode de réception",
+    methodEmail: "E-mail",
+    methodPhone: "SMS / Téléphone",
+    saveSecurityBtn: "Enregistrer les paramètres de sécurité",
+    securitySaveSuccess: "Paramètres de sécurité mis à jour.",
+    changePasswordTitle: "Changer le mot de passe",
+    changePasswordDesc: "Pour modifier votre mot de passe, vous devez d'abord saisir votre mot de passe actuel pour recevoir un code de vérification.",
+    currentPasswordLabel: "Mot de passe actuel",
+    newPasswordLabel: "Nouveau mot de passe",
+    confirmNewPasswordLabel: "Confirmer le nouveau mot de passe",
+    requestOtpBtn: "Demander le code OTP",
+    requestingOtp: "Demande en cours...",
+    otpSentSuccess: "Un code OTP a été envoyé. Il est valide pendant 10 minutes.",
+    otpCodeLabel: "Code de vérification (OTP)",
+    otpCodePlaceholder: "Code à 6 chiffres",
+    changePasswordBtn: "Confirmer le changement",
+    changingPassword: "Modification en cours...",
+    passwordChangeSuccess: "Mot de passe modifié avec succès.",
+    passwordsMismatch: "Les nouveaux mots de passe ne correspondent pas.",
+    otpInvalidLength: "Veuillez saisir un code OTP à 6 chiffres.",
+    passwordTooShort: "Le nouveau mot de passe doit contenir au moins 8 caractères."
+  },
+  ar: {
+    securityTab: "الأمان والوصول",
+    profileTab: "معلومات الحساب",
+    twoFactorTitle: "التحقق المزدوج (2FA)",
+    twoFactorDesc: "أضف طبقة أمان إضافية لحسابك. عند تسجيل الدخول، ستحتاج إلى إدخال رمز مرسل عبر البريد الإلكتروني أو الرسائل النصية القصيرة.",
+    enable2FA: "تفعيل التحقق المزدوج",
+    twoFactorMethod: "طريقة الاستلام",
+    methodEmail: "البريد الإلكتروني",
+    methodPhone: "رسالة نصية قصيرة (SMS)",
+    saveSecurityBtn: "حفظ إعدادات الأمان",
+    securitySaveSuccess: "تم تحديث إعدادات الأمان بنجاح.",
+    changePasswordTitle: "تغيير كلمة المرور",
+    changePasswordDesc: "لتغيير كلمة المرور الخاصة بك، يجب عليك أولاً إدخال كلمة المرور الحالية لتلقي رمز التحقق.",
+    currentPasswordLabel: "كلمة المرور الحالية",
+    newPasswordLabel: "كلمة المرور الجديدة",
+    confirmNewPasswordLabel: "تأكيد كلمة المرور الجديدة",
+    requestOtpBtn: "طلب رمز التحقق (OTP)",
+    requestingOtp: "جاري الطلب...",
+    otpSentSuccess: "تم إرسال رمز التحقق. الرمز صالح لمدة 10 دقائق.",
+    otpCodeLabel: "رمز التحقق (OTP)",
+    otpCodePlaceholder: "رمز من 6 أرقام",
+    changePasswordBtn: "تأكيد التغيير",
+    changingPassword: "جاري التعديل...",
+    passwordChangeSuccess: "تم تغيير كلمة المرور بنجاح.",
+    passwordsMismatch: "كلمتا المرور الجديدتان غير متطابقتين.",
+    otpInvalidLength: "يرجى إدخال رمز تحقق مكون من 6 أرقام.",
+    passwordTooShort: "يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل."
+  },
+  en: {
+    securityTab: "Security & Access",
+    profileTab: "Profile Information",
+    twoFactorTitle: "Two-Factor Authentication (2FA)",
+    twoFactorDesc: "Add an extra layer of security to your account. Upon logging in, you will be required to enter a code sent via email or SMS.",
+    enable2FA: "Enable Two-Factor Authentication",
+    twoFactorMethod: "Delivery Method",
+    methodEmail: "Email",
+    methodPhone: "SMS / Phone",
+    saveSecurityBtn: "Save Security Settings",
+    securitySaveSuccess: "Security settings updated successfully.",
+    changePasswordTitle: "Change Password",
+    changePasswordDesc: "To modify your password, you must first enter your current password to receive a verification code.",
+    currentPasswordLabel: "Current Password",
+    newPasswordLabel: "New Password",
+    confirmNewPasswordLabel: "Confirm New Password",
+    requestOtpBtn: "Request OTP Code",
+    requestingOtp: "Requesting...",
+    otpSentSuccess: "An OTP code has been sent. It is valid for 10 minutes.",
+    otpCodeLabel: "Verification Code (OTP)",
+    otpCodePlaceholder: "6-digit code",
+    changePasswordBtn: "Confirm Change",
+    changingPassword: "Changing...",
+    passwordChangeSuccess: "Password changed successfully.",
+    passwordsMismatch: "The new passwords do not match.",
+    otpInvalidLength: "Please enter a 6-digit OTP code.",
+    passwordTooShort: "The new password must be at least 8 characters long."
+  }
+};
+
+export function computeProfileCompletion(user) {
+  if (!user) return 0;
+  const isEntreprise = user.entity_type === 'entreprise';
+  
+  if (!isEntreprise) {
+    let score = 0;
+    if (user.profilePhoto) score += 25;
+    if (user.wilaya && user.wilaya.trim()) score += 25;
+    if (user.commune && user.commune.trim()) score += 25;
+    if (user.phone && user.phone.trim()) score += 25;
+    return score;
+  } else {
+    let score = 0;
+    if (user.profilePhoto) score += 10;
+    if (user.wilaya && user.wilaya.trim()) score += 10;
+    if (user.commune && user.commune.trim()) score += 10;
+    if (user.phone && user.phone.trim()) score += 10;
+    if (user.forme_juridique && user.forme_juridique.trim()) score += 10;
+    if (user.rc && user.rc.trim()) score += 10;
+    if (user.nif && user.nif.trim()) score += 10;
+    if (user.secteur_activite && user.secteur_activite.trim()) score += 10;
+    if (user.nom_commercial && user.nom_commercial.trim()) score += 20;
+    return score;
+  }
+}
 
 // Custom Searchable Dropdown component for a premium experience
 function SearchableSelect({ options, value, onChange, placeholder, disabled, labelKey = 'label', valueKey = 'value' }) {
@@ -173,6 +286,7 @@ function Avatar({ photoUrl, name, size = 96 }) {
 
 export default function ProfilePage({ token, user: initialUser, onUserUpdate, onNavigateToDashboard }) {
   const { t, dir, locale } = useTranslation();
+  const secT = secTrans[locale] || secTrans['fr'] || secTrans['en'];
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -180,6 +294,137 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // ── Security Tab State ──────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('profile');
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState('email');
+  const [savingSecurity, setSavingSecurity] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const [showPasswordCurrent, setShowPasswordCurrent] = useState(false);
+  const [showPasswordNew, setShowPasswordNew] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setTwoFactorEnabled(!!profile.two_factor_enabled);
+      setTwoFactorMethod(profile.two_factor_method || 'email');
+    }
+  }, [profile]);
+
+  const handleSaveSecuritySettings = async () => {
+    setSavingSecurity(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/profile/security`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          two_factor_enabled: twoFactorEnabled,
+          two_factor_method: twoFactorMethod,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(secT.securitySaveSuccess);
+        setProfile(prev => ({
+          ...prev,
+          two_factor_enabled: twoFactorEnabled,
+          two_factor_method: twoFactorMethod,
+        }));
+        if (data.user) {
+          onUserUpdate(data.user);
+        }
+      } else {
+        showToast(data.error || t('updateError'), 'error');
+      }
+    } catch {
+      showToast(t('serverError'), 'error');
+    } finally {
+      setSavingSecurity(false);
+    }
+  };
+
+  const handleRequestPasswordOtp = async () => {
+    if (!currentPassword) return;
+    setRequestingOtp(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/profile/password/otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ current_password: currentPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(secT.otpSentSuccess);
+        setOtpRequested(true);
+      } else {
+        showToast(data.error || t('updateError'), 'error');
+      }
+    } catch {
+      showToast(t('serverError'), 'error');
+    } finally {
+      setRequestingOtp(false);
+    }
+  };
+
+  const handleChangePasswordSubmit = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      showToast(secT.otpInvalidLength, 'error');
+      return;
+    }
+    if (newPassword.length < 8) {
+      showToast(secT.passwordTooShort, 'error');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      showToast(secT.passwordsMismatch, 'error');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/profile/password/change`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          otp: otpCode,
+          password: newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(secT.passwordChangeSuccess);
+        setCurrentPassword('');
+        setOtpCode('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setOtpRequested(false);
+      } else {
+        showToast(data.error || t('updateError'), 'error');
+      }
+    } catch {
+      showToast(t('serverError'), 'error');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   // Wilaya / Commune selects for edit mode
   const [wilayas, setWilayas] = useState([]);
@@ -237,6 +482,14 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
           commune: data.commune || '',
           wilaya_id: '', 
           commune_id: '', 
+          entity_type: data.entity_type || 'particulier',
+          rc: data.rc || '',
+          nif: data.nif || '',
+          forme_juridique: data.forme_juridique || '',
+          nom_commercial: data.nom_commercial || '',
+          secteur_activite: data.secteur_activite || '',
+          possede_transport: !!data.possede_transport,
+          possede_chambre_froide: !!data.possede_chambre_froide,
         });
       }
     } catch {
@@ -318,6 +571,14 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
         bio: form.bio,
         wilaya: form.wilaya,
         commune: form.commune,
+        entity_type: form.entity_type || 'particulier',
+        rc: form.rc || '',
+        nif: form.nif || '',
+        forme_juridique: form.forme_juridique || '',
+        nom_commercial: form.nom_commercial || '',
+        secteur_activite: form.secteur_activite || '',
+        possede_transport: !!form.possede_transport,
+        possede_chambre_froide: !!form.possede_chambre_froide,
       };
 
       const res = await fetch(`${BACKEND_URL}/api/profile`, {
@@ -328,7 +589,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       const data = await res.json();
       if (res.ok) {
         setProfile(prev => ({ ...prev, ...payload }));
-        onUserUpdate({ ...initialUser, name: form.name });
+        onUserUpdate({ ...initialUser, ...payload });
         setEditing(false);
         showToast(t('updateSuccess'));
       } else {
@@ -366,7 +627,9 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       });
       const data = await res.json();
       if (res.ok) {
-        setProfile(prev => ({ ...prev, profilePhoto: data.photoUrl.split('/uploads/')[1] }));
+        const photoFilename = data.photoUrl.split('/uploads/')[1];
+        setProfile(prev => ({ ...prev, profilePhoto: photoFilename }));
+        onUserUpdate({ ...initialUser, profilePhoto: photoFilename });
         showToast(t('updateSuccess'));
       } else {
         showToast(data.error || t('updateError'), 'error');
@@ -507,7 +770,78 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: dir === 'rtl' ? '320px 1fr' : '1fr 320px', gap: '24px', flexWrap: 'wrap' }}>
+      {/* Completion Banner */}
+      {profile?.role === 'buyer' && (
+        <div className="glass-panel" style={{ padding: '20px 24px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'start' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)' }}>
+              {locale === 'ar' ? 'نسبة اكتمال الملف الشخصي' : (locale === 'fr' ? 'Taux de complétion du profil' : 'Profile completion rate')}
+            </span>
+            <span style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--primary)' }}>
+              {computeProfileCompletion(profile)}%
+            </span>
+          </div>
+          <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden' }}>
+            <div style={{
+              width: `${computeProfileCompletion(profile)}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, var(--primary) 0%, #10B981 100%)',
+              borderRadius: '5px',
+              transition: 'width 0.5s ease-out'
+            }} />
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+            {locale === 'ar' 
+              ? 'يجب أن تصل نسبة اكتمال ملفك الشخصي إلى 70% على الأقل لتتمكن من إنشاء مزاد جديد.' 
+              : (locale === 'fr' 
+                  ? 'Votre profil doit être complété à au moins 70% pour pouvoir lancer une enchère.'
+                  : 'Your profile must be completed to at least 70% to launch a new auction.')}
+          </p>
+        </div>
+      )}
+
+      {/* Tabs Selector */}
+      <div style={{
+        display: 'flex', gap: '16px', borderBottom: '1px solid var(--border)',
+        marginBottom: '24px', paddingBottom: '2px',
+        flexDirection: dir === 'rtl' ? 'row-reverse' : 'row'
+      }}>
+        <button
+          onClick={() => setActiveTab('profile')}
+          style={{
+            background: 'none', border: 'none',
+            padding: '10px 16px', cursor: 'pointer',
+            fontSize: '0.95rem', fontWeight: activeTab === 'profile' ? 700 : 500,
+            color: activeTab === 'profile' ? 'var(--primary)' : 'var(--text-muted)',
+            borderBottom: `3px solid ${activeTab === 'profile' ? 'var(--primary)' : 'transparent'}`,
+            transition: 'all 0.2s ease',
+            display: 'flex', alignItems: 'center', gap: 8,
+            flexDirection: dir === 'rtl' ? 'row-reverse' : 'row'
+          }}
+        >
+          <User size={16} />
+          <span>{secT.profileTab}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          style={{
+            background: 'none', border: 'none',
+            padding: '10px 16px', cursor: 'pointer',
+            fontSize: '0.95rem', fontWeight: activeTab === 'security' ? 700 : 500,
+            color: activeTab === 'security' ? 'var(--primary)' : 'var(--text-muted)',
+            borderBottom: `3px solid ${activeTab === 'security' ? 'var(--primary)' : 'transparent'}`,
+            transition: 'all 0.2s ease',
+            display: 'flex', alignItems: 'center', gap: 8,
+            flexDirection: dir === 'rtl' ? 'row-reverse' : 'row'
+          }}
+        >
+          <Shield size={16} />
+          <span>{secT.securityTab}</span>
+        </button>
+      </div>
+
+      {activeTab === 'profile' ? (
+        <div style={{ display: 'grid', gridTemplateColumns: dir === 'rtl' ? '320px 1fr' : '1fr 320px', gap: '24px', flexWrap: 'wrap' }}>
         
         {dir === 'rtl' && (
           /* Stats Card on left for Arabic */
@@ -549,14 +883,32 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
 
           {!editing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {[
+              {(Object.keys(profile || {}).length > 0 ? [
                 { icon: <User size={16} />, label: t('fullNameLabel'), value: profile?.name },
                 { icon: <Mail size={16} />, label: t('emailLabel'), value: profile?.email },
                 { icon: <Phone size={16} />, label: t('phoneLabel'), value: displayPhone || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('phoneNotProvided')}</span> },
                 { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: profile?.wilaya || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
                 { icon: <MapPin size={16} />, label: t('communeLabel'), value: profile?.commune || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
+                ...(profile?.role === 'buyer' ? [
+                  { 
+                    icon: <User size={16} />, 
+                    label: locale === 'ar' ? 'نوع الكيان' : 'Type d\'entité', 
+                    value: profile?.entity_type === 'entreprise' 
+                      ? (locale === 'ar' ? 'مؤسسة' : 'Entreprise') 
+                      : (locale === 'ar' ? 'فرد' : 'Particulier') 
+                  },
+                  ...(profile?.entity_type === 'entreprise' ? [
+                    { icon: <ShoppingBag size={16} />, label: locale === 'ar' ? 'الاسم التجاري' : 'Nom commercial', value: profile?.nom_commercial || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
+                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'الشكل القانوني' : 'Forme juridique', value: profile?.forme_juridique || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
+                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'رقم السجل التجاري (RC)' : 'Registre de commerce (RC)', value: profile?.rc || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
+                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'الرقم التعريف الجبائي (NIF)' : 'Numéro d\'identification fiscale (NIF)', value: profile?.nif || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
+                    { icon: <ShoppingBag size={16} />, label: locale === 'ar' ? 'قطاع النشاط' : 'Secteur d\'activité', value: profile?.secteur_activite || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
+                  ] : []),
+                  { icon: <Tractor size={16} />, label: locale === 'ar' ? 'وسائل النقل' : 'Possède un transport', value: profile?.possede_transport ? (locale === 'ar' ? 'نعم ✓' : 'Oui ✓') : (locale === 'ar' ? 'لا ✗' : 'Non ✗') },
+                  { icon: <Tractor size={16} />, label: locale === 'ar' ? 'غرفة تبريد' : 'Possède une chambre froide', value: profile?.possede_chambre_froide ? (locale === 'ar' ? 'نعم ✓' : 'Oui ✓') : (locale === 'ar' ? 'لا ✗' : 'Non ✗') },
+                ] : []),
                 { icon: <FileText size={16} />, label: t('bioLabel'), value: profile?.bio || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('bioPlaceholder')}</span> },
-              ].map((item, i) => (
+              ] : []).map((item, i) => (
                 <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                   <div style={{ color: 'var(--text-muted)', marginTop: '2px', flexShrink: 0 }}>{item.icon}</div>
                   <div>
@@ -681,6 +1033,156 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
                   {(form.bio || '').length}/500
                 </span>
               </div>
+
+              {profile?.role === 'buyer' && (
+                <>
+                  {/* Selector for Entity Type */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>{locale === 'ar' ? 'نوع الكيان' : 'Type d\'entité'}</label>
+                    <div style={{
+                      display: 'flex',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '10px',
+                      padding: '4px',
+                      gap: '4px',
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, entity_type: 'particulier' }))}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: form.entity_type === 'particulier' ? 'var(--primary)' : 'transparent',
+                          color: form.entity_type === 'particulier' ? 'white' : 'var(--text-muted)',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                        }}
+                      >
+                        {locale === 'ar' ? 'فرد' : 'Particulier'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, entity_type: 'entreprise' }))}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: form.entity_type === 'entreprise' ? 'var(--primary)' : 'transparent',
+                          color: form.entity_type === 'entreprise' ? 'white' : 'var(--text-muted)',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                        }}
+                      >
+                        {locale === 'ar' ? 'مؤسسة' : 'Entreprise'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Company specific fields: shown only if entity_type is entreprise */}
+                  {form.entity_type === 'entreprise' && (
+                    <>
+                      {/* Nom commercial */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>{locale === 'ar' ? 'الاسم التجاري' : 'Nom commercial'}</label>
+                        <input
+                          type="text"
+                          placeholder={locale === 'ar' ? 'مثال: شركة التوزيع الكبرى' : 'Ex: DistriAgri S.A.R.L.'}
+                          value={form.nom_commercial || ''}
+                          onChange={e => setForm(prev => ({ ...prev, nom_commercial: e.target.value }))}
+                          style={{ width: '100%', textAlign: 'start' }}
+                        />
+                      </div>
+
+                      {/* Forme juridique dropdown */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>{locale === 'ar' ? 'الشكل القانوني' : 'Forme juridique'}</label>
+                        <select
+                          value={form.forme_juridique || ''}
+                          onChange={e => setForm(prev => ({ ...prev, forme_juridique: e.target.value }))}
+                          style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="">{locale === 'ar' ? '-- اختر الشكل القانوني --' : '-- Choisir forme juridique --'}</option>
+                          <option value="SARL">SARL</option>
+                          <option value="EURL">EURL</option>
+                          <option value="SNC">SNC</option>
+                          <option value="Entreprise individuelle">Entreprise individuelle</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+
+                      {/* Registre de commerce (RC) */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>{locale === 'ar' ? 'رقم السجل التجاري (RC)' : 'Numéro Registre de Commerce (RC)'}</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: 16/00-1234567B20"
+                          value={form.rc || ''}
+                          onChange={e => setForm(prev => ({ ...prev, rc: e.target.value }))}
+                          style={{ width: '100%', textAlign: 'start' }}
+                        />
+                      </div>
+
+                      {/* Numéro d'identification fiscale (NIF) */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>{locale === 'ar' ? 'الرقم التعريف الجبائي (NIF)' : 'Numéro d\'Identification Fiscale (NIF)'}</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: 001234567890123"
+                          value={form.nif || ''}
+                          onChange={e => setForm(prev => ({ ...prev, nif: e.target.value }))}
+                          style={{ width: '100%', textAlign: 'start' }}
+                        />
+                      </div>
+
+                      {/* Secteur d'activité dropdown */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>{locale === 'ar' ? 'قطاع النشاط' : 'Secteur d\'activité'}</label>
+                        <select
+                          value={form.secteur_activite || ''}
+                          onChange={e => setForm(prev => ({ ...prev, secteur_activite: e.target.value }))}
+                          style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}
+                        >
+                          <option value="">{locale === 'ar' ? '-- اختر القطاع --' : '-- Choisir secteur --'}</option>
+                          <option value="Agroalimentaire">Agroalimentaire</option>
+                          <option value="Distribution">Distribution</option>
+                          <option value="Restauration">Restauration</option>
+                          <option value="Export">Export</option>
+                          <option value="Transformation">Transformation</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Checkboxes: transport, chambre froide (shown for all buyers) */}
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!form.possede_transport}
+                        onChange={e => setForm(prev => ({ ...prev, possede_transport: e.target.checked }))}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                      />
+                      <span>{locale === 'ar' ? 'أملك وسيلة نقل' : 'Possède un transport'}</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!form.possede_chambre_froide}
+                        onChange={e => setForm(prev => ({ ...prev, possede_chambre_froide: e.target.checked }))}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                      />
+                      <span>{locale === 'ar' ? 'أملك غرفة تبريد' : 'Possède une chambre froide'}</span>
+                    </label>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -719,6 +1221,210 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
         )}
 
       </div>
+      ) : (
+        /* security tab content */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Card 1: 2FA Settings */}
+          <div className="glass-panel" style={{ padding: '24px', textAlign: 'start' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+              <Shield size={20} style={{ color: 'var(--primary)' }} />
+              <span>{secT.twoFactorTitle}</span>
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', lineHeight: '1.5' }}>
+              {secT.twoFactorDesc}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Toggle switch for 2FA */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+                <button
+                  type="button"
+                  onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
+                  style={{
+                    position: 'relative', width: '48px', height: '24px',
+                    borderRadius: '12px', background: twoFactorEnabled ? 'var(--primary)' : 'var(--border)',
+                    border: 'none', cursor: 'pointer', transition: 'background-color 0.3s ease',
+                    padding: 0, outline: 'none'
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: '3px',
+                    left: twoFactorEnabled ? '27px' : '3px',
+                    width: '18px', height: '18px', borderRadius: '50%',
+                    background: 'white', transition: 'left 0.3s ease',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                  }} />
+                </button>
+                <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                  {secT.enable2FA}
+                </span>
+              </div>
+
+              {/* Selection for 2FA method */}
+              {twoFactorEnabled && (
+                <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '300px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{secT.twoFactorMethod}</label>
+                  <select
+                    value={twoFactorMethod}
+                    onChange={(e) => setTwoFactorMethod(e.target.value)}
+                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none' }}
+                  >
+                    <option value="email">{secT.methodEmail}</option>
+                    <option value="phone">{secT.methodPhone}</option>
+                  </select>
+                  {twoFactorMethod === 'phone' && !profile?.phone && (
+                    <p style={{ fontSize: '0.75rem', color: '#ef4444', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <AlertCircle size={12} />
+                      {locale === 'fr' 
+                        ? "Veuillez renseigner votre numéro de téléphone dans l'onglet profil pour recevoir les codes par SMS." 
+                        : (locale === 'ar' 
+                            ? "يرجى كتابة رقم هاتفك في تبويب الحساب لتلقي الرموز عبر رسائل SMS."
+                            : "Please add your phone number in the profile tab to receive codes via SMS.")}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <button
+                  onClick={handleSaveSecuritySettings}
+                  disabled={savingSecurity}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.875rem' }}
+                >
+                  {savingSecurity ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Save size={14} />}
+                  {secT.saveSecurityBtn}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Change Password */}
+          <div className="glass-panel" style={{ padding: '24px', textAlign: 'start' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+              <Key size={20} style={{ color: 'var(--primary)' }} />
+              <span>{secT.changePasswordTitle}</span>
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', lineHeight: '1.5' }}>
+              {secT.changePasswordDesc}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '450px' }}>
+              {/* Current Password Field */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label>{secT.currentPasswordLabel}</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPasswordCurrent ? 'text' : 'password'}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    disabled={otpRequested}
+                    style={{ width: '100%', paddingLeft: dir === 'ltr' ? '40px' : '16px', paddingRight: dir === 'rtl' ? '40px' : '16px', textAlign: 'start' }}
+                  />
+                  <Lock size={15} style={{ position: 'absolute', left: dir === 'ltr' ? '12px' : 'auto', right: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  {!otpRequested && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordCurrent(!showPasswordCurrent)}
+                      style={{ position: 'absolute', right: dir === 'ltr' ? '12px' : 'auto', left: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}
+                    >
+                      {showPasswordCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {!otpRequested ? (
+                <div>
+                  <button
+                    onClick={handleRequestPasswordOtp}
+                    disabled={requestingOtp || !currentPassword}
+                    className="btn btn-secondary"
+                    style={{ padding: '10px 20px', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                  >
+                    {requestingOtp ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : null}
+                    {requestingOtp ? secT.requestingOtp : secT.requestOtpBtn}
+                  </button>
+                </div>
+              ) : (
+                <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{
+                    borderRadius: 8, padding: '10px 14px', fontSize: '0.85rem',
+                    color: 'var(--primary)', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
+                    display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row'
+                  }}>
+                    <CheckCircle size={15} />
+                    <span>{secT.otpSentSuccess}</span>
+                    <button
+                      onClick={() => { setOtpRequested(false); setOtpCode(''); setNewPassword(''); setConfirmNewPassword(''); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline', marginStart: 'auto' }}
+                    >
+                      {locale === 'fr' ? 'Recommencer' : (locale === 'ar' ? 'إعادة المحاولة' : 'Restart')}
+                    </button>
+                  </div>
+
+                  {/* OTP Code Input */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>{secT.otpCodeLabel}</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder={secT.otpCodePlaceholder}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      style={{ width: '100%', textAlign: 'center', fontSize: '1.25rem', letterSpacing: '4px', fontWeight: 'bold' }}
+                    />
+                  </div>
+
+                  {/* New Password Field */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>{secT.newPasswordLabel}</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showPasswordNew ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        style={{ width: '100%', paddingLeft: dir === 'ltr' ? '40px' : '16px', paddingRight: dir === 'rtl' ? '40px' : '16px', textAlign: 'start' }}
+                      />
+                      <Lock size={15} style={{ position: 'absolute', left: dir === 'ltr' ? '12px' : 'auto', right: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswordNew(!showPasswordNew)}
+                        style={{ position: 'absolute', right: dir === 'ltr' ? '12px' : 'auto', left: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}
+                      >
+                        {showPasswordNew ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm New Password Field */}
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label>{secT.confirmNewPasswordLabel}</label>
+                    <input
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      style={{ width: '100%', textAlign: 'start' }}
+                    />
+                  </div>
+
+                  <div>
+                    <button
+                      onClick={handleChangePasswordSubmit}
+                      disabled={changingPassword || !otpCode || !newPassword || !confirmNewPassword}
+                      className="btn btn-primary"
+                      style={{ padding: '10px 20px', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    >
+                      {changingPassword ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : null}
+                      {changingPassword ? secT.changingPassword : secT.changePasswordBtn}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

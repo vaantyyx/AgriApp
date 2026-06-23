@@ -1720,10 +1720,10 @@ textarea { resize: vertical; min-height: 90px; }
   top: calc(100% + 10px);
   right: 0;
   width: 320px;
-  background: rgba(18,26,32,0.97);
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 14px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-xl);
   z-index: 200;
   overflow: hidden;
   backdrop-filter: blur(20px);
@@ -1736,6 +1736,7 @@ textarea { resize: vertical; min-height: 90px; }
   border-bottom: 1px solid var(--border);
   font-weight: 700;
   font-size: 0.9rem;
+  color: var(--text-main);
 }
 .notif-clear-btn {
   background: none;
@@ -1765,9 +1766,9 @@ textarea { resize: vertical; min-height: 90px; }
   border-bottom: 1px solid var(--border);
   transition: background 0.15s ease;
 }
-.notif-item:hover { background: rgba(255,255,255,0.03); }
+.notif-item:hover { background: var(--bg-card-hover); }
 .notif-item:last-child { border-bottom: none; }
-.notif-unread { background: rgba(16,185,129,0.04); }
+.notif-unread { background: var(--primary-soft); }
 .notif-dot {
   width: 8px;
   height: 8px;
@@ -1855,14 +1856,15 @@ textarea { resize: vertical; min-height: 90px; }
   backdrop-filter: blur(4px);
 }
 .modal-card {
-  background: rgba(18,26,32,0.98);
+  background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 32px 28px;
   width: 100%;
   max-width: 400px;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+  box-shadow: var(--shadow-xl);
   position: relative;
+  color: var(--text-main);
 }
 .modal-close-btn {
   position: absolute;
@@ -2031,4 +2033,62 @@ textarea { resize: vertical; min-height: 90px; }
   transition: opacity 0.15s;
 }
 .bid-photo-thumb:hover .bid-photo-overlay { opacity: 1; }
+
+/* ══════════════════════════════════════════════════════
+   PARCEL MODAL RESPONSIVE LAYOUT
+   ══════════════════════════════════════════════════════ */
+.parcel-modal-card {
+  max-width: 980px !important;
+  width: 90% !important;
+  padding: 0 !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.parcel-modal-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  flex-wrap: nowrap; /* Prevent wrap on desktop to force side-by-side */
+}
+
+.parcel-modal-form {
+  flex: 1.2;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.parcel-modal-map-container {
+  flex: 1.1;
+  background: rgba(255,255,255,0.01);
+  border-left: 1px solid var(--border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Responsive adjustment for tablet/mobile */
+@media (max-width: 768px) {
+  .parcel-modal-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .parcel-modal-form {
+    flex: none;
+    overflow-y: visible;
+  }
+  .parcel-modal-map-container {
+    flex: none;
+    height: 350px;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
 

@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db.js';
-import { sendVerificationEmail, sendWelcomeEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendOtpEmail } from '../services/emailService.js';
+import { createOtp, verifyOtp } from '../services/otpService.js';
+
 
 const router = express.Router();
 
@@ -158,6 +160,36 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Check if user has two-factor authentication enabled
+    if (user.two_factor_enabled) {
+      const otp = await createOtp(user._id.toString(), 'login');
+      const method = user.two_factor_method || 'email';
+      
+      if (method === 'phone' && user.phone) {
+        console.log(`\n==================================================`);
+        console.log(`[SMS DEV] SMS sent to ${user.phone}:`);
+        console.log(`👉 SOUGRA Code de connexion: ${otp}. Valide 5 min.`);
+        console.log(`==================================================\n`);
+      }
+      
+      // Send code via email
+      await sendOtpEmail(
+        user.email,
+        user.name,
+        otp,
+        5,
+        'Code de connexion',
+        'Double authentification - Sougra',
+        'Utilisez le code de connexion ci-dessous pour confirmer votre accès.'
+      );
+
+      return res.json({
+        status: 'OTP_REQUIRED',
+        message: `Un code OTP de sécurité a été envoyé à ${method === 'phone' && user.phone ? 'votre téléphone' : 'votre adresse email'}.`,
+        identifier: user.email,
+      });
+    }
+
     const secret = process.env.JWT_SECRET;
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email, role: user.role },
@@ -175,10 +207,104 @@ router.post('/login', async (req, res) => {
         profilePhoto: user.profilePhoto || null,
         wilaya: user.wilaya || '',
         commune: user.commune || '',
+        two_factor_enabled: !!user.two_factor_enabled,
+        two_factor_method: user.two_factor_method || 'email',
       },
     });
   } catch (err) {
     console.error('[LOGIN ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/auth/verify-otp ─────────────────────────────────────────────
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { identifier, otp } = req.body;
+    if (!identifier || !otp) {
+      return res.status(400).json({ error: 'Identifiant et code OTP requis.' });
+    }
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ email: identifier.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    }
+
+    const result = await verifyOtp(user._id.toString(), 'login', otp);
+    if (!result.valid) {
+      return res.status(400).json({ error: result.message });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    const token = jwt.sign(
+      { userId: user._id.toString(), email: user.email, role: user.role },
+      secret,
+      { algorithm: 'HS256', expiresIn: '24h' }
+    );
+
+    res.json({
+      status: 'AUTHENTICATED',
+      token,
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profilePhoto: user.profilePhoto || null,
+        wilaya: user.wilaya || '',
+        commune: user.commune || '',
+        two_factor_enabled: !!user.two_factor_enabled,
+        two_factor_method: user.two_factor_method || 'email',
+      },
+    });
+  } catch (err) {
+    console.error('[VERIFY OTP ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/auth/resend-otp ─────────────────────────────────────────────
+router.post('/resend-otp', async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) {
+      return res.status(400).json({ error: 'Identifiant requis.' });
+    }
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ email: identifier.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    }
+
+    if (!user.two_factor_enabled) {
+      return res.status(400).json({ error: "L'authentification à deux facteurs n'est pas activée pour cet utilisateur." });
+    }
+
+    const otp = await createOtp(user._id.toString(), 'login');
+    const method = user.two_factor_method || 'email';
+    
+    if (method === 'phone' && user.phone) {
+      console.log(`\n==================================================`);
+      console.log(`[SMS DEV] SMS resent to ${user.phone}:`);
+      console.log(`👉 SOUGRA Code de connexion: ${otp}. Valide 5 min.`);
+      console.log(`==================================================\n`);
+    }
+    
+    await sendOtpEmail(
+      user.email,
+      user.name,
+      otp,
+      5,
+      'Code de connexion',
+      'Double authentification - Sougra (Renvoyé)',
+      'Utilisez le nouveau code de connexion ci-dessous pour confirmer votre accès.'
+    );
+
+    res.json({ message: 'Nouveau code OTP envoyé.' });
+  } catch (err) {
+    console.error('[RESEND OTP ERROR]', err.message);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

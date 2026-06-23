@@ -3,8 +3,11 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
+import bcrypt from 'bcryptjs';
 import { getDb } from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
+import { sendOtpEmail } from '../services/emailService.js';
+import { createOtp, verifyOtp } from '../services/otpService.js';
 
 const router = express.Router();
 
@@ -78,7 +81,13 @@ router.get('/', async (req, res) => {
 // ─── PUT /api/profile ─────────────────────────────────────────────────────
 router.put('/', async (req, res) => {
   try {
-    const { name, phone, wilaya, commune, bio } = req.body;
+    const {
+      name, phone, wilaya, commune, bio,
+      entity_type,
+      // Buyer-specific fields
+      rc, nif, forme_juridique, nom_commercial, secteur_activite,
+      possede_transport, possede_chambre_froide,
+    } = req.body;
 
     // Validate and sanitize inputs
     const updates = {};
@@ -92,6 +101,19 @@ router.put('/', async (req, res) => {
     if (wilaya !== undefined) updates.wilaya = String(wilaya).slice(0, 100);
     if (commune !== undefined) updates.commune = String(commune).slice(0, 100);
     if (bio !== undefined) updates.bio = String(bio).slice(0, 500);
+    if (entity_type !== undefined) {
+      if (['particulier', 'entreprise'].includes(entity_type)) {
+        updates.entity_type = entity_type;
+      }
+    }
+    // Buyer professional fields
+    if (rc !== undefined) updates.rc = String(rc).slice(0, 100);
+    if (nif !== undefined) updates.nif = String(nif).slice(0, 100);
+    if (forme_juridique !== undefined) updates.forme_juridique = String(forme_juridique).slice(0, 100);
+    if (nom_commercial !== undefined) updates.nom_commercial = String(nom_commercial).slice(0, 200);
+    if (secteur_activite !== undefined) updates.secteur_activite = String(secteur_activite).slice(0, 100);
+    if (possede_transport !== undefined) updates.possede_transport = !!possede_transport;
+    if (possede_chambre_froide !== undefined) updates.possede_chambre_froide = !!possede_chambre_froide;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'Aucune donnée à mettre à jour.' });
@@ -139,6 +161,149 @@ router.post('/photo', upload.single('photo'), async (req, res) => {
     }
     console.error('[PHOTO UPLOAD ERROR]', err.message);
     res.status(500).json({ error: 'Erreur serveur lors de l\'upload.' });
+  }
+});
+
+// ─── POST /api/profile/password/otp ─────────────────────────────────────────
+router.post('/password/otp', async (req, res) => {
+  try {
+    const { current_password } = req.body;
+    if (!current_password) {
+      return res.status(400).json({ error: 'Mot de passe actuel requis.' });
+    }
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(current_password, user.password);
+    if (!isMatch) {
+      return res.status(403).json({ error: 'Mot de passe actuel incorrect.' });
+    }
+
+    // Generate OTP code
+    const otp = await createOtp(user._id.toString(), 'password_change');
+    const method = user.two_factor_method || 'email';
+
+    if (method === 'phone' && user.phone) {
+      console.log(`\n==================================================`);
+      console.log(`[SMS DEV] SMS sent to ${user.phone}:`);
+      console.log(`👉 SOUGRA Code de changement de mot de passe: ${otp}. Valide 10 min.`);
+      console.log(`==================================================\n`);
+    }
+
+    // Send OTP email
+    await sendOtpEmail(
+      user.email,
+      user.name,
+      otp,
+      10,
+      'Changement de mot de passe',
+      'Code de confirmation - Changement de mot de passe',
+      'Utilisez le code ci-dessous pour confirmer votre demande de changement de mot de passe.'
+    );
+
+    res.json({ message: 'Code de vérification envoyé avec succès.' });
+  } catch (err) {
+    console.error('[PASSWORD OTP ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/profile/password/change ──────────────────────────────────────
+router.post('/password/change', async (req, res) => {
+  try {
+    const { current_password, otp, password } = req.body;
+    if (!current_password || !otp || !password) {
+      return res.status(400).json({ error: 'Tous les champs (actuel, OTP, nouveau) sont obligatoires.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir au moins 8 caractères.' });
+    }
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    }
+
+    // Double check current password
+    const isMatch = await bcrypt.compare(current_password, user.password);
+    if (!isMatch) {
+      return res.status(403).json({ error: 'Mot de passe actuel incorrect.' });
+    }
+
+    // Verify OTP
+    const result = await verifyOtp(user._id.toString(), 'password_change', otp);
+    if (!result.valid) {
+      return res.status(400).json({ error: result.message });
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { password: hashedPassword } }
+    );
+
+    res.json({ message: 'Mot de passe modifié avec succès.' });
+  } catch (err) {
+    console.error('[PASSWORD CHANGE ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── PUT /api/profile/security ──────────────────────────────────────────────
+router.put('/security', async (req, res) => {
+  try {
+    const { two_factor_enabled, two_factor_method } = req.body;
+    
+    if (two_factor_enabled === undefined) {
+      return res.status(400).json({ error: 'two_factor_enabled requis.' });
+    }
+    
+    const updates = {
+      two_factor_enabled: !!two_factor_enabled
+    };
+    
+    if (two_factor_method !== undefined) {
+      if (!['email', 'phone'].includes(two_factor_method)) {
+        return res.status(400).json({ error: 'two_factor_method doit être email ou phone.' });
+      }
+      updates.two_factor_method = two_factor_method;
+    }
+
+    const db = getDb();
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { $set: updates }
+    );
+
+    const updatedUser = await db.collection('users').findOne(
+      { _id: new ObjectId(req.user.userId) },
+      { projection: { password: 0, verificationToken: 0, verificationExpires: 0 } }
+    );
+
+    res.json({
+      message: 'Paramètres de sécurité mis à jour avec succès.',
+      user: {
+        id: updatedUser._id.toString(),
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        profilePhoto: updatedUser.profilePhoto || null,
+        wilaya: updatedUser.wilaya || '',
+        commune: updatedUser.commune || '',
+        two_factor_enabled: !!updatedUser.two_factor_enabled,
+        two_factor_method: updatedUser.two_factor_method || 'email',
+      }
+    });
+  } catch (err) {
+    console.error('[SECURITY UPDATE ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
 

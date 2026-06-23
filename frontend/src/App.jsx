@@ -29,7 +29,7 @@ function getInitialPage() {
   if (window.location.pathname === '/verify-email' || window.location.search.includes('token=')) {
     return 'verify-email';
   }
-  return getStoredToken() ? 'dashboard' : 'landing';
+  return getStoredToken() ? 'dashboard' : 'login';
 }
 
 export default function App() {
@@ -44,6 +44,11 @@ export default function App() {
   const [newBidFlashIds, setNewBidFlashIds] = useState([]);
   const [highlightAuctionId, setHighlightAuctionId] = useState(null);
   const socketRef = useRef(null);
+  const userRef = useRef(user);
+  const localeRef = useRef(locale);
+
+  useEffect(() => { userRef.current = user; }, [user]);
+  useEffect(() => { localeRef.current = locale; }, [locale]);
 
   // Notifications state
   const [notifications, setNotifications] = useState([]);
@@ -63,13 +68,19 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handler);
   }, [notifOpen]);
 
-  // Load notifications from API on login (producers)
+  // Load notifications from API on login
   useEffect(() => {
-    if (!token || !user || user.role !== 'producer') return;
+    if (!token || !user) return;
     fetch(`${BACKEND_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.ok ? r.json() : [])
+      .then(r => {
+        if (r.status === 401) {
+          handleLogout();
+          return [];
+        }
+        return r.ok ? r.json() : [];
+      })
       .then(data => setNotifications(Array.isArray(data) ? data : []))
       .catch(() => { });
   }, [token, user]);
@@ -91,7 +102,12 @@ export default function App() {
 
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
-    socket.on('connect_error', () => setConnected(false));
+    socket.on('connect_error', (err) => {
+      setConnected(false);
+      if (err && (err.message === 'Invalid token' || err.message === 'Authentication required')) {
+        handleLogout();
+      }
+    });
 
     socket.on('auctions_list', (data) => setAuctions(data));
 
@@ -120,11 +136,16 @@ export default function App() {
       setNotifications([]);
     });
 
-    // New notification for producers
+    // New notification
     socket.on('new_notification', (notif) => {
       setNotifications(prev => [notif, ...prev]);
       // Show a brief flash on the page title
-      document.title = t('newDemandNearbyAlert');
+      const currentRole = userRef.current?.role;
+      const currentLoc = localeRef.current;
+      const alertTitle = currentRole === 'buyer'
+        ? (currentLoc === 'ar' ? '🔔 إشعار جديد!' : (currentLoc === 'fr' ? '🔔 Nouveau message !' : '🔔 New notification!'))
+        : t('newDemandNearbyAlert');
+      document.title = alertTitle;
       setTimeout(() => { document.title = t('tabTitle'); }, 5000);
     });
 
@@ -142,7 +163,7 @@ export default function App() {
   const handleLogout = () => {
     setToken(null);
     setUser(null);
-    setPage('landing');
+    setPage('login');
     setNotifications([]);
     setNotifOpen(false);
     sessionStorage.removeItem('agri_token');
@@ -191,7 +212,7 @@ export default function App() {
           <a
             href="/"
             className="logo"
-            onClick={(e) => { e.preventDefault(); setPage(user ? 'dashboard' : 'landing'); }}
+            onClick={(e) => { e.preventDefault(); setPage(user ? 'dashboard' : 'login'); }}
           >
             <img
               src="/logo.png"
@@ -205,14 +226,8 @@ export default function App() {
 
             {/* Connection status */}
             {user && (
-              <div className={`conn-dot ${connected ? 'online' : 'offline'}`}>
-                {connected
-                  ? <><Wifi size={12} /><span style={{ display: 'none' }}>{t('connected')}</span></>
-                  : <><WifiOff size={12} /><span style={{ display: 'none' }}>{t('disconnected')}</span></>
-                }
-                <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>
-                  {connected ? t('connected') : t('disconnected')}
-                </span>
+              <div className={`conn-dot ${connected ? 'online' : 'offline'}`} title={connected ? t('connected') : t('disconnected')}>
+                {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
               </div>
             )}
 
@@ -274,8 +289,8 @@ export default function App() {
                   <RefreshCw size={13} /> {t('reset')}
                 </button>
 
-                {/* Notification bell (producers only) */}
-                {user.role === 'producer' && (
+                {/* Notification bell */}
+                {user && (
                   <div ref={notifPanelRef} style={{ position: 'relative' }}>
                     <button
                       id="notif-bell-btn"
@@ -327,10 +342,14 @@ export default function App() {
                                 <div className="notif-dot" />
                                 <div className="notif-content">
                                   <div className="notif-title">
-                                    {t('newDemandAtDistance', { distance: n.distanceKm })}
+                                    {n.type === 'new_bid'
+                                      ? t('newBidNotificationTitle')
+                                      : t('newDemandAtDistance', { distance: n.distanceKm || 0 })}
                                   </div>
                                   <div className="notif-body">
-                                    {n.product} — {n.quantity} {t('unit_' + n.unit)}
+                                    {n.type === 'new_bid'
+                                      ? t('newBidNotificationBody', { product: n.product })
+                                      : `${n.product} — ${n.quantity} ${t('unit_' + n.unit)}`}
                                   </div>
                                   <div className="notif-time">
                                     {new Date(n.createdAt).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}
@@ -430,6 +449,8 @@ export default function App() {
               onAcceptBid={handleAcceptBid}
               onRateProducer={handleRateProducer}
               newBidFlashIds={newBidFlashIds}
+              highlightAuctionId={highlightAuctionId}
+              onNavigateToProfile={() => setPage('profile')}
             />
           ) : (
             <ProducerDashboard
@@ -438,6 +459,8 @@ export default function App() {
               onPlaceBid={handlePlaceBid}
               newBidFlashIds={newBidFlashIds}
               highlightAuctionId={highlightAuctionId}
+              onNavigateToProfile={() => setPage('profile')}
+              token={token}
             />
           )
         )}
