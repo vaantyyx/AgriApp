@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import { Sprout, LogOut, Tractor, ShoppingBag, RefreshCw, Wifi, WifiOff, LogIn, Home, Bell, Leaf, Sun, Moon } from 'lucide-react';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
@@ -25,20 +26,13 @@ function getStoredUser() {
   } catch { return null; }
 }
 
-function getInitialPage() {
-  if (window.location.pathname === '/verify-email' || window.location.search.includes('token=')) {
-    return 'verify-email';
-  }
-  const savedPage = sessionStorage.getItem('agri_current_page');
-  return getStoredToken() ? (savedPage || 'dashboard') : 'login';
-}
-
 export default function App() {
   const { locale, setLocale, t, dir } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [token, setToken] = useState(getStoredToken);
   const [user, setUser] = useState(getStoredUser);
-  const [page, setPage] = useState(getInitialPage);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [auctions, setAuctions] = useState([]);
   const [connected, setConnected] = useState(false);
@@ -50,7 +44,6 @@ export default function App() {
 
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { localeRef.current = locale; }, [locale]);
-  useEffect(() => { sessionStorage.setItem('agri_current_page', page); }, [page]);
 
   // Notifications state
   const [notifications, setNotifications] = useState([]);
@@ -157,19 +150,19 @@ export default function App() {
   const handleLoginSuccess = (newToken, userInfo) => {
     setToken(newToken);
     setUser(userInfo);
-    setPage('dashboard');
     sessionStorage.setItem('agri_token', newToken);
     sessionStorage.setItem('agri_user', JSON.stringify(userInfo));
+    navigate('/dashboard');
   };
 
   const handleLogout = () => {
     setToken(null);
     setUser(null);
-    setPage('login');
     setNotifications([]);
     setNotifOpen(false);
     sessionStorage.removeItem('agri_token');
     sessionStorage.removeItem('agri_user');
+    navigate('/login');
   };
 
   const handleUserUpdate = (updatedUser) => {
@@ -214,7 +207,7 @@ export default function App() {
           <a
             href="/"
             className="logo"
-            onClick={(e) => { e.preventDefault(); setPage(user ? 'dashboard' : 'login'); }}
+            onClick={(e) => { e.preventDefault(); navigate(user ? '/dashboard' : '/'); }}
           >
             <img
               src="/logo.png"
@@ -257,25 +250,25 @@ export default function App() {
 
             {/* Navigation */}
             {!user ? (
-              page === 'landing' ? (
+              location.pathname === '/' ? (
                 <div style={{ display: 'flex', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                   <button
                     id="btn-login-header"
-                    onClick={() => setPage('login')}
+                    onClick={() => navigate('/login')}
                     className="btn btn-secondary btn-sm"
                   >
                     <LogIn size={14} /> {t('login')}
                   </button>
                   <button
                     id="btn-register-header"
-                    onClick={() => setPage('register')}
+                    onClick={() => navigate('/register')}
                     className="btn btn-primary btn-sm"
                   >
                     {t('register')}
                   </button>
                 </div>
               ) : (
-                <button onClick={() => setPage('landing')} className="btn btn-secondary btn-sm">
+                <button onClick={() => navigate('/')} className="btn btn-secondary btn-sm">
                   <Home size={14} /> {t('home')}
                 </button>
               )
@@ -330,13 +323,13 @@ export default function App() {
                                 tabIndex={0}
                                 onClick={() => {
                                   setNotifOpen(false);
-                                  setPage('dashboard');
+                                  navigate('/dashboard');
                                   setHighlightAuctionId(n.auctionId);
                                   setTimeout(() => setHighlightAuctionId(null), 3000);
                                 }}
                                 onKeyDown={e => e.key === 'Enter' && (() => {
                                   setNotifOpen(false);
-                                  setPage('dashboard');
+                                  navigate('/dashboard');
                                   setHighlightAuctionId(n.auctionId);
                                   setTimeout(() => setHighlightAuctionId(null), 3000);
                                 })()}
@@ -369,18 +362,18 @@ export default function App() {
                 {/* User avatar + name (clickable → profile) */}
                 <button
                   id="btn-profile"
-                  className={`user-pill ${page === 'profile' ? 'active' : ''}`}
-                  onClick={() => setPage('profile')}
+                  className={`user-pill ${location.pathname === '/profile' ? 'active' : ''}`}
+                  onClick={() => navigate('/profile')}
                   title={t('profile')}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '10px',
-                    background: page === 'profile' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${page === 'profile' ? 'rgba(16,185,129,0.3)' : 'var(--border)'}`,
+                    background: location.pathname === '/profile' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${location.pathname === '/profile' ? 'rgba(16,185,129,0.3)' : 'var(--border)'}`,
                     padding: '5px 14px 5px 6px', borderRadius: '999px',
                     cursor: 'pointer', transition: 'all 0.2s ease',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; }}
-                  onMouseLeave={e => { if (page !== 'profile') { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'var(--border)'; } }}
+                  onMouseLeave={e => { if (location.pathname !== '/profile') { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'var(--border)'; } }}
                 >
                   {photoUrl ? (
                     <img src={photoUrl} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />
@@ -416,57 +409,64 @@ export default function App() {
 
       {/* ── MAIN CONTENT ── */}
       <main style={{ flex: 1 }}>
-        {page === 'landing' && (
-          <LandingPage
-            onNavigateToLogin={() => setPage('login')}
-            onNavigateToRegister={() => setPage('register')}
-          />
-        )}
-        {page === 'login' && (
-          <LoginPage
-            onLoginSuccess={handleLoginSuccess}
-            onNavigateToRegister={() => setPage('register')}
-          />
-        )}
-        {page === 'register' && (
-          <RegisterPage onNavigateToLogin={() => setPage('login')} />
-        )}
-        {page === 'verify-email' && (
-          <VerifyEmailPage onNavigateToLogin={() => setPage('login')} />
-        )}
-        {page === 'profile' && user && token && (
-          <ProfilePage
-            token={token}
-            user={user}
-            onUserUpdate={handleUserUpdate}
-            onLogout={handleLogout}
-            onNavigateToDashboard={() => setPage('dashboard')}
-          />
-        )}
-        {page === 'dashboard' && user && (
-          user.role === 'buyer' ? (
-            <BuyerDashboard
-              user={user}
-              auctions={auctions}
-              onCreateAuction={handleCreateAuction}
-              onAcceptBid={handleAcceptBid}
-              onRateProducer={handleRateProducer}
-              newBidFlashIds={newBidFlashIds}
-              highlightAuctionId={highlightAuctionId}
-              onNavigateToProfile={() => setPage('profile')}
+        <Routes>
+          <Route path="/" element={
+            <LandingPage
+              onNavigateToLogin={() => navigate('/login')}
+              onNavigateToRegister={() => navigate('/register')}
             />
-          ) : (
-            <ProducerDashboard
-              user={user}
-              auctions={auctions}
-              onPlaceBid={handlePlaceBid}
-              newBidFlashIds={newBidFlashIds}
-              highlightAuctionId={highlightAuctionId}
-              onNavigateToProfile={() => setPage('profile')}
-              token={token}
+          } />
+          <Route path="/login" element={
+            <LoginPage
+              onLoginSuccess={handleLoginSuccess}
+              onNavigateToRegister={() => navigate('/register')}
             />
-          )
-        )}
+          } />
+          <Route path="/register" element={
+            <RegisterPage onNavigateToLogin={() => navigate('/login')} />
+          } />
+          <Route path="/verify-email" element={
+            <VerifyEmailPage onNavigateToLogin={() => navigate('/login')} />
+          } />
+          <Route path="/profile" element={
+            user && token ? (
+              <ProfilePage
+                token={token}
+                user={user}
+                onUserUpdate={handleUserUpdate}
+                onLogout={handleLogout}
+                onNavigateToDashboard={() => navigate('/dashboard')}
+              />
+            ) : <Navigate to="/login" replace />
+          } />
+          <Route path="/dashboard" element={
+            user && token ? (
+              user.role === 'buyer' ? (
+                <BuyerDashboard
+                  user={user}
+                  auctions={auctions}
+                  onCreateAuction={handleCreateAuction}
+                  onAcceptBid={handleAcceptBid}
+                  onRateProducer={handleRateProducer}
+                  newBidFlashIds={newBidFlashIds}
+                  highlightAuctionId={highlightAuctionId}
+                  onNavigateToProfile={() => navigate('/profile')}
+                />
+              ) : (
+                <ProducerDashboard
+                  user={user}
+                  auctions={auctions}
+                  onPlaceBid={handlePlaceBid}
+                  newBidFlashIds={newBidFlashIds}
+                  highlightAuctionId={highlightAuctionId}
+                  onNavigateToProfile={() => navigate('/profile')}
+                  token={token}
+                />
+              )
+            ) : <Navigate to="/login" replace />
+          } />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       {/* ── FOOTER ── */}
