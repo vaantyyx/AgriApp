@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import {
   Plus, Tag, MessageSquare, Check, Package, X, Star, MapPin,
   ChevronDown, ChevronUp, Image as ImageIcon,
@@ -275,12 +277,7 @@ function newLot(seq) {
 }
 
 // ─── Sidebar Navigation ─────────────────────────────────────────────────────
-const SIDEBAR_ITEMS = [
-  { id: 'dashboard', icon: LayoutDashboard, labelFr: 'Tableau de bord', labelAr: 'لوحة القيادة' },
-  { id: 'auctions',  icon: Gavel,           labelFr: 'Mes enchères',    labelAr: 'مزاداتي' },
-  { id: 'profile',   icon: User,            labelFr: 'Mon profil',      labelAr: 'ملفي الشخصي' },
-];
-
+// Sidebar has been moved to DashboardLayout.jsx
 function getMissingFieldsList(user, locale) {
   const missing = [];
   const labels = {
@@ -317,20 +314,34 @@ function getMissingFieldsList(user, locale) {
 export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcceptBid, onRateProducer, newBidFlashIds, onNavigateToProfile, highlightAuctionId }) {
   const { t, dir, locale } = useTranslation();
 
-  useEffect(() => {
-    if (highlightAuctionId) {
-      setWizardOpen(false);
-      setActiveSection('auctions');
-    }
-  }, [highlightAuctionId]);
-
-  // Sidebar active section
-  const [activeSection, setActiveSection] = useState('dashboard');
-  const [showBlockWarningModal, setShowBlockWarningModal] = useState(false);
-
   // 5-step wizard state
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardOpen, setWizardOpen] = useState(false);
+
+  useEffect(() => {
+    if (highlightAuctionId) {
+      setWizardOpen(false);
+      navigate('?tab=auctions', { replace: true });
+    }
+  }, [highlightAuctionId]);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const urlTab = searchParams.get('tab') || 'dashboard';
+
+  // Sidebar active section
+  const [activeSection, setActiveSection] = useState(urlTab);
+  
+  useEffect(() => {
+    if (!wizardOpen) {
+      setActiveSection(urlTab);
+    }
+  }, [urlTab, wizardOpen]);
+
+  const [showBlockWarningModal, setShowBlockWarningModal] = useState(false);
+
+  // 5-step wizard state (moved to top)
 
   // Step 1 – General info
   const [title, setTitle] = useState('');
@@ -488,7 +499,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
     };
     onCreateAuction(payload);
     closeWizard();
-    setActiveSection('auctions');
+    navigate('?tab=auctions');
   };
 
   const myAuctions = auctions.filter(a => a.isOwner);
@@ -516,77 +527,8 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+      <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start', height: '100%' }}>
 
-      {/* ── LEFT SIDEBAR ── */}
-      <aside style={{
-        width: 220, flexShrink: 0,
-        background: 'var(--bg-panel)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex', flexDirection: 'column',
-        padding: '24px 0', gap: 4,
-      }}>
-        <div style={{ padding: '0 16px 20px', borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Gavel size={20} color="white" />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                {locale === 'ar' ? 'مستلم' : 'Acheteur'}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{user.name}</div>
-            </div>
-          </div>
-        </div>
-
-        {SIDEBAR_ITEMS.map(item => {
-          const Icon = item.icon;
-          const isActive = !wizardOpen && activeSection === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === 'profile') {
-                  if (onNavigateToProfile) onNavigateToProfile();
-                } else {
-                  setWizardOpen(false);
-                  setActiveSection(item.id);
-                }
-              }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '11px 20px',
-                background: isActive ? 'rgba(16,185,129,0.12)' : 'transparent',
-                border: 'none',
-                borderLeft: `3px solid ${isActive ? 'var(--primary)' : 'transparent'}`,
-                color: isActive ? 'var(--primary)' : 'var(--text-body)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                textAlign: 'start',
-                width: '100%',
-              }}
-              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; } }}
-              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; } }}
-            >
-              <Icon size={18} />
-              <span>{sidebarLabel(item)}</span>
-              {item.id === 'auctions' && myAuctions.length > 0 && (
-                <span style={{
-                  marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
-                  background: 'var(--primary)', color: 'white', borderRadius: '99px',
-                  padding: '1px 7px',
-                }}>{myAuctions.length}</span>
-              )}
-            </button>
-          );
-        })}
-      </aside>
-
-      {/* ── MAIN CONTENT ── */}
-      <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
 
         {/* Rating Modal */}
         {ratingAuctionId && (
@@ -1250,7 +1192,6 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
         )}
 
       </div>
-    </div>
   );
 }
 

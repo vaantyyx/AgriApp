@@ -4,6 +4,7 @@ import {
   Image as ImageIcon, Plus, Trash2, Edit3, LayoutDashboard, MapPin, Gavel, User,
   Calendar, Layers, Map, Eye, Landmark, Info, ArrowRight, Activity, Sprout
 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -128,17 +129,20 @@ const getPrimaryCultureType = (parcelle) => {
   return 'Grandes Cultures';
 };
 
-const SIDEBAR_ITEMS = [
-  { id: 'dashboard', icon: LayoutDashboard, labelFr: 'Tableau de bord', labelAr: 'لوحة القيادة' },
-  { id: 'parcelles', icon: MapPin,           labelFr: 'Mes parcelles',   labelAr: 'مزارعي' },
-  { id: 'auctions',  icon: Gavel,            labelFr: 'Enchères',        labelAr: 'المناقصات' },
-  { id: 'profile',   icon: User,             labelFr: 'Mon profil',      labelAr: 'ملفي الشخصي' },
-];
-
+// Sidebar moved to DashboardLayout.jsx
 export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, onNavigateToProfile, token }) {
-  const { t, dir, locale } = useTranslation();
-  const [activeSection, setActiveSection] = useState('dashboard');
-  
+  const { locale, t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const urlTab = searchParams.get('tab') || 'dashboard';
+
+  const [activeSection, setActiveSection] = useState(urlTab);
+
+  useEffect(() => {
+    setActiveSection(urlTab);
+  }, [urlTab]);
+
   // Auctions & bidding state
   const [inputs, setInputs] = useState({});
   const [activeZoomImage, setActiveZoomImage] = useState(null);
@@ -566,72 +570,8 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
   ).size;
   const uniqueWilayasCount = new Set(parcelles.map(p => p.wilayaId).filter(Boolean)).size;
 
-  const sidebarLabel = (item) => locale === 'ar' ? item.labelAr : item.labelFr;
-
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
-      
-      {/* ── LEFT SIDEBAR ── */}
-      <aside style={{
-        width: 220, flexShrink: 0,
-        background: 'var(--bg-panel)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex', flexDirection: 'column',
-        padding: '24px 0', gap: 4
-      }}>
-        <div style={{ padding: '0 16px 20px', borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Tractor size={20} color="white" />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                {locale === 'ar' ? 'منتج' : 'Producteur'}
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{user.name}</div>
-            </div>
-          </div>
-        </div>
-
-        {SIDEBAR_ITEMS.map(item => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === 'profile') {
-                  if (onNavigateToProfile) onNavigateToProfile();
-                } else {
-                  setActiveSection(item.id);
-                }
-              }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '11px 20px',
-                background: isActive ? 'rgba(16,185,129,0.12)' : 'transparent',
-                border: 'none',
-                borderLeft: `3px solid ${isActive ? 'var(--primary)' : 'transparent'}`,
-                color: isActive ? 'var(--primary)' : 'var(--text-body)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                textAlign: 'start',
-                width: '100%'
-              }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-            >
-              <Icon size={18} />
-              <span>{sidebarLabel(item)}</span>
-            </button>
-          );
-        })}
-      </aside>
-
-      {/* ── MAIN CONTENT ── */}
-      <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
+      <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start', height: '100%' }}>
 
         {/* Lightbox */}
         {activeZoomImage && (
@@ -698,7 +638,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                   {locale === 'ar' ? 'أضف مواقع حقولك، حدد نوع المحاصيل وسجل تفاصيل الري وطبيعة التربة.' : 'Ajoutez vos parcelles, spécifiez vos cultures et suivez vos méthodes d\'irrigation.'}
                 </p>
               </div>
-              <button onClick={() => setActiveSection('parcelles')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+              <button onClick={() => { setActiveSection('parcelles'); navigate('?tab=parcelles'); }} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
                 {locale === 'ar' ? 'عرض حقولي' : 'Voir mes parcelles'}
                 <ArrowRight size={16} />
               </button>
@@ -947,8 +887,8 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                           borderRadius: '8px',
                           fontSize: '0.9rem',
                           margin: '12px 0',
-                          borderLeft: dir === 'ltr' ? '3px solid rgba(255,255,255,0.1)' : 'none',
-                          borderRight: dir === 'rtl' ? '3px solid rgba(255,255,255,0.1)' : 'none',
+                          borderLeft: locale === 'fr' ? '3px solid rgba(255,255,255,0.1)' : 'none',
+                          borderRight: locale === 'ar' ? '3px solid rgba(255,255,255,0.1)' : 'none',
                         }}>
                           <strong>{locale === 'fr' ? 'Spécifications :' : (locale === 'ar' ? 'المواصفات :' : 'Specifications:')}</strong> {auction.description}
                         </p>
@@ -1328,8 +1268,6 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
           </div>
         )}
 
-      </div>
-
       {/* ══ FORM DIALOG MODAL (Add / Edit Parcelle) ═══════════════════ */}
       {formOpen && (
         <div className="modal-overlay" style={{ zIndex: 1050 }} onClick={() => setFormOpen(false)}>
@@ -1599,7 +1537,6 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -9,6 +9,7 @@ import BuyerDashboard from './components/BuyerDashboard';
 import ProducerDashboard from './components/ProducerDashboard';
 import BuyerProfilePage from './components/BuyerProfilePage';
 import ProducerProfilePage from './components/ProducerProfilePage';
+import DashboardLayout from './components/DashboardLayout';
 import VerifyEmailPage from './components/VerifyEmailPage';
 import ForgotPasswordPage from './components/ForgotPasswordPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
@@ -54,6 +55,19 @@ export default function App() {
   const notifPanelRef = useRef(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  // Sidebar open/close state — lifted here so header & main can adapt
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    return localStorage.getItem('agri_sidebar_open') !== 'false';
+  });
+  const toggleSidebar = () => setIsSidebarOpen(prev => {
+    localStorage.setItem('agri_sidebar_open', !prev);
+    return !prev;
+  });
+
+  // Only show sidebar on authenticated dashboard/profile routes
+  const isDashboardRoute = user && token && (location.pathname === '/dashboard' || location.pathname === '/profile');
+  const sidebarWidth = isDashboardRoute ? (isSidebarOpen ? 220 : 70) : 0;
 
   // Close notif panel on outside click
   useEffect(() => {
@@ -203,7 +217,11 @@ export default function App() {
     <div className="page-wrapper">
 
       {/* ── HEADER ── */}
-      <header className="app-header">
+      <header className="app-header" style={{
+        paddingLeft: dir === 'ltr' ? sidebarWidth : 0,
+        paddingRight: dir === 'rtl' ? sidebarWidth : 0,
+        transition: 'padding 0.3s ease',
+      }}>
         <div className="header-container" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
 
           {/* Logo */}
@@ -411,7 +429,14 @@ export default function App() {
       </header>
 
       {/* ── MAIN CONTENT ── */}
-      <main style={{ flex: 1 }}>
+      <main style={{
+        flex: 1,
+        paddingLeft: dir === 'ltr' ? sidebarWidth : 0,
+        paddingRight: dir === 'rtl' ? sidebarWidth : 0,
+        transition: 'padding 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
         <Routes>
           <Route path="/" element={
             <LandingPage
@@ -435,49 +460,53 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/profile" element={
             user && token ? (
-              user.role === 'buyer' ? (
-                <BuyerProfilePage
-                  token={token}
-                  user={user}
-                  onUserUpdate={handleUserUpdate}
-                  onLogout={handleLogout}
-                  onNavigateToDashboard={() => navigate('/dashboard')}
-                />
-              ) : (
-                <ProducerProfilePage
-                  token={token}
-                  user={user}
-                  onUserUpdate={handleUserUpdate}
-                  onLogout={handleLogout}
-                  onNavigateToDashboard={() => navigate('/dashboard')}
-                />
-              )
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+                {user.role === 'buyer' ? (
+                  <BuyerProfilePage
+                    token={token}
+                    user={user}
+                    onUserUpdate={handleUserUpdate}
+                    onLogout={handleLogout}
+                    onNavigateToDashboard={() => navigate('/dashboard')}
+                  />
+                ) : (
+                  <ProducerProfilePage
+                    token={token}
+                    user={user}
+                    onUserUpdate={handleUserUpdate}
+                    onLogout={handleLogout}
+                    onNavigateToDashboard={() => navigate('/dashboard')}
+                  />
+                )}
+              </DashboardLayout>
             ) : <Navigate to="/login" replace />
           } />
           <Route path="/dashboard" element={
             user && token ? (
-              user.role === 'buyer' ? (
-                <BuyerDashboard
-                  user={user}
-                  auctions={auctions}
-                  onCreateAuction={handleCreateAuction}
-                  onAcceptBid={handleAcceptBid}
-                  onRateProducer={handleRateProducer}
-                  newBidFlashIds={newBidFlashIds}
-                  highlightAuctionId={highlightAuctionId}
-                  onNavigateToProfile={() => navigate('/profile')}
-                />
-              ) : (
-                <ProducerDashboard
-                  user={user}
-                  auctions={auctions}
-                  onPlaceBid={handlePlaceBid}
-                  newBidFlashIds={newBidFlashIds}
-                  highlightAuctionId={highlightAuctionId}
-                  onNavigateToProfile={() => navigate('/profile')}
-                  token={token}
-                />
-              )
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+                {user.role === 'buyer' ? (
+                  <BuyerDashboard
+                    user={user}
+                    auctions={auctions}
+                    onCreateAuction={handleCreateAuction}
+                    onAcceptBid={handleAcceptBid}
+                    onRateProducer={handleRateProducer}
+                    newBidFlashIds={newBidFlashIds}
+                    highlightAuctionId={highlightAuctionId}
+                    onNavigateToProfile={() => navigate('/profile')}
+                  />
+                ) : (
+                  <ProducerDashboard
+                    user={user}
+                    auctions={auctions}
+                    onPlaceBid={handlePlaceBid}
+                    newBidFlashIds={newBidFlashIds}
+                    highlightAuctionId={highlightAuctionId}
+                    onNavigateToProfile={() => navigate('/profile')}
+                    token={token}
+                  />
+                )}
+              </DashboardLayout>
             ) : <Navigate to="/login" replace />
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
