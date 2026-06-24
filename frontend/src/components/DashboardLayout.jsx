@@ -9,10 +9,10 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
   const location = useLocation();
 
   // Determine active tab based on URL
-  const searchParams = new URLSearchParams(location.search);
-  const activeTab = location.pathname.includes('/profile')
-    ? 'profile'
-    : (searchParams.get('tab') || 'dashboard');
+  let activeTab = 'dashboard';
+  if (location.pathname.includes('/profile')) activeTab = 'profile';
+  else if (location.pathname.includes('/dashboard/auctions')) activeTab = 'auctions';
+  else if (location.pathname.includes('/dashboard/parcelles')) activeTab = 'parcelles';
 
   const buyerItems = [
     { id: 'dashboard', icon: LayoutDashboard, labelFr: 'Tableau de bord', labelAr: 'لوحة القيادة' },
@@ -32,8 +32,10 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
   const handleItemClick = (id) => {
     if (id === 'profile') {
       navigate('/profile');
+    } else if (id === 'dashboard') {
+      navigate('/dashboard');
     } else {
-      navigate(`/dashboard${id === 'dashboard' ? '' : '?tab=' + id}`);
+      navigate(`/dashboard/${id}`);
     }
   };
 

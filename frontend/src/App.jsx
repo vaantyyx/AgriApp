@@ -5,10 +5,13 @@ import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
-import BuyerDashboard from './components/BuyerDashboard';
-import ProducerDashboard from './components/ProducerDashboard';
 import BuyerProfilePage from './components/BuyerProfilePage';
 import ProducerProfilePage from './components/ProducerProfilePage';
+import BuyerOverviewPage from './components/BuyerOverviewPage';
+import BuyerAuctionsPage from './components/BuyerAuctionsPage';
+import ProducerOverviewPage from './components/ProducerOverviewPage';
+import ProducerAuctionsPage from './components/ProducerAuctionsPage';
+import ProducerParcellesPage from './components/ProducerParcellesPage';
 import DashboardLayout from './components/DashboardLayout';
 import VerifyEmailPage from './components/VerifyEmailPage';
 import ForgotPasswordPage from './components/ForgotPasswordPage';
@@ -39,6 +42,8 @@ export default function App() {
   const location = useLocation();
 
   const [auctions, setAuctions] = useState([]);
+  const [parcelles, setParcelles] = useState([]);
+  const [loadingParcelles, setLoadingParcelles] = useState(false);
   const [connected, setConnected] = useState(false);
   const [newBidFlashIds, setNewBidFlashIds] = useState([]);
   const [highlightAuctionId, setHighlightAuctionId] = useState(null);
@@ -48,6 +53,28 @@ export default function App() {
 
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { localeRef.current = locale; }, [locale]);
+
+  const fetchParcelles = async () => {
+    if (!token || !user || user.role !== 'producer') return;
+    try {
+      setLoadingParcelles(true);
+      const res = await fetch(`${BACKEND_URL}/api/parcelles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setParcelles(data);
+      }
+    } catch (err) {
+      console.error('Error fetching parcelles:', err);
+    } finally {
+      setLoadingParcelles(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchParcelles();
+  }, [token, user]);
 
   // Notifications state
   const [notifications, setNotifications] = useState([]);
@@ -66,7 +93,7 @@ export default function App() {
   });
 
   // Only show sidebar on authenticated dashboard/profile routes
-  const isDashboardRoute = user && token && (location.pathname === '/dashboard' || location.pathname === '/profile');
+  const isDashboardRoute = user && token && (location.pathname.startsWith('/dashboard') || location.pathname === '/profile');
   const sidebarWidth = isDashboardRoute ? (isSidebarOpen ? 220 : 70) : 0;
 
   // Close notif panel on outside click
@@ -485,7 +512,19 @@ export default function App() {
             user && token ? (
               <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
                 {user.role === 'buyer' ? (
-                  <BuyerDashboard
+                  <BuyerOverviewPage user={user} auctions={auctions} />
+                ) : (
+                  <ProducerOverviewPage user={user} auctions={auctions} parcelles={parcelles} />
+                )}
+              </DashboardLayout>
+            ) : <Navigate to="/login" replace />
+          } />
+          
+          <Route path="/dashboard/auctions" element={
+            user && token ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+                {user.role === 'buyer' ? (
+                  <BuyerAuctionsPage
                     user={user}
                     auctions={auctions}
                     onCreateAuction={handleCreateAuction}
@@ -493,21 +532,33 @@ export default function App() {
                     onRateProducer={handleRateProducer}
                     newBidFlashIds={newBidFlashIds}
                     highlightAuctionId={highlightAuctionId}
-                    onNavigateToProfile={() => navigate('/profile')}
                   />
                 ) : (
-                  <ProducerDashboard
+                  <ProducerAuctionsPage
                     user={user}
                     auctions={auctions}
                     onPlaceBid={handlePlaceBid}
                     newBidFlashIds={newBidFlashIds}
                     highlightAuctionId={highlightAuctionId}
-                    onNavigateToProfile={() => navigate('/profile')}
                     token={token}
                   />
                 )}
               </DashboardLayout>
             ) : <Navigate to="/login" replace />
+          } />
+
+          <Route path="/dashboard/parcelles" element={
+            user && token && user.role === 'producer' ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+                <ProducerParcellesPage
+                  user={user}
+                  parcelles={parcelles}
+                  token={token}
+                  fetchParcelles={fetchParcelles}
+                  loadingParcelles={loadingParcelles}
+                />
+              </DashboardLayout>
+            ) : <Navigate to="/dashboard" replace />
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
