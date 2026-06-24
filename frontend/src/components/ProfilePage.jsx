@@ -344,8 +344,8 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
           two_factor_enabled: twoFactorEnabled,
           two_factor_method: twoFactorMethod,
         }));
-        if (data.user) {
-          onUserUpdate(data.user);
+        if (onUserUpdate && data.user) {
+          onUserUpdate({ ...initialUser, ...data.user });
         }
       } else {
         showToast(data.error || t('updateError'), 'error');

@@ -29,7 +29,8 @@ function getInitialPage() {
   if (window.location.pathname === '/verify-email' || window.location.search.includes('token=')) {
     return 'verify-email';
   }
-  return getStoredToken() ? 'dashboard' : 'login';
+  const savedPage = sessionStorage.getItem('agri_current_page');
+  return getStoredToken() ? (savedPage || 'dashboard') : 'login';
 }
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
 
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { localeRef.current = locale; }, [locale]);
+  useEffect(() => { sessionStorage.setItem('agri_current_page', page); }, [page]);
 
   // Notifications state
   const [notifications, setNotifications] = useState([]);

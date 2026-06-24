@@ -342,6 +342,17 @@ router.put('/security', async (req, res) => {
         commune: updatedUser.commune || '',
         two_factor_enabled: !!updatedUser.two_factor_enabled,
         two_factor_method: updatedUser.two_factor_method || 'email',
+        phone: updatedUser.phone || '',
+        entity_type: updatedUser.entity_type || 'particulier',
+        bio: updatedUser.bio || '',
+        rc: updatedUser.rc || '',
+        nif: updatedUser.nif || '',
+        forme_juridique: updatedUser.forme_juridique || '',
+        nom_commercial: updatedUser.nom_commercial || '',
+        secteur_activite: updatedUser.secteur_activite || '',
+        possede_transport: !!updatedUser.possede_transport,
+        possede_chambre_froide: !!updatedUser.possede_chambre_froide,
+        rcDocument: updatedUser.rcDocument || null,
       }
     });
   } catch (err) {
