@@ -7,7 +7,8 @@ import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
 import BuyerDashboard from './components/BuyerDashboard';
 import ProducerDashboard from './components/ProducerDashboard';
-import ProfilePage from './components/ProfilePage';
+import BuyerProfilePage from './components/BuyerProfilePage';
+import ProducerProfilePage from './components/ProducerProfilePage';
 import VerifyEmailPage from './components/VerifyEmailPage';
 import ForgotPasswordPage from './components/ForgotPasswordPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
@@ -434,13 +435,23 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/profile" element={
             user && token ? (
-              <ProfilePage
-                token={token}
-                user={user}
-                onUserUpdate={handleUserUpdate}
-                onLogout={handleLogout}
-                onNavigateToDashboard={() => navigate('/dashboard')}
-              />
+              user.role === 'buyer' ? (
+                <BuyerProfilePage
+                  token={token}
+                  user={user}
+                  onUserUpdate={handleUserUpdate}
+                  onLogout={handleLogout}
+                  onNavigateToDashboard={() => navigate('/dashboard')}
+                />
+              ) : (
+                <ProducerProfilePage
+                  token={token}
+                  user={user}
+                  onUserUpdate={handleUserUpdate}
+                  onLogout={handleLogout}
+                  onNavigateToDashboard={() => navigate('/dashboard')}
+                />
+              )
             ) : <Navigate to="/login" replace />
           } />
           <Route path="/dashboard" element={

@@ -27,3 +27,11 @@
 [2026-06-24T14:56:32.187Z] RESET PASSWORD for ramiislam040@gmail.com: http://localhost:5173/reset-password?token=a6f6413d-2056-4108-a47f-94e35f166880
 [2026-06-24T14:58:16.778Z] OTP for ramiislam040@gmail.com: 124380
 [2026-06-24T14:59:26.563Z] OTP for ramiislam040@gmail.com: 951558
+[2026-06-24T15:02:07.818Z] VERIFY for ramiislam090@gmail.com: http://localhost:5173/verify-email?token=42cf5440-45b3-4de7-a6ba-e509d36bd35d
+[2026-06-24T15:03:04.091Z] OTP for ramiislam090@gmail.com: 788587
+[2026-06-24T15:17:27.624Z] VERIFY for ramiislam090@gmail.com: http://localhost:5173/verify-email?token=0f789e3c-1760-4f8b-964f-a700ed0cf209
+[2026-06-24T15:19:28.212Z] OTP for ramiislam040@gmail.com: 199130
+[2026-06-24T19:43:54.874Z] OTP for ramiislam040@gmail.com: 247967
+[2026-06-24T19:45:29.094Z] OTP for ramiislam040@gmail.com: 444054
+[2026-06-24T20:37:11.986Z] RESET PASSWORD for ramiislam040@gmail.com: http://localhost:5173/reset-password?token=f7cc2689-64a6-4704-8098-237cdde18505
+[2026-06-24T20:38:00.868Z] OTP for ramiislam040@gmail.com: 814634
