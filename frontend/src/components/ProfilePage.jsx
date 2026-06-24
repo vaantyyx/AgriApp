@@ -293,6 +293,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingRc, setUploadingRc] = useState(false);
   const [toast, setToast] = useState(null);
 
   // ── Security Tab State ──────────────────────────────────────────────────
@@ -461,6 +462,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
   const [communes, setCommunes] = useState([]);
 
   const fileInputRef = useRef(null);
+  const rcFileInputRef = useRef(null);
 
   const photoUrl = profile?.profilePhoto
     ? `${BACKEND_URL}/uploads/${profile.profilePhoto}`
@@ -617,7 +619,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       const data = await res.json();
       if (res.ok) {
         setProfile(prev => ({ ...prev, ...payload }));
-        onUserUpdate({ ...initialUser, name: form.name, wilaya: form.wilaya, commune: form.commune, phone: form.phone, entity_type: form.entity_type });
+        onUserUpdate({ ...initialUser, ...payload });
         setEditing(false);
         showToast(t('updateSuccess'));
       } else {
@@ -666,6 +668,46 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       showToast(t('serverError'), 'error');
     } finally {
       setUploadingPhoto(false);
+    }
+  };
+
+  const handleRcDocumentChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      showToast('Format non supporté. Utilisez JPEG, PNG, WebP ou PDF.', 'error');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showToast('Fichier trop volumineux (maximum 20 Mo).', 'error');
+      return;
+    }
+
+    setUploadingRc(true);
+    const formData = new FormData();
+    formData.append('rcDocument', file);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/profile/rc-document`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const docFilename = data.documentUrl.split('/uploads/')[1];
+        setProfile(prev => ({ ...prev, rcDocument: docFilename }));
+        onUserUpdate({ ...initialUser, rcDocument: docFilename });
+        showToast(t('updateSuccess'));
+      } else {
+        showToast(data.error || t('updateError'), 'error');
+      }
+    } catch {
+      showToast(t('serverError'), 'error');
+    } finally {
+      setUploadingRc(false);
     }
   };
 
@@ -1137,6 +1179,60 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
                           onChange={e => setForm(prev => ({ ...prev, rc: e.target.value }))}
                           style={{ width: '100%', textAlign: 'start' }}
                         />
+                      </div>
+
+                      {/* Registre de Commerce document upload */}
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label>{locale === 'ar' ? 'تحميل وثيقة السجل التجاري' : 'Joindre le Registre de Commerce'}</label>
+                        <input
+                          ref={rcFileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
+                          style={{ display: 'none' }}
+                          onChange={handleRcDocumentChange}
+                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            onClick={() => rcFileInputRef.current?.click()}
+                            disabled={uploadingRc}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '6px',
+                              padding: '8px 14px', fontSize: '0.85rem', fontWeight: 600,
+                              background: 'rgba(245,158,11,0.12)', color: '#d97706',
+                              border: '1px solid rgba(245,158,11,0.25)', borderRadius: '8px',
+                              cursor: uploadingRc ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.3s ease',
+                            }}
+                          >
+                            {uploadingRc ? (
+                              <div style={{ width: '14px', height: '14px', border: '2px solid rgba(217,119,6,0.3)', borderTopColor: '#d97706', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                            ) : <FileText size={15} />}
+                            {profile?.rcDocument
+                              ? (locale === 'ar' ? 'تغيير الملف' : 'Changer le fichier')
+                              : (locale === 'ar' ? 'اختيار ملف' : 'Choisir un fichier')}
+                          </button>
+                          {profile?.rcDocument && (
+                            <a
+                              href={`${BACKEND_URL}/uploads/${profile.rcDocument}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                padding: '8px 14px', fontSize: '0.85rem',
+                                background: 'rgba(16,185,129,0.1)', color: '#10b981',
+                                border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px',
+                                textDecoration: 'none', fontWeight: 600,
+                              }}
+                            >
+                              <FileText size={15} />
+                              {locale === 'ar' ? 'عرض الوثيقة' : 'Voir le document'}
+                            </a>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          {locale === 'ar' ? 'JPEG, PNG, WebP أو PDF. الحد الأقصى 20 ميغابايت.' : 'JPEG, PNG, WebP ou PDF. Max 20 Mo.'}
+                        </p>
                       </div>
 
                       {/* Numéro d'identification fiscale (NIF) */}

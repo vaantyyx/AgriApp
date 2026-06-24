@@ -267,6 +267,15 @@ router.post('/login', async (req, res) => {
         commune: user.commune || '',
         phone: user.phone || '',
         entity_type: user.entity_type || 'particulier',
+        bio: user.bio || '',
+        rc: user.rc || '',
+        nif: user.nif || '',
+        forme_juridique: user.forme_juridique || '',
+        nom_commercial: user.nom_commercial || '',
+        secteur_activite: user.secteur_activite || '',
+        possede_transport: !!user.possede_transport,
+        possede_chambre_froide: !!user.possede_chambre_froide,
+        rcDocument: user.rcDocument || null,
       },
     });
   } catch (err) {

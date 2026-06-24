@@ -42,6 +42,22 @@ const upload = multer({
   },
 });
 
+// Separate multer config for document uploads (images + PDF)
+const DOC_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const DOC_ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+
+const uploadDoc = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!DOC_ALLOWED_MIME.includes(file.mimetype) || !DOC_ALLOWED_EXT.includes(ext)) {
+      return cb(new Error('Format non autorisé. Utilisez JPEG, PNG, WebP ou PDF.'));
+    }
+    cb(null, true);
+  },
+});
+
 // ─── GET /api/profile ─────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
@@ -155,6 +171,39 @@ router.post('/photo', upload.single('photo'), async (req, res) => {
     }
     console.error('[PHOTO UPLOAD ERROR]', err.message);
     res.status(500).json({ error: 'Erreur serveur lors de l\'upload.' });
+  }
+});
+
+// ─── POST /api/profile/rc-document ─────────────────────────────────────────
+router.post('/rc-document', uploadDoc.single('rcDocument'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier fourni.' });
+    }
+
+    const documentFilename = req.file.filename;
+    const isPdf = req.file.mimetype === 'application/pdf';
+
+    const db = getDb();
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { $set: { rcDocument: documentFilename } }
+    );
+
+    res.json({
+      message: 'Registre de commerce mis à jour.',
+      documentUrl: `/uploads/${documentFilename}`,
+      isPdf,
+    });
+  } catch (err) {
+    if (err.message && err.message.includes('Format non autorisé')) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Fichier trop volumineux (maximum 20 Mo).' });
+    }
+    console.error('[RC DOCUMENT UPLOAD ERROR]', err.message);
+    res.status(500).json({ error: "Erreur serveur lors de l'upload du document." });
   }
 });
 
