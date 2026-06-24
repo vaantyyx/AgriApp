@@ -207,7 +207,68 @@ router.post('/rc-document', uploadDoc.single('rcDocument'), async (req, res) => 
   }
 });
 
-// ─── POST /api/profile/password/otp ─────────────────────────────────────────
+// ─── POST /api/profile/upload-fiche-signaletique ───────────────────────────
+router.post('/upload-fiche-signaletique', uploadDoc.single('ficheSignaletique'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier fourni.' });
+    }
+
+    const documentFilename = req.file.filename;
+
+    const db = getDb();
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { $set: { ficheSignaletiqueDocument: documentFilename } }
+    );
+
+    res.json({
+      message: 'Fiche Signalétique mise à jour.',
+      documentUrl: `/uploads/${documentFilename}`,
+    });
+  } catch (err) {
+    if (err.message && err.message.includes('Format non autorisé')) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Fichier trop volumineux (maximum 20 Mo).' });
+    }
+    console.error('[FICHE SIGNALETIQUE UPLOAD ERROR]', err.message);
+    res.status(500).json({ error: "Erreur serveur lors de l'upload du document." });
+  }
+});
+
+// ─── POST /api/profile/upload-carte-agriculteur ────────────────────────────
+router.post('/upload-carte-agriculteur', uploadDoc.single('carteAgriculteur'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Aucun fichier fourni.' });
+    }
+
+    const documentFilename = req.file.filename;
+
+    const db = getDb();
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { $set: { carteAgriculteurDocument: documentFilename } }
+    );
+
+    res.json({
+      message: "Carte d'Agriculteur mise à jour.",
+      documentUrl: `/uploads/${documentFilename}`,
+    });
+  } catch (err) {
+    if (err.message && err.message.includes('Format non autorisé')) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Fichier trop volumineux (maximum 20 Mo).' });
+    }
+    console.error('[CARTE AGRICULTEUR UPLOAD ERROR]', err.message);
+    res.status(500).json({ error: "Erreur serveur lors de l'upload du document." });
+  }
+});
+
 router.post('/password/otp', async (req, res) => {
   try {
     const { current_password } = req.body;
