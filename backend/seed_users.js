@@ -14,6 +14,7 @@ const users = [
     phone: '+213550111111',
     wilaya: 'Adrar',
     commune: 'Adrar',
+    entity_type: 'particulier',
   },
   {
     name: 'Acheteur Chlef',
@@ -22,6 +23,14 @@ const users = [
     phone: '+213550222222',
     wilaya: 'Chlef',
     commune: 'Chlef',
+    entity_type: 'entreprise',
+    nom_commercial: 'DistriChlef SARL',
+    forme_juridique: 'SARL',
+    rc: 'RC-12345-CHLEF',
+    nif: 'NIF-67890-CHLEF',
+    secteur_activite: 'distribution',
+    possede_transport: true,
+    possede_chambre_froide: true,
   },
   {
     name: 'Producteur Adrar',

@@ -76,6 +76,8 @@ export const translations = {
     fieldsRequired: "يرجى ملء جميع الحقول.",
     serverError: "تعذر الاتصال بالخادم. هل تم تشغيل الخادم الخلفي؟",
     checkInboxSpam: "تحقق من علبة الوارد (والرسائل غير المرغوب فيها).",
+    resendEmail: "إعادة إرسال بريد التفعيل",
+    emailResent: "تم إرسال البريد! تحقق من صندوق الوارد الخاص بك.",
 
     // Register Page
     registerTitle: "إنشاء حساب",
@@ -342,6 +344,8 @@ export const translations = {
     fieldsRequired: "Veuillez renseigner tous les champs.",
     serverError: "Impossible de se connecter au serveur. Le backend est-il lancé ?",
     checkInboxSpam: "Vérifiez votre boîte email (et vos spams).",
+    resendEmail: "Renvoyer l'email d'activation",
+    emailResent: "Email renvoyé ! Vérifiez votre boîte de réception.",
 
     // Register Page
     registerTitle: "Créer un compte",
@@ -607,6 +611,8 @@ export const translations = {
     fieldsRequired: "Please fill in all fields.",
     serverError: "Unable to connect to server. Is the backend running?",
     checkInboxSpam: "Check your email inbox (and spam folder).",
+    resendEmail: "Resend activation email",
+    emailResent: "Email resent! Check your inbox.",
 
     // Register Page
     registerTitle: "Create an Account",

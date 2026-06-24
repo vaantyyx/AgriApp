@@ -12,7 +12,7 @@ const router = express.Router();
 // ─── POST /api/auth/register ───────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, phone, wilaya, commune } = req.body;
+    const { name, email, password, role, phone, wilaya, commune, entity_type } = req.body;
 
     // Input validation
     if (!name || !email || !password || !role) {
@@ -20,6 +20,9 @@ router.post('/register', async (req, res) => {
     }
     if (!['buyer', 'producer'].includes(role)) {
       return res.status(400).json({ error: 'Rôle invalide.' });
+    }
+    if (role === 'buyer' && entity_type && !['particulier', 'entreprise'].includes(entity_type)) {
+      return res.status(400).json({ error: "Type d'entité invalide." });
     }
     if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'Format e-mail invalide.' });
@@ -61,6 +64,7 @@ router.post('/register', async (req, res) => {
       phone: phone ? phone.replace(/\s/g, '') : '',
       wilaya: wilaya || '',
       commune: commune || '',
+      entity_type: role === 'buyer' ? (entity_type || 'particulier') : 'particulier',
       bio: '',
       createdAt: new Date(),
     };
@@ -81,6 +85,48 @@ router.post('/register', async (req, res) => {
   } catch (err) {
     console.error('[REGISTER ERROR]', err.message);
     res.status(500).json({ error: 'Erreur serveur. Veuillez réessayer.' });
+  }
+});
+
+// ─── POST /api/auth/resend-verification ────────────────────────────────────
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email requis.' });
+    }
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Aucun compte associé à cet email.' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ error: 'Ce compte est déjà vérifié.' });
+    }
+
+    // Generate a new verification token
+    const verificationToken = uuidv4();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { verificationToken, verificationExpires } }
+    );
+
+    try {
+      await sendVerificationEmail(user.email, user.name, verificationToken);
+    } catch (emailErr) {
+      console.error('[EMAIL] Failed to resend verification email:', emailErr.message);
+      return res.status(500).json({ error: "Erreur lors de l'envoi de l'email. Réessayez plus tard." });
+    }
+
+    res.json({ message: 'Email de vérification renvoyé avec succès. Vérifiez votre boîte de réception.' });
+  } catch (err) {
+    console.error('[RESEND VERIFICATION ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
 
@@ -160,6 +206,13 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({
+        error: 'Ce compte a été désactivé. Contactez le support pour le réactiver.',
+        needsActivation: true,
+      });
+    }
+
     // Check if user has two-factor authentication enabled
     if (user.two_factor_enabled) {
       const otp = await createOtp(user._id.toString(), 'login');
@@ -207,8 +260,8 @@ router.post('/login', async (req, res) => {
         profilePhoto: user.profilePhoto || null,
         wilaya: user.wilaya || '',
         commune: user.commune || '',
-        two_factor_enabled: !!user.two_factor_enabled,
-        two_factor_method: user.two_factor_method || 'email',
+        phone: user.phone || '',
+        entity_type: user.entity_type || 'particulier',
       },
     });
   } catch (err) {

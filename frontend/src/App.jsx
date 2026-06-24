@@ -437,6 +437,7 @@ export default function App() {
             token={token}
             user={user}
             onUserUpdate={handleUserUpdate}
+            onLogout={handleLogout}
             onNavigateToDashboard={() => setPage('dashboard')}
           />
         )}

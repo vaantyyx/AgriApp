@@ -1,0 +1,9 @@
+[2026-06-24T10:04:35.865Z] OTP for prod.adrar@test.com: 823440
+[2026-06-24T10:04:57.264Z] OTP for prod.adrar@test.com: 947657
+[2026-06-24T10:09:25.630Z] OTP for prod.adrar@test.com: 567941
+[2026-06-24T10:10:50.057Z] OTP for prod.adrar@test.com: 450039
+[2026-06-24T10:24:35.897Z] VERIFY for test.new@test.com: http://localhost:5173/verify-email?token=aeb9c740-69e7-47aa-8629-568e8bc4e919
+[2026-06-24T10:29:28.331Z] VERIFY for raiislam040@gmail.com: http://localhost:5173/verify-email?token=97d7abbd-be73-4324-bfdb-298c982d0238
+[2026-06-24T11:03:52.511Z] VERIFY for test.new@test.com: http://localhost:5173/verify-email?token=bb933320-701f-49ee-a676-4deccc969e97
+[2026-06-24T11:04:33.340Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=14216e64-c0a6-4d65-995f-2805a285a2a7
+[2026-06-24T11:07:55.169Z] VERIFY for ramiislam090@gmail.com: http://localhost:5173/verify-email?token=842c4865-7218-49ee-bcb7-76ca90968943

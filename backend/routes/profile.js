@@ -83,7 +83,6 @@ router.put('/', async (req, res) => {
   try {
     const {
       name, phone, wilaya, commune, bio,
-      entity_type,
       // Buyer-specific fields
       rc, nif, forme_juridique, nom_commercial, secteur_activite,
       possede_transport, possede_chambre_froide,
@@ -101,11 +100,6 @@ router.put('/', async (req, res) => {
     if (wilaya !== undefined) updates.wilaya = String(wilaya).slice(0, 100);
     if (commune !== undefined) updates.commune = String(commune).slice(0, 100);
     if (bio !== undefined) updates.bio = String(bio).slice(0, 500);
-    if (entity_type !== undefined) {
-      if (['particulier', 'entreprise'].includes(entity_type)) {
-        updates.entity_type = entity_type;
-      }
-    }
     // Buyer professional fields
     if (rc !== undefined) updates.rc = String(rc).slice(0, 100);
     if (nif !== undefined) updates.nif = String(nif).slice(0, 100);
@@ -304,6 +298,36 @@ router.put('/security', async (req, res) => {
   } catch (err) {
     console.error('[SECURITY UPDATE ERROR]', err.message);
     res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/profile/deactivate ──────────────────────────────────────────
+router.post('/deactivate', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const db = getDb();
+
+    const updatedUser = await db.collection('users').findOneAndUpdate(
+      { _id: new ObjectId(userId) },
+      { $set: { isActive: false, deactivatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé.' });
+    }
+
+    res.json({ message: 'Compte désactivé avec succès.' });
+
+    // Send deactivation confirmation email (fire & forget)
+    import('../services/emailService.js').then(({ sendAccountDeactivationEmail }) => {
+      sendAccountDeactivationEmail(updatedUser.email, updatedUser.name).catch(err => {
+        console.error('[DEACTIVATE] Failed to send deactivation email:', err.message);
+      });
+    }).catch(() => {});
+  } catch (err) {
+    console.error('[DEACTIVATE ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur lors de la désactivation du compte.' });
   }
 });
 

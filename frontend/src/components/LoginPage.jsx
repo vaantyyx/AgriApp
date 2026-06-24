@@ -62,6 +62,8 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   const [loading, setLoading] = useState(false);
 
   // 2FA / OTP state
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const [otpRequired, setOtpRequired] = useState(false);
   const [otpMethod, setOtpMethod] = useState(''); // 'email' | 'sms'
   const [otpValue, setOtpValue] = useState('');
@@ -100,6 +102,28 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       setError(t('serverError'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setResendingVerification(true);
+    setVerificationSent(false);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setVerificationSent(true);
+      } else {
+        setError(data.error || t('serverError'));
+      }
+    } catch {
+      setError(t('serverError'));
+    } finally {
+      setResendingVerification(false);
     }
   };
 
@@ -375,7 +399,33 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
                 <span>
                   {error}
                   {needsVerification && (
-                    <span style={{ display: 'block', marginTop: 3, fontSize: '0.8rem', opacity: 0.8 }}>{t('checkInboxSpam')}</span>
+                    <>
+                      <span style={{ display: 'block', marginTop: 3, fontSize: '0.8rem', opacity: 0.8 }}>{t('checkInboxSpam')}</span>
+                      {verificationSent ? (
+                        <span style={{ display: 'block', marginTop: 8, fontSize: '0.8rem', color: '#10b981' }}>
+                          {t('emailResent') || 'Email renvoyé ! Vérifiez votre boîte de réception.'}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleResendVerification}
+                          disabled={resendingVerification}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 10,
+                            padding: '6px 14px', fontSize: '0.8rem', fontWeight: 600,
+                            background: 'rgba(245,158,11,0.15)', color: '#d97706',
+                            border: '1px solid rgba(245,158,11,0.3)', borderRadius: '6px',
+                            cursor: resendingVerification ? 'not-allowed' : 'pointer',
+                            transition: 'all 0.3s ease',
+                          }}
+                        >
+                          {resendingVerification ? (
+                            <div style={{ width: '12px', height: '12px', border: '2px solid rgba(217,119,6,0.3)', borderTopColor: '#d97706', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                          ) : null}
+                          {t('resendEmail') || 'Renvoyer l\'email d\'activation'}
+                        </button>
+                      )}
+                    </>
                   )}
                 </span>
               </div>

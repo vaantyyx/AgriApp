@@ -284,7 +284,7 @@ function Avatar({ photoUrl, name, size = 96 }) {
   );
 }
 
-export default function ProfilePage({ token, user: initialUser, onUserUpdate, onNavigateToDashboard }) {
+export default function ProfilePage({ token, user: initialUser, onUserUpdate, onLogout, onNavigateToDashboard }) {
   const { t, dir, locale } = useTranslation();
   const secT = secTrans[locale] || secTrans['fr'] || secTrans['en'];
   const [profile, setProfile] = useState(null);
@@ -311,6 +311,8 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
 
   const [showPasswordCurrent, setShowPasswordCurrent] = useState(false);
   const [showPasswordNew, setShowPasswordNew] = useState(false);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -423,6 +425,33 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       showToast(t('serverError'), 'error');
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handleDeactivateClick = () => {
+    setShowDeactivateModal(true);
+  };
+
+  const handleDeactivateConfirm = async () => {
+    setDeactivating(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/profile/deactivate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(locale === 'ar' ? 'تم إلغاء تنشيط الحساب بنجاح.' : 'Compte désactivé avec succès.');
+        setShowDeactivateModal(false);
+        // Logout user after deactivation
+        onLogout();
+      } else {
+        showToast(data.error || t('serverError'), 'error');
+      }
+    } catch {
+      showToast(t('serverError'), 'error');
+    } finally {
+      setDeactivating(false);
     }
   };
 
@@ -571,7 +600,6 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
         bio: form.bio,
         wilaya: form.wilaya,
         commune: form.commune,
-        entity_type: form.entity_type || 'particulier',
         rc: form.rc || '',
         nif: form.nif || '',
         forme_juridique: form.forme_juridique || '',
@@ -589,7 +617,7 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
       const data = await res.json();
       if (res.ok) {
         setProfile(prev => ({ ...prev, ...payload }));
-        onUserUpdate({ ...initialUser, ...payload });
+        onUserUpdate({ ...initialUser, name: form.name, wilaya: form.wilaya, commune: form.commune, phone: form.phone, entity_type: form.entity_type });
         setEditing(false);
         showToast(t('updateSuccess'));
       } else {
@@ -1036,51 +1064,34 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
 
               {profile?.role === 'buyer' && (
                 <>
-                  {/* Selector for Entity Type */}
+                  {/* Entity Type - read only (set at registration) */}
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label>{locale === 'ar' ? 'نوع الكيان' : 'Type d\'entité'}</label>
+                    <label>{locale === 'ar' ? 'نوع الكيان' : 'Type d\'entité'} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem' }}>({locale === 'ar' ? 'محدد عند التسجيل' : 'défini à l\'inscription'})</span></label>
                     <div style={{
-                      display: 'flex',
+                      padding: '10px 14px',
                       background: 'rgba(255,255,255,0.03)',
                       border: '1px solid var(--border)',
-                      borderRadius: '10px',
-                      padding: '4px',
-                      gap: '4px',
+                      borderRadius: '8px',
+                      color: 'var(--text-main)',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: 'not-allowed',
+                      opacity: 0.7,
                     }}>
-                      <button
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, entity_type: 'particulier' }))}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: form.entity_type === 'particulier' ? 'var(--primary)' : 'transparent',
-                          color: form.entity_type === 'particulier' ? 'white' : 'var(--text-muted)',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                        }}
-                      >
-                        {locale === 'ar' ? 'فرد' : 'Particulier'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, entity_type: 'entreprise' }))}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: form.entity_type === 'entreprise' ? 'var(--primary)' : 'transparent',
-                          color: form.entity_type === 'entreprise' ? 'white' : 'var(--text-muted)',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                        }}
-                      >
-                        {locale === 'ar' ? 'مؤسسة' : 'Entreprise'}
-                      </button>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        background: form.entity_type === 'entreprise' ? 'var(--warning)' : 'var(--primary)',
+                        color: 'white', fontSize: '0.7rem',
+                      }}>
+                        {form.entity_type === 'entreprise' ? 'E' : 'P'}
+                      </span>
+                      {form.entity_type === 'entreprise'
+                        ? (locale === 'ar' ? 'مؤسسة' : 'Entreprise')
+                        : (locale === 'ar' ? 'فرد' : 'Particulier')}
                     </div>
                   </div>
 
@@ -1423,6 +1434,83 @@ export default function ProfilePage({ token, user: initialUser, onUserUpdate, on
               )}
             </div>
           </div>
+
+          {/* Card 3: Danger Zone - Deactivate Account */}
+          <div className="glass-panel" style={{ padding: '24px', textAlign: 'start', border: '1px solid rgba(239,68,68,0.3)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+              <AlertCircle size={20} />
+              <span>{locale === 'ar' ? 'منطقة الخطر' : 'Zone de danger'}</span>
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', lineHeight: '1.5' }}>
+              {locale === 'ar'
+                ? 'سيؤدي إلغاء تنشيط حسابك إلى تعطيله. لن تتمكن من تسجيل الدخول أو استخدام المنصة حتى يتم إعادة تنشيطه.'
+                : 'La désactivation de votre compte le désactivera. Vous ne pourrez plus vous connecter ni utiliser la plateforme jusqu\'à sa réactivation.'}
+            </p>
+            <button
+              onClick={handleDeactivateClick}
+              className="btn"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
+                fontSize: '0.875rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+                border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontWeight: 600,
+                cursor: 'pointer', transition: 'all 0.3s ease',
+              }}
+            >
+              {locale === 'ar' ? 'إلغاء تنشيط الحساب' : 'Désactiver le compte'}
+            </button>
+          </div>
+
+          {/* Deactivation Confirmation Modal */}
+          {showDeactivateModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            }}>
+              <div className="glass-panel" style={{
+                maxWidth: '420px', width: '90%', padding: '28px', textAlign: 'center',
+                border: '1px solid rgba(239,68,68,0.3)',
+              }}>
+                <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', marginBottom: '16px' }}>
+                  <AlertCircle size={28} style={{ color: '#ef4444' }} />
+                </div>
+                <h3 style={{ color: '#ef4444', margin: '0 0 8px', fontSize: '1.2rem' }}>
+                  {locale === 'ar' ? 'تأكيد إلغاء التنشيط' : 'Confirmer la désactivation'}
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', lineHeight: '1.5' }}>
+                  {locale === 'ar'
+                    ? 'هل أنت متأكد أنك تريد إلغاء تنشيط حسابك؟ هذا الإجراء لا يمكن التراجع عنه بسهولة.'
+                    : 'Êtes-vous sûr de vouloir désactiver votre compte ? Cette action n\'est pas facilement réversible.'}
+                </p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => setShowDeactivateModal(false)}
+                    className="btn"
+                    style={{ padding: '10px 24px', fontSize: '0.875rem', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {locale === 'ar' ? 'إلغاء' : 'Annuler'}
+                  </button>
+                  <button
+                    onClick={handleDeactivateConfirm}
+                    disabled={deactivating}
+                    style={{
+                      padding: '10px 24px', fontSize: '0.875rem',
+                      background: '#ef4444', color: 'white', border: 'none',
+                      borderRadius: '8px', fontWeight: 600, cursor: deactivating ? 'not-allowed' : 'pointer',
+                      display: 'inline-flex', alignItems: 'center', gap: '8px',
+                    }}
+                  >
+                    {deactivating ? (
+                      <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                    ) : null}
+                    {deactivating
+                      ? (locale === 'ar' ? 'جاري...' : 'Désactivation...')
+                      : (locale === 'ar' ? 'تأكيد إلغاء التنشيط' : 'Confirmer la désactivation')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

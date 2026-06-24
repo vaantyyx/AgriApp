@@ -143,10 +143,10 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
 }
 
 export default function RegisterPage({ onNavigateToLogin }) {
-  const { t, dir } = useTranslation();
+  const { t, dir, locale } = useTranslation();
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirmPassword: '',
-    role: '', phone: '', wilaya: '', commune: '',
+    role: '', phone: '', wilaya: '', commune: '', entity_type: 'particulier',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -203,7 +203,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { name, email, password, confirmPassword, role, phone, wilaya, commune } = form;
+    const { name, email, password, confirmPassword, role, phone, wilaya, commune, entity_type } = form;
 
     if (!name || !email || !password || !confirmPassword || !role) {
       setError(t('fieldsRequired'));
@@ -237,6 +237,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
           phone: fullPhone,
           wilaya: selectedWilaya ? selectedWilaya.wilaya_name_latin : '',
           commune: selectedCommune ? selectedCommune.commune_name_latin : '',
+          entity_type,
         }),
       });
       const data = await res.json();
@@ -328,6 +329,67 @@ export default function RegisterPage({ onNavigateToLogin }) {
               ))}
             </div>
           </div>
+
+          {/* Entity Type (buyers only) */}
+          {form.role === 'buyer' && (
+            <div className="form-group animate-fade-in" style={{ marginBottom: '20px' }}>
+              <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+                {locale === 'ar' ? 'نوع الكيان' : "Type d'entité"}
+              </label>
+              <div style={{
+                display: 'flex',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                padding: '4px',
+                gap: '4px',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, entity_type: 'particulier' }))}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: form.entity_type === 'particulier' ? 'var(--primary)' : 'transparent',
+                    color: form.entity_type === 'particulier' ? 'white' : 'var(--text-muted)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  {locale === 'ar' ? 'فرد' : 'Particulier'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, entity_type: 'entreprise' }))}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: form.entity_type === 'entreprise' ? 'var(--primary)' : 'transparent',
+                    color: form.entity_type === 'entreprise' ? 'white' : 'var(--text-muted)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  {locale === 'ar' ? 'مؤسسة' : 'Entreprise'}
+                </button>
+              </div>
+              {form.entity_type === 'entreprise' && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                  {locale === 'ar'
+                    ? 'يمكنك إكمال معلومات مؤسستك (السجل التجاري، NIF...) لاحقاً من صفحة الملف الشخصي.'
+                    : 'Vous pourrez compléter les informations de votre entreprise (RC, NIF...) plus tard depuis votre profil.'}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Name */}
           <div className="form-group">
@@ -463,6 +525,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
             </label>
             <div style={{ position: 'relative' }}>
               <input id="reg-password" type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
                 placeholder={t('passwordHelpPlaceholder')}
                 value={form.password} onChange={handleChange('password')}
                 style={{
@@ -511,7 +574,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
           <div className="form-group" style={{ marginBottom: '24px' }}>
             <label htmlFor="reg-confirm" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('confirmPasswordLabel')}</label>
             <div style={{ position: 'relative' }}>
-              <input id="reg-confirm" type="password" placeholder={t('confirmPasswordPlaceholder')}
+              <input id="reg-confirm" type="password" autoComplete="new-password" placeholder={t('confirmPasswordPlaceholder')}
                 value={form.confirmPassword} onChange={handleChange('confirmPassword')}
                 style={{
                   width: '100%',

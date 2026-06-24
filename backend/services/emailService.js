@@ -1,23 +1,36 @@
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 
-function createTransporter() {
-  const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS } = process.env;
+function getFromAddress() {
+  const address = process.env.MAIL_FROM_ADDRESS || process.env.MAIL_USERNAME || process.env.EMAIL_USER || 'support@sougra.com';
+  const name = process.env.MAIL_FROM_NAME || 'Sougra';
+  return `"${name}" <${address}>`;
+}
 
-  if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASS) {
-    // TODO(security): Configure SMTP credentials in .env for production.
+function createTransporter() {
+  // Support both EMAIL_* and MAIL_* naming conventions (MAIL_* takes precedence)
+  const host = process.env.MAIL_HOST || process.env.EMAIL_HOST;
+  const port = parseInt(process.env.MAIL_PORT || process.env.EMAIL_PORT || '587');
+  const user = process.env.MAIL_USERNAME || process.env.EMAIL_USER;
+  const pass = process.env.MAIL_PASSWORD || process.env.EMAIL_PASS;
+  const encryption = (process.env.MAIL_ENCRYPTION || '').toLowerCase();
+
+  if (!host || !user || !pass) {
     console.warn('[EMAIL] SMTP credentials not configured. Emails will not be sent.');
     return null;
   }
 
+  const isSecure = port === 465 || encryption === 'ssl';
+
   return nodemailer.createTransport({
-    host: EMAIL_HOST,
-    port: parseInt(EMAIL_PORT || '587'),
-    secure: parseInt(EMAIL_PORT || '587') === 465,
-    auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASS,
-    },
+    host,
+    port,
+    secure: isSecure,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 }
 
@@ -100,7 +113,7 @@ export async function sendVerificationEmail(to, name, token) {
 
   try {
     await transporter.sendMail({
-      from: `"Sougra" <${process.env.EMAIL_USER}>`,
+      from: getFromAddress(),
       to,
       subject: '✅ Confirmez votre adresse email — Sougra',
       html,
@@ -122,7 +135,7 @@ export async function sendWelcomeEmail(to, name, role) {
 
   try {
     await transporter.sendMail({
-      from: `"Sougra" <${process.env.EMAIL_USER}>`,
+      from: getFromAddress(),
       to,
       subject: '🌿 Bienvenue sur Sougra !',
       html: `
@@ -184,13 +197,40 @@ export async function sendOtpEmail(to, name, otp, minutes, title, subject, desc)
 
   try {
     await transporter.sendMail({
-      from: `"Sougra" <${process.env.EMAIL_USER}>`,
+      from: getFromAddress(),
       to,
       subject,
       html,
     });
   } catch (err) {
     console.error('[EMAIL] Failed to send OTP email via SMTP:', err.message);
+  }
+}
+
+export async function sendAccountDeactivationEmail(to, name) {
+  const transporter = createTransporter();
+  if (!transporter) {
+    console.log(`[EMAIL DEV] Deactivation confirmation email would be sent to ${to}`);
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: getFromAddress(),
+      to,
+      subject: 'ℹ️ Confirmation de désactivation de votre compte — Sougra',
+      html: `
+        <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;font-family:Arial,sans-serif;color:#f3f4f6;">
+          <h1 style="color:#f59e0b;">👋 Compte désactivé</h1>
+          <p style="color:#9ca3af;">Bonjour ${name},</p>
+          <p style="color:#9ca3af;">Votre compte Sougra a bien été désactivé.</p>
+          <p style="color:#9ca3af;">Si vous souhaitez réactiver votre compte, veuillez contacter notre support à <a href="mailto:support@sougra.com" style="color:#10b981;">support@sougra.com</a>.</p>
+          <p style="color:#6b7280;font-size:0.8rem;margin-top:30px;">Si vous n'êtes pas à l'origine de cette action, contactez-nous immédiatement.</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error('[EMAIL] Failed to send deactivation email via SMTP:', err.message);
   }
 }
 
