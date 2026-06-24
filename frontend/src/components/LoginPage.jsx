@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Leaf, Mail, Lock, Eye, EyeOff, ShieldAlert, AlertCircle, Zap, Users, TrendingUp, ShieldCheck, RefreshCw, KeyRound } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import { useNavigate } from 'react-router-dom';
 
 const BACKEND_URL = 'http://127.0.0.1:3001';
 
@@ -60,6 +61,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   const [error, setError] = useState('');
   const [needsVerification, setNeedsVerification] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   // 2FA / OTP state
   const [resendingVerification, setResendingVerification] = useState(false);
@@ -90,7 +92,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       if (!res.ok) {
         if (data.needsVerification) setNeedsVerification(true);
         setError(data.error || t('serverError'));
-      } else if (data.otpRequired) {
+      } else if (data.status === 'OTP_REQUIRED') {
         // 2FA required — show OTP step
         setOtpRequired(true);
         setOtpMethod(data.method || 'email');
@@ -144,7 +146,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       await fetch(`${BACKEND_URL}/api/auth/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ identifier: email.trim() }),
       });
       startCooldown(60);
       setOtpError('');
@@ -161,7 +163,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       const res = await fetch(`${BACKEND_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), otp: otpValue }),
+        body: JSON.stringify({ identifier: email.trim(), otp: otpValue }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -361,7 +363,16 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
 
             {/* Password */}
             <div className="form-group" style={{ marginBottom: 22 }}>
-              <label htmlFor="login-password">{t('passwordLabel')}</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label htmlFor="login-password" style={{ marginBottom: 0 }}>{t('passwordLabel')}</label>
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', cursor: 'pointer', padding: 0 }}
+                >
+                  Mot de passe oublié ?
+                </button>
+              </div>
               <div style={{ position: 'relative' }}>
                 <input
                   id="login-password"

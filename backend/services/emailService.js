@@ -234,3 +234,50 @@ export async function sendAccountDeactivationEmail(to, name) {
   }
 }
 
+export async function sendPasswordResetEmail(to, name, token) {
+  const transporter = createTransporter();
+  const APP_URL = process.env.APP_URL || 'http://localhost:5173';
+  const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+
+  console.log(`\n==================================================`);
+  console.log(`[EMAIL DEV] Password reset link for ${to}:`);
+  console.log(`👉 ${resetUrl}`);
+  console.log(`==================================================\n`);
+
+  try {
+    fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] RESET PASSWORD for ${to}: ${resetUrl}\n`);
+  } catch (err) {}
+
+  if (!transporter) return;
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head><meta charset="UTF-8"><title>Réinitialisation du mot de passe</title></head>
+    <body style="margin:0;padding:0;background:#0b0f12;font-family:Arial,sans-serif;color:#f3f4f6;">
+      <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;border:1px solid rgba(255,255,255,0.08);">
+        <h1 style="color:#10b981;font-size:1.6rem;margin-top:0;">Réinitialiser votre mot de passe</h1>
+        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">Bonjour ${name},</p>
+        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte Sougra. Cliquez sur le bouton ci-dessous pour le changer.</p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="${resetUrl}" style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:bold;">
+            Réinitialiser mon mot de passe
+          </a>
+        </div>
+        <p style="color:#6b7280;font-size:0.8rem;">Ce lien expire dans 1 heure. Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet e-mail.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: getFromAddress(),
+      to,
+      subject: '🔑 Réinitialisation de votre mot de passe — Sougra',
+      html,
+    });
+  } catch (err) {
+    console.error('[EMAIL] Failed to send password reset email via SMTP:', err.message);
+  }
+}

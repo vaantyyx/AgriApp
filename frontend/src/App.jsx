@@ -9,6 +9,8 @@ import BuyerDashboard from './components/BuyerDashboard';
 import ProducerDashboard from './components/ProducerDashboard';
 import ProfilePage from './components/ProfilePage';
 import VerifyEmailPage from './components/VerifyEmailPage';
+import ForgotPasswordPage from './components/ForgotPasswordPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
 import { useTranslation } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 
@@ -428,6 +430,8 @@ export default function App() {
           <Route path="/verify-email" element={
             <VerifyEmailPage onNavigateToLogin={() => navigate('/login')} />
           } />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/profile" element={
             user && token ? (
               <ProfilePage

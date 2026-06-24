@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db.js';
-import { sendVerificationEmail, sendWelcomeEmail, sendOtpEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendOtpEmail, sendPasswordResetEmail } from '../services/emailService.js';
 import { createOtp, verifyOtp } from '../services/otpService.js';
 
 
@@ -372,6 +372,76 @@ router.post('/resend-otp', async (req, res) => {
     res.json({ message: 'Nouveau code OTP envoyé.' });
   } catch (err) {
     console.error('[RESEND OTP ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+// ─── POST /api/auth/forgot-password ──────────────────────────────────────────
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requis.' });
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ email: email.toLowerCase() });
+    
+    if (!user) {
+      // Return a generic success message to prevent email enumeration
+      return res.json({ message: 'Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé.' });
+    }
+
+    const resetToken = uuidv4();
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires } }
+    );
+
+    await sendPasswordResetEmail(user.email, user.name, resetToken);
+
+    res.json({ message: 'Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé.' });
+  } catch (err) {
+    console.error('[FORGOT PASSWORD ERROR]', err.message);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/auth/reset-password ───────────────────────────────────────────
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Jeton et nouveau mot de passe requis.' });
+    }
+    
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au minimum 8 caractères.' });
+    }
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Le lien de réinitialisation est invalide ou a expiré.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { 
+        $set: { password: hashedPassword },
+        $unset: { resetPasswordToken: "", resetPasswordExpires: "" }
+      }
+    );
+
+    res.json({ message: 'Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.' });
+  } catch (err) {
+    console.error('[RESET PASSWORD ERROR]', err.message);
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
