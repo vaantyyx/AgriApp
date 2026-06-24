@@ -7,3 +7,15 @@
 [2026-06-24T11:03:52.511Z] VERIFY for test.new@test.com: http://localhost:5173/verify-email?token=bb933320-701f-49ee-a676-4deccc969e97
 [2026-06-24T11:04:33.340Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=14216e64-c0a6-4d65-995f-2805a285a2a7
 [2026-06-24T11:07:55.169Z] VERIFY for ramiislam090@gmail.com: http://localhost:5173/verify-email?token=842c4865-7218-49ee-bcb7-76ca90968943
+[2026-06-24T11:48:12.945Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=eb7c05d6-04ac-41c3-b241-a780bfd95e8c
+[2026-06-24T11:50:09.090Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=247d6d83-7ebc-41db-b63b-fdcaa196f973
+[2026-06-24T11:51:48.653Z] VERIFY for verify.test@test.com: http://localhost:5173/verify-email?token=628c4dc7-7f88-4940-8f00-5561d6b14a5e
+[2026-06-24T11:54:29.972Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=88a3c4c2-d7aa-4057-8822-211fb8414306
+[2026-06-24T11:55:50.044Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=94ebc527-7573-4220-b173-804be45febb3
+[2026-06-24T11:59:58.735Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=9f5e89b0-3dcd-49ee-978d-20809a4f92dc
+[2026-06-24T12:02:07.491Z] VERIFY for testverify@test.com: http://localhost:5173/verify-email?token=15ce9217-a7ab-488b-962a-38a0ee76fe99
+[2026-06-24T12:03:17.170Z] VERIFY for verify2@test.com: http://localhost:5173/verify-email?token=54e5a306-b9e4-45f2-86e6-db3baf5318d4
+[2026-06-24T12:03:40.193Z] VERIFY for verify2@test.com: http://localhost:5173/verify-email?token=dd1aeda7-c93f-4c26-8f79-64c5b31c7b39
+[2026-06-24T12:04:47.079Z] VERIFY for verify3@test.com: http://localhost:5173/verify-email?token=13b3752c-69cd-45de-8ced-0e71ffdb0319
+[2026-06-24T12:06:21.958Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=f1536c37-ebac-406d-a5c3-e166472e7a4d
+[2026-06-24T12:15:51.437Z] VERIFY for ramiislam040@gmail.com: http://localhost:5173/verify-email?token=70824adb-14aa-4084-b5cb-65814e7aef84

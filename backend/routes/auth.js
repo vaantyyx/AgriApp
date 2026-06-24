@@ -107,14 +107,19 @@ router.post('/resend-verification', async (req, res) => {
       return res.status(400).json({ error: 'Ce compte est déjà vérifié.' });
     }
 
-    // Generate a new verification token
-    const verificationToken = uuidv4();
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Reuse existing token if still valid, otherwise generate a new one
+    let verificationToken = user.verificationToken;
+    let verificationExpires = user.verificationExpires;
 
-    await db.collection('users').updateOne(
-      { _id: user._id },
-      { $set: { verificationToken, verificationExpires } }
-    );
+    if (!verificationToken || !verificationExpires || new Date() > verificationExpires) {
+      verificationToken = uuidv4();
+      verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await db.collection('users').updateOne(
+        { _id: user._id },
+        { $set: { verificationToken, verificationExpires } }
+      );
+    }
 
     try {
       await sendVerificationEmail(user.email, user.name, verificationToken);
@@ -141,11 +146,14 @@ router.get('/verify-email', async (req, res) => {
     const db = getDb();
     const user = await db.collection('users').findOne({
       verificationToken: token,
-      isVerified: false,
     });
 
     if (!user) {
       return res.status(400).json({ error: 'Token invalide ou compte déjà activé.' });
+    }
+
+    if (user.isVerified) {
+      return res.json({ message: 'Email déjà confirmé. Vous pouvez vous connecter.' });
     }
 
     if (new Date() > user.verificationExpires) {
@@ -154,10 +162,7 @@ router.get('/verify-email', async (req, res) => {
 
     await db.collection('users').updateOne(
       { _id: user._id },
-      {
-        $set: { isVerified: true },
-        $unset: { verificationToken: '', verificationExpires: '' },
-      }
+      { $set: { isVerified: true } }
     );
 
     // Send welcome email

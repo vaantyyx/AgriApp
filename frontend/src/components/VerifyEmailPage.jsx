@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, XCircle, Loader, Leaf } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader, Leaf, Mail, RefreshCw } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 
 const BACKEND_URL = 'http://127.0.0.1:3001';
 
 export default function VerifyEmailPage({ onNavigateToLogin }) {
-  const { t, dir } = useTranslation();
-  const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
+  const { t, dir, locale } = useTranslation();
+  const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const [resendEmail, setResendEmail] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -35,6 +38,30 @@ export default function VerifyEmailPage({ onNavigateToLogin }) {
         setMessage(t('serverError'));
       });
   }, [t]);
+
+  const handleResend = async () => {
+    if (!resendEmail.trim()) return;
+    setResending(true);
+    setResendDone(false);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resendEmail.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResendDone(true);
+        setMessage(locale === 'ar' ? 'تم إرسال البريد! تحقق من صندوق الوارد الخاص بك.' : 'Email renvoyé ! Vérifiez votre boîte de réception.');
+      } else {
+        setMessage(data.error || t('serverError'));
+      }
+    } catch {
+      setMessage(t('serverError'));
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
     <div className="verify-page animate-fade-in" dir={dir}>
@@ -113,6 +140,47 @@ export default function VerifyEmailPage({ onNavigateToLogin }) {
             <p style={{ color: 'var(--text-muted)', lineHeight: 1.65, marginBottom: 28 }}>
               {message}
             </p>
+
+            {/* Resend email form */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>
+                {locale === 'ar' ? 'أدخل بريدك الإلكتروني لإعادة إرسال رابط التفعيل' : 'Entrez votre email pour recevoir un nouveau lien'}
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="email"
+                  value={resendEmail}
+                  onChange={e => setResendEmail(e.target.value)}
+                  placeholder={t('emailPlaceholder')}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: '8px',
+                    border: '1px solid var(--border)', background: 'var(--bg-input)',
+                    color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none',
+                  }}
+                />
+                <button
+                  onClick={handleResend}
+                  disabled={resending || !resendEmail.trim()}
+                  style={{
+                    padding: '10px 16px', borderRadius: '8px',
+                    background: 'var(--primary)', color: 'white', border: 'none',
+                    fontWeight: 600, fontSize: '0.85rem', cursor: resending || !resendEmail.trim() ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex', alignItems: 'center', gap: 6, opacity: resending || !resendEmail.trim() ? 0.6 : 1,
+                  }}
+                >
+                  {resending ? (
+                    <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  ) : <RefreshCw size={14} />}
+                  {t('resendEmail') || 'Renvoyer'}
+                </button>
+              </div>
+              {resendDone && (
+                <p style={{ marginTop: 8, fontSize: '0.8rem', color: '#10b981' }}>
+                  {locale === 'ar' ? 'تم الإرسال! تحقق من بريدك الإلكتروني.' : 'Email renvoyé ! Vérifiez votre boîte de réception.'}
+                </p>
+              )}
+            </div>
+
             <button
               id="verify-back-btn"
               onClick={onNavigateToLogin}
