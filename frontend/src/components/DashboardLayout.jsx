@@ -59,8 +59,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
         transition: 'width 0.3s ease',
         zIndex: 1300,
         boxShadow: '2px 0 12px rgba(0,0,0,0.12)',
-        overflowX: 'hidden',
-        overflowY: 'auto',
+        overflow: 'visible',
       }}>
 
         {/* Brand / logo zone at the very top */}
@@ -133,7 +132,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
         </div>
 
         {/* Navigation items */}
-        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 0' }}>
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 0', overflowY: 'auto', overflowX: 'hidden' }}>
           {items.map(item => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
