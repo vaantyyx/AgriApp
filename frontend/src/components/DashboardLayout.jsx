@@ -57,7 +57,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
         display: 'flex',
         flexDirection: 'column',
         transition: 'width 0.3s ease',
-        zIndex: 1100,
+        zIndex: 1300,
         boxShadow: '2px 0 12px rgba(0,0,0,0.12)',
         overflowX: 'hidden',
         overflowY: 'auto',
