@@ -4,7 +4,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { LayoutDashboard, Gavel, User, MapPin, ChevronRight, ChevronLeft } from 'lucide-react';
 
 export default function DashboardLayout({ user, isOpen, onToggle, children }) {
-  const { locale, dir } = useTranslation();
+  const { t, locale, dir } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -15,16 +15,16 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
   else if (location.pathname.includes('/dashboard/parcelles')) activeTab = 'parcelles';
 
   const buyerItems = [
-    { id: 'dashboard', icon: LayoutDashboard, labelFr: 'Tableau de bord', labelAr: 'لوحة القيادة' },
-    { id: 'auctions',  icon: Gavel,           labelFr: 'Mes enchères',    labelAr: 'مزاداتي' },
-    { id: 'profile',   icon: User,            labelFr: 'Mon profil',      labelAr: 'ملفي الشخصي' },
+    { id: 'dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
+    { id: 'auctions',  icon: Gavel,           labelKey: 'myAuctions' },
+    { id: 'profile',   icon: User,            labelKey: 'profile' },
   ];
 
   const producerItems = [
-    { id: 'dashboard', icon: LayoutDashboard, labelFr: 'Tableau de bord', labelAr: 'لوحة القيادة' },
-    { id: 'parcelles', icon: MapPin,          labelFr: 'Mes parcelles',   labelAr: 'مزارعي' },
-    { id: 'auctions',  icon: Gavel,           labelFr: 'Enchères',        labelAr: 'المناقصات' },
-    { id: 'profile',   icon: User,            labelFr: 'Mon profil',      labelAr: 'ملفي الشخصي' },
+    { id: 'dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
+    { id: 'parcelles', icon: MapPin,          labelKey: 'myParcelles' },
+    { id: 'auctions',  icon: Gavel,           labelKey: 'auctions' },
+    { id: 'profile',   icon: User,            labelKey: 'profile' },
   ];
 
   const items = user?.role === 'buyer' ? buyerItems : producerItems;
@@ -39,7 +39,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
     }
   };
 
-  const sidebarLabel = (item) => locale === 'ar' ? item.labelAr : item.labelFr;
+  const sidebarLabel = (item) => t(item.labelKey);
 
   return (
     <>
@@ -91,9 +91,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
                 {user?.name}
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600 }}>
-                {user?.role === 'buyer'
-                  ? (locale === 'ar' ? 'مستلم' : 'Acheteur')
-                  : (locale === 'ar' ? 'منتج' : 'Producteur')}
+                {user?.role === 'buyer' ? t('role_buyer') : t('role_producer')}
               </div>
             </div>
           )}
@@ -101,9 +99,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
           {/* Toggle button — right edge of the sidebar header */}
           <button
             onClick={onToggle}
-            title={isOpen
-              ? (locale === 'fr' ? 'Masquer la barre' : 'إخفاء')
-              : (locale === 'fr' ? 'Afficher la barre' : 'إظهار')}
+            title={isOpen ? t('hideSidebar') : t('showSidebar')}
             style={{
               position: 'absolute',
               top: '50%',

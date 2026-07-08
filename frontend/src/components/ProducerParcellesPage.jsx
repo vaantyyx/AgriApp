@@ -195,16 +195,16 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
       const method = editingParcelle ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
       if (res.ok) { setFormOpen(false); fetchParcelles(); }
-      else { const err = await res.json(); alert(err.error || 'Error saving parcelle'); }
-    } catch (err) { console.error('Error saving parcelle:', err); }
+      else { const err = await res.json(); alert(err.error || 'Erreur lors de l\'enregistrement de la parcelle'); }
+    } catch (err) { console.error('Erreur lors de l\'enregistrement de la parcelle:', err); }
   };
 
   const handleDeleteParcelle = async (id) => {
     if (!window.confirm(locale === 'ar' ? 'هل أنت متأكد من حذف هذه القطعة؟' : 'Voulez-vous vraiment supprimer cette parcelle ?')) return;
     try {
       const res = await fetch(`http://127.0.0.1:3001/api/parcelles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) fetchParcelles(); else alert('Error deleting parcelle');
-    } catch (err) { console.error('Error deleting parcelle:', err); }
+      if (res.ok) fetchParcelles(); else alert('Erreur lors de la suppression de la parcelle');
+    } catch (err) { console.error('Erreur lors de la suppression de la parcelle:', err); }
   };
 
   const handleUpdateCulture = (index, field, value) => {
@@ -236,14 +236,14 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 10 }}>
             <Sprout size={24} style={{ color: 'var(--primary)' }} />
-            {locale === 'ar' ? 'حقولي الزراعية' : 'Mes parcelles agricoles'}
+            {locale === 'ar' ? 'حقولي الزراعية' : (locale === 'en' ? 'My agricultural plots' : 'Mes parcelles agricoles')}
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
-            {locale === 'ar' ? 'تنظيم ومتابعة استثماراتك الزراعية.' : 'Gérez vos terrains et optimisez vos cultures en temps réel.'}
+            {locale === 'ar' ? 'تنظيم ومتابعة استثماراتك الزراعية.' : (locale === 'en' ? 'Manage your lands and optimize your crops in real time.' : 'Gérez vos terrains et optimisez vos cultures en temps réel.')}
           </p>
         </div>
         <button onClick={handleOpenAddForm} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Plus size={16} /> {locale === 'ar' ? 'إضافة قطعة أرض' : 'Nouvelle parcelle'}
+          <Plus size={16} /> {locale === 'ar' ? 'إضافة قطعة أرض' : (locale === 'en' ? 'Add plot' : 'Nouvelle parcelle')}
         </button>
       </div>
 
@@ -251,36 +251,36 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
         <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ background: 'rgba(16,185,129,0.06)', padding: 10, borderRadius: 10 }}><Layers size={20} style={{ color: 'var(--primary)' }} /></div>
           <div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Superficie Totale</div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{locale === 'ar' ? 'المساحة الإجمالية' : (locale === 'en' ? 'Total Area' : 'Superficie Totale')}</div>
             <div style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-main)', marginTop: 2 }}>{totalSuperficie} <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold' }}>ha</span></div>
           </div>
         </div>
         <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ background: 'rgba(245,158,11,0.06)', padding: 10, borderRadius: 10 }}><Sprout size={20} style={{ color: '#f59e0b' }} /></div>
           <div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Cultures</div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{locale === 'ar' ? 'الزراعات' : (locale === 'en' ? 'Crops' : 'Cultures')}</div>
             <div style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-main)', marginTop: 2 }}>{uniqueCulturesCount} <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>types</span></div>
           </div>
         </div>
         <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ background: 'rgba(59,130,246,0.06)', padding: 10, borderRadius: 10 }}><MapPin size={20} style={{ color: '#3b82f6' }} /></div>
           <div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Implantations</div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{locale === 'ar' ? 'المواقع' : (locale === 'en' ? 'Locations' : 'Implantations')}</div>
             <div style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--text-main)', marginTop: 2 }}>{uniqueWilayasCount} <span style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 'bold' }}>wilayas</span></div>
           </div>
         </div>
       </div>
 
       {loadingParcelles ? (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>Chargement de vos parcelles...</div>
+        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>{locale === 'ar' ? 'جاري تحميل حقولك...' : (locale === 'en' ? 'Loading your plots...' : 'Chargement de vos parcelles...')}</div>
       ) : parcelles.length === 0 ? (
         <div className="glass-panel empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
           <div style={{ background: 'rgba(16,185,129,0.05)', width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
             <Sprout size={36} style={{ color: 'var(--primary)' }} />
           </div>
-          <h4 style={{ fontSize: '1.2rem', marginBottom: 8, color: 'var(--text-main)' }}>Aucune parcelle enregistrée</h4>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: 460, margin: '0 auto 24px' }}>Vous n'avez pas encore ajouté de terres agricoles à votre profil. Créez votre première parcelle pour commencer à l'exploiter !</p>
-          <button onClick={handleOpenAddForm} className="btn btn-primary"><Plus size={16} /> Ajouter ma première parcelle</button>
+          <h4 style={{ fontSize: '1.2rem', marginBottom: 8, color: 'var(--text-main)' }}>{locale === 'ar' ? 'لا توجد حقول مسجلة' : (locale === 'en' ? 'No plots registered' : 'Aucune parcelle enregistrée')}</h4>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: 460, margin: '0 auto 24px' }}>{locale === 'ar' ? 'لم تقم بإضافة أراضٍ زراعية إلى ملفك الشخصي بعد. أنشئ حقلك الأول لبدء الاستغلال!' : (locale === 'en' ? "You haven't added any agricultural lands to your profile yet. Create your first plot to start exploiting it!" : "Vous n'avez pas encore ajouté de terres agricoles à votre profil. Créez votre première parcelle pour commencer à l'exploiter !")}</p>
+          <button onClick={handleOpenAddForm} className="btn btn-primary"><Plus size={16} /> {locale === 'ar' ? 'إضافة حقلي الأول' : (locale === 'en' ? 'Add my first plot' : 'Ajouter ma première parcelle')}</button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 24 }}>
@@ -304,25 +304,25 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <MapPin size={15} style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }} />
                     <div>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>Localisation</span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>{p.wilayaName ? p.wilayaName : 'Non localisée'}</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>{locale === 'ar' ? 'الموقع' : (locale === 'en' ? 'Location' : 'Localisation')}</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>{p.wilayaName ? p.wilayaName : (locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not located' : 'Non localisée'))}</span>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.08)', borderRadius: 8, padding: '8px 12px' }}>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>Cultures</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>{locale === 'ar' ? 'الزراعات' : (locale === 'en' ? 'Crops' : 'Cultures')}</div>
                       <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-main)', marginTop: 2, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                        {p.cultures && p.cultures.length > 0 ? (p.cultures.length === 1 ? p.cultures[0].type_culture : `Multi (${p.cultures.length})`) : 'Aucune'}
+                        {p.cultures && p.cultures.length > 0 ? (p.cultures.length === 1 ? p.cultures[0].type_culture : `Multi (${p.cultures.length})`) : (locale === 'ar' ? 'لا يوجد' : (locale === 'en' ? 'None' : 'Aucune'))}
                       </div>
                     </div>
                     <div style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.08)', borderRadius: 8, padding: '8px 12px' }}>
-                      <div style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 'bold', textTransform: 'uppercase' }}>Irrigation</div>
+                      <div style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 'bold', textTransform: 'uppercase' }}>{locale === 'ar' ? 'الري' : (locale === 'en' ? 'Irrigation' : 'Irrigation')}</div>
                       <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-main)', marginTop: 2, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p.irrigationMethod || 'Pluvial'}</div>
                     </div>
                   </div>
                   <div style={{ marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> {p.acquisitionDate ? new Date(p.acquisitionDate).toLocaleDateString('fr-DZ', { year: 'numeric', month: 'short' }) : '—'}</span>
-                    <span style={{ color: 'var(--primary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)' }} /> Actif</span>
+                    <span style={{ color: 'var(--primary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)' }} /> {locale === 'ar' ? 'نشط' : (locale === 'en' ? 'Active' : 'Actif')}</span>
                   </div>
                 </div>
               </div>
@@ -453,8 +453,8 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                     <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>Position GPS précise</span>
                   </div>
                   <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 6, border: '1px solid var(--border)' }}>
-                    <button type="button" onClick={() => handleSwitchLayer('satellite')} style={{ border: 'none', background: mapLayer === 'satellite' ? 'var(--primary)' : 'transparent', color: mapLayer === 'satellite' ? 'white' : 'var(--text-muted)', fontSize: '0.68rem', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>Satellite</button>
-                    <button type="button" onClick={() => handleSwitchLayer('street')} style={{ border: 'none', background: mapLayer === 'street' ? 'var(--primary)' : 'transparent', color: mapLayer === 'street' ? 'white' : 'var(--text-muted)', fontSize: '0.68rem', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>OSM Plan</button>
+                    <button type="button" onClick={() => handleSwitchLayer('satellite')} style={{ border: 'none', background: mapLayer === 'satellite' ? 'var(--primary)' : 'transparent', color: mapLayer === 'satellite' ? 'white' : 'var(--text-muted)', fontSize: '0.68rem', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>{locale === 'ar' ? 'قمر صناعي' : (locale === 'en' ? 'Satellite' : 'Satellite')}</button>
+                    <button type="button" onClick={() => handleSwitchLayer('street')} style={{ border: 'none', background: mapLayer === 'street' ? 'var(--primary)' : 'transparent', color: mapLayer === 'street' ? 'white' : 'var(--text-muted)', fontSize: '0.68rem', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>{locale === 'ar' ? 'خريطة' : (locale === 'en' ? 'Map' : 'Plan OSM')}</button>
                   </div>
                 </div>
                 <div ref={mapRef} style={{ flex: 1 }} />

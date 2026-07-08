@@ -9,6 +9,7 @@ import { useTranslation } from '../context/LanguageContext';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
+import { getWinnerCongratsMessage, getBidClosedWinnerMessage, isBidLineAccepted } from '../utils/auctionHelpers';
 
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -457,19 +458,19 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
   const handleSaveParcelle = async (e) => {
     e.preventDefault();
     if (!formIntitule.trim()) {
-      alert(locale === 'ar' ? 'اسم الحقل مطلوب' : 'Nom de la parcelle requis');
+      alert(locale === 'ar' ? 'اسم الحقل مطلوب' : (locale === 'en' ? 'Field name is required' : 'Nom de la parcelle requis'));
       return;
     }
     if (!formSuperficie || parseFloat(formSuperficie) <= 0) {
-      alert(locale === 'ar' ? 'المساحة يجب أن تكون أكبر من 0' : 'La superficie doit être supérieure à 0');
+      alert(locale === 'ar' ? 'المساحة يجب أن تكون أكبر من 0' : (locale === 'en' ? 'Area must be greater than 0' : 'La superficie doit être supérieure à 0'));
       return;
     }
     if (!formWilayaId) {
-      alert(locale === 'ar' ? 'الرجاء اختيار الولاية' : 'Veuillez sélectionner une wilaya');
+      alert(locale === 'ar' ? 'الرجاء اختيار الولاية' : (locale === 'en' ? 'Please select a wilaya' : 'Veuillez sélectionner une wilaya'));
       return;
     }
     if (formCultures.some(c => !c.type_culture)) {
-      alert(locale === 'ar' ? 'الرجاء تحديد نوع الزراعة' : 'Veuillez sélectionner le type pour toutes les cultures');
+      alert(locale === 'ar' ? 'الرجاء تحديد نوع الزراعة' : (locale === 'en' ? 'Please select the type for all crops' : 'Veuillez sélectionner le type pour toutes les cultures'));
       return;
     }
 
@@ -507,10 +508,10 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
         fetchParcelles();
       } else {
         const err = await res.json();
-        alert(err.error || 'Error saving parcelle');
+        alert(err.error || 'Erreur lors de l\'enregistrement de la parcelle');
       }
     } catch (err) {
-      console.error('Error saving parcelle:', err);
+      console.error('Erreur lors de l\'enregistrement de la parcelle:', err);
     }
   };
 
@@ -525,10 +526,10 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
       if (res.ok) {
         fetchParcelles();
       } else {
-        alert('Error deleting parcelle');
+        alert('Erreur lors de la suppression de la parcelle');
       }
     } catch (err) {
-      console.error('Error deleting parcelle:', err);
+      console.error('Erreur lors de la suppression de la parcelle:', err);
     }
   };
 
@@ -849,8 +850,6 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                   const isClosed = auction.status === 'closed';
                   const isWinner = isClosed && auction.myBidId && auction.acceptedBidId === auction.myBidId;
                   const winningBid = isClosed ? auction.bids.find(b => b.id === auction.acceptedBidId) : null;
-                  const winningLine = isClosed && isWinner ? myBid?.lines?.find(l => l.id === auction.acceptedLineId) : null;
-                  const winningLineCompetitor = isClosed && winningBid ? winningBid?.lines?.find(l => l.id === auction.acceptedLineId) : null;
                   const lines = getLines(auction.id);
                   const isHighlighted = highlightAuctionId === auction.id;
 
@@ -1103,50 +1102,14 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                             <>
                               <Trophy style={{ color: 'var(--accent)' }} size={20} />
                               <div>
-                                {winningLine?.optionName ? (
-                                  t('bidWinnerCongratsOption', {
-                                    option: winningLine.optionName,
-                                    price: winningLine.price,
-                                    unit: t('unit_' + (winningLine.unit || auction.unit))
-                                  })
-                                ) : (
-                                  t('bidWinnerCongrats', {
-                                    price: winningLine?.price,
-                                    unit: t('unit_' + (winningLine?.unit || auction.unit))
-                                  })
-                                )}
+                                {getWinnerCongratsMessage({ bid: myBid, acceptedLineId: auction.acceptedLineId, auction, t })}
                               </div>
                             </>
                           ) : (
                             <>
                               <Check size={20} style={{ color: 'var(--text-muted)' }} />
                               <div>
-                                {winningLineCompetitor?.price || (winningBid && !winningLineCompetitor?.optionName) ? (
-                                  winningLineCompetitor?.optionName ? (
-                                    t('bidClosedWinnerOption', {
-                                      name: winningBid?.producerAlias,
-                                      option: winningLineCompetitor.optionName,
-                                      price: winningLineCompetitor.price,
-                                      unit: t('unit_' + (winningLineCompetitor.unit || auction.unit))
-                                    })
-                                  ) : (
-                                    t('bidClosedWinner', {
-                                      name: winningBid?.producerAlias,
-                                      price: winningLineCompetitor?.price || winningBid?.price,
-                                      unit: t('unit_' + (winningLineCompetitor?.unit || winningBid?.unit || auction.unit))
-                                    })
-                                  )
-                                ) : (
-                                  winningLineCompetitor?.optionName ? (
-                                    locale === 'ar'
-                                      ? `تم إغلاق المناقصة. تم قبول عرض ${winningBid?.producerAlias} للخيار "${winningLineCompetitor.optionName}".`
-                                      : `L'enchère est clôturée. L'offre de ${winningBid?.producerAlias} pour l'option "${winningLineCompetitor.optionName}" a été acceptée.`
-                                  ) : (
-                                    locale === 'ar'
-                                      ? `تم إغلاق المناقصة. تم قبول عرض ${winningBid?.producerAlias || 'المنافس'}.`
-                                      : `L'enchère est clôturée. L'offre de ${winningBid?.producerAlias || 'concurrent'} a été acceptée.`
-                                  )
-                                )}
+                                {getBidClosedWinnerMessage({ winningBid, acceptedLineId: auction.acceptedLineId, auction, t, locale })}
                               </div>
                             </>
                           )}
@@ -1200,7 +1163,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                       {(bid.lines || []).map(line => {
-                                        const isThisLineAccepted = auction.acceptedBidId === bid.id && auction.acceptedLineId === line.id;
+                                        const isThisLineAccepted = isBidLineAccepted(auction, bid, line);
                                         return (
                                           <div
                                             key={line.id}

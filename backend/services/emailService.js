@@ -7,35 +7,115 @@ function getFromAddress() {
   return `"${name}" <${address}>`;
 }
 
-function createTransporter() {
-  // Support both EMAIL_* and MAIL_* naming conventions (MAIL_* takes precedence)
+let testTransporter = null;
+let testAccountInfo = null;
+
+async function createTransporter() {
   const host = process.env.MAIL_HOST || process.env.EMAIL_HOST;
-  const port = parseInt(process.env.MAIL_PORT || process.env.EMAIL_PORT || '587');
+  const port = parseInt(process.env.MAIL_PORT || process.env.EMAIL_PORT || '587', 10);
   const user = process.env.MAIL_USERNAME || process.env.EMAIL_USER;
   const pass = process.env.MAIL_PASSWORD || process.env.EMAIL_PASS;
   const encryption = (process.env.MAIL_ENCRYPTION || '').toLowerCase();
 
-  if (!host || !user || !pass) {
-    console.warn('[EMAIL] SMTP credentials not configured. Emails will not be sent.');
-    return null;
+  if (host && user && pass) {
+    const isSecure = port === 465 || encryption === 'ssl';
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure: isSecure,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
   }
 
-  const isSecure = port === 465 || encryption === 'ssl';
+  if (testTransporter) {
+    return testTransporter;
+  }
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: isSecure,
-    auth: { user, pass },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
+  try {
+    const account = await nodemailer.createTestAccount();
+    testAccountInfo = account;
+    const transporter = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: { user: account.user, pass: account.pass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+    });
+
+    testTransporter = transporter;
+    console.warn('[EMAIL] SMTP credentials not configured. Using Ethereal test account for development.');
+    console.log(`[EMAIL] Ethereal preview available after sending messages.`);
+    return transporter;
+  } catch (err) {
+    console.warn('[EMAIL] SMTP credentials not configured and Ethereal account creation failed. Emails will not be sent.', err.message);
+    return null;
+  }
+}
+
+// Common template wrapper for brand consistency
+function getBaseTemplate(title, bodyContent) {
+  return `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${title}</title>
+    </head>
+    <body style="margin:0;padding:0;background-color:#0b0f12;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+      <table cellpadding="0" cellspacing="0" width="100%" style="background-color:#0b0f12;min-height:100vh;padding:40px 20px;">
+        <tr>
+          <td align="center" valign="top">
+            <table cellpadding="0" cellspacing="0" width="100%" style="max-width:540px;background-color:#121a20;border:1px solid #1e293b;border-radius:24px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.4);">
+              
+              <!-- Header -->
+              <tr>
+                <td style="padding:48px 32px 32px 32px;text-align:center;border-bottom:1px solid #1e293b;">
+                  <div style="display:inline-block;background:linear-gradient(135deg,#10b981,#059669);width:64px;height:64px;border-radius:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(16,185,129,0.25);text-align:center;line-height:64px;">
+                    <span style="font-size:32px;vertical-align:middle;display:inline-block;line-height:64px;">🌿</span>
+                  </div>
+                  <h1 style="color:#ffffff;margin:0;font-size:26px;font-weight:800;letter-spacing:-0.02em;">Sougra</h1>
+                  <p style="color:#10b981;margin:4px 0 0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;">Enchères Agricoles</p>
+                </td>
+              </tr>
+              
+              <!-- Content -->
+              <tr>
+                <td style="padding:40px 32px;color:#f3f4f6;font-size:15px;line-height:1.6;">
+                  ${bodyContent}
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="background-color:#0e1419;padding:24px 32px;text-align:center;border-top:1px solid #1e293b;">
+                  <p style="color:#4b5563;font-size:12px;line-height:1.6;margin:0;">
+                    © ${new Date().getFullYear()} Sougra — Plateforme d'Enchères Inversées Agricoles en Algérie
+                  </p>
+                  <p style="color:#374151;font-size:11px;margin:8px 0 0 0;">
+                    Cet e-mail automatique a été envoyé à l'adresse fournie lors de l'inscription.
+                  </p>
+                </td>
+              </tr>
+              
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
 }
 
 export async function sendVerificationEmail(to, name, token) {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   const APP_URL = process.env.APP_URL || 'http://localhost:5173';
   const verifyUrl = `${APP_URL}/verify-email?token=${token}`;
 
@@ -55,100 +135,84 @@ export async function sendVerificationEmail(to, name, token) {
     return; // Silently skip in dev when not configured
   }
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Confirmez votre email — Sougra</title>
-    </head>
-    <body style="margin:0;padding:0;background:#0b0f12;font-family:'Segoe UI',Arial,sans-serif;">
-      <div style="max-width:560px;margin:40px auto;background:rgba(18,26,32,0.95);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden;">
-        
-        <!-- Header -->
-        <div style="background:linear-gradient(135deg,#10b981,#059669);padding:32px;text-align:center;">
-          <div style="font-size:32px;margin-bottom:8px;">🌿</div>
-          <h1 style="color:#fff;margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;">Sougra</h1>
-          <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:0.9rem;">Plateforme d'Enchères Agricoles</p>
-        </div>
+  const html = getBaseTemplate(
+    'Confirmez votre email — Sougra',
+    `
+      <h2 style="color:#f3f4f6;font-size:20px;margin:0 0 16px 0;font-weight:700;">Bonjour, ${name} 👋</h2>
+      <p style="color:#9ca3af;line-height:1.7;margin:0 0 32px 0;">
+        Merci de vous être inscrit sur la plateforme <strong style="color:#ffffff;">Sougra</strong>. 
+        Pour activer votre compte et accéder aux enchères agricoles, veuillez confirmer votre adresse email en cliquant sur le bouton ci-dessous.
+      </p>
 
-        <!-- Content -->
-        <div style="padding:40px 32px;">
-          <h2 style="color:#f3f4f6;font-size:1.4rem;margin:0 0 12px;font-weight:700;">Bonjour, ${name} 👋</h2>
-          <p style="color:#9ca3af;line-height:1.7;margin:0 0 28px;font-size:0.95rem;">
-            Merci de vous être inscrit sur <strong style="color:#f3f4f6;">Sougra</strong>. 
-            Confirmez votre adresse email pour activer votre compte et accéder à la plateforme.
-          </p>
-
-          <div style="text-align:center;margin:32px 0;">
-            <a href="${verifyUrl}" 
-               style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:700;font-size:1rem;letter-spacing:0.01em;box-shadow:0 4px 14px rgba(16,185,129,0.4);">
-              ✅ Confirmer mon email
-            </a>
-          </div>
-
-          <p style="color:#6b7280;font-size:0.8rem;line-height:1.6;margin:0 0 16px;">
-            Ce lien expire dans <strong>24 heures</strong>. Si vous n'avez pas créé de compte, ignorez cet email.
-          </p>
-
-          <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;margin-top:20px;">
-            <p style="color:#4b5563;font-size:0.75rem;margin:0;">
-              Lien ne fonctionne pas ? Copiez et collez l'URL ci-dessous :<br>
-              <span style="color:#10b981;word-break:break-all;">${verifyUrl}</span>
-            </p>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div style="background:rgba(0,0,0,0.2);padding:20px 32px;text-align:center;">
-          <p style="color:#4b5563;font-size:0.75rem;margin:0;">
-            © ${new Date().getFullYear()} Sougra — Plateforme d'Enchères Inversées Agricoles en Algérie
-          </p>
-        </div>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${verifyUrl}" 
+           style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:700;font-size:16px;letter-spacing:0.01em;box-shadow:0 6px 20px rgba(16,185,129,0.3);transition:all 0.2s ease;">
+          ✅ Confirmer mon email
+        </a>
       </div>
-    </body>
-    </html>
-  `;
+
+      <p style="color:#6b7280;font-size:13px;line-height:1.6;margin:32px 0 16px 0;border-top:1px solid #1e293b;padding-top:20px;">
+        Ce lien expire dans <strong>24 heures</strong>. Si vous n'avez pas créé de compte sur notre plateforme, vous pouvez ignorer cet e-mail en toute sécurité.
+      </p>
+
+      <div style="background-color:#17222a;border:1px solid #23323e;border-radius:12px;padding:16px;margin-top:24px;">
+        <p style="color:#4b5563;font-size:11px;margin:0;line-height:1.5;word-break:break-all;">
+          Si le bouton ne fonctionne pas, copiez et collez l'URL suivante dans votre navigateur :<br>
+          <a href="${verifyUrl}" style="color:#10b981;text-decoration:none;">${verifyUrl}</a>
+        </p>
+      </div>
+    `
+  );
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: getFromAddress(),
       to,
       subject: '✅ Confirmez votre adresse email — Sougra',
       html,
     });
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) console.log(`[EMAIL] Verification email preview: ${previewUrl}`);
   } catch (err) {
     console.error('[EMAIL] Failed to send verification email via SMTP:', err.message);
   }
 }
 
-
 export async function sendWelcomeEmail(to, name, role) {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   if (!transporter) {
     console.log(`[EMAIL DEV] Welcome email would be sent to ${to}`);
     return;
   }
 
   const roleLabel = role === 'buyer' ? 'Acheteur' : 'Producteur';
+  
+  const html = getBaseTemplate(
+    '🌿 Bienvenue sur Sougra !',
+    `
+      <h2 style="color:#f3f4f6;font-size:20px;margin:0 0 16px 0;font-weight:700;">Bienvenue sur Sougra, ${name} ! 🎉</h2>
+      <p style="color:#9ca3af;line-height:1.7;margin:0 0 24px 0;">
+        Votre compte en tant que <strong style="color:#ffffff;">${roleLabel}</strong> est désormais validé et actif. Vous pouvez dès maintenant vous connecter pour participer aux enchères inversées agricoles en Algérie.
+      </p>
+      <p style="color:#9ca3af;line-height:1.7;margin:0 0 32px 0;">
+        Découvrez les offres en cours, créez vos appels d'offres ou proposez vos meilleurs produits de qualité supérieure.
+      </p>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${process.env.APP_URL || 'http://localhost:5173'}" 
+           style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:700;font-size:16px;box-shadow:0 6px 20px rgba(16,185,129,0.3);">
+          Accéder à la plateforme
+        </a>
+      </div>
+    `
+  );
 
   try {
     await transporter.sendMail({
       from: getFromAddress(),
       to,
       subject: '🌿 Bienvenue sur Sougra !',
-      html: `
-        <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;font-family:Arial,sans-serif;color:#f3f4f6;">
-          <h1 style="color:#10b981;">🎉 Bienvenue, ${name} !</h1>
-          <p style="color:#9ca3af;">Votre compte <strong>${roleLabel}</strong> est maintenant actif.</p>
-          <p style="color:#9ca3af;">Connectez-vous pour commencer à utiliser Sougra.</p>
-          <a href="${process.env.APP_URL || 'http://localhost:5173'}" 
-             style="display:inline-block;background:#10b981;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:20px;">
-            Accéder à la plateforme
-          </a>
-        </div>
-      `,
+      html,
     });
   } catch (err) {
     console.error('[EMAIL] Failed to send welcome email via SMTP:', err.message);
@@ -156,7 +220,7 @@ export async function sendWelcomeEmail(to, name, role) {
 }
 
 export async function sendOtpEmail(to, name, otp, minutes, title, subject, desc) {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   console.log(`\n==================================================`);
   console.log(`[EMAIL DEV] OTP Code for ${to} (${name}):`);
   console.log(`👉 ${otp} (Expires in ${minutes} minutes)`);
@@ -172,62 +236,73 @@ export async function sendOtpEmail(to, name, otp, minutes, title, subject, desc)
     return; // Silently skip in dev when not configured
   }
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-      <meta charset="UTF-8">
-      <title>${subject}</title>
-    </head>
-    <body style="margin:0;padding:0;background:#0b0f12;font-family:Arial,sans-serif;color:#f3f4f6;">
-      <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;border:1px solid rgba(255,255,255,0.08);">
-        <h1 style="color:#10b981;font-size:1.6rem;margin-top:0;">${title}</h1>
-        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">Bonjour ${name},</p>
-        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">${desc}</p>
-        <div style="text-align:center;margin:32px 0;">
-          <span style="display:inline-block;background:#1b252c;color:#10b981;padding:14px 28px;font-size:24px;font-weight:bold;letter-spacing:6px;border-radius:10px;border:1px solid rgba(16,185,129,0.3);">
-            ${otp}
-          </span>
-        </div>
-        <p style="color:#6b7280;font-size:0.8rem;">Ce code est valide pendant ${minutes} minutes. S'il ne provient pas de vous, ignorez ce message.</p>
+  const html = getBaseTemplate(
+    subject,
+    `
+      <h2 style="color:#f3f4f6;font-size:20px;margin:0 0 16px 0;font-weight:700;">${title}</h2>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 24px 0;">Bonjour ${name},</p>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 32px 0;">${desc}</p>
+      
+      <div style="text-align:center;margin:36px 0;">
+        <span style="display:inline-block;background:#17222a;color:#10b981;padding:16px 32px;font-size:28px;font-weight:800;letter-spacing:8px;border-radius:14px;border:1px solid #10b981;box-shadow:0 4px 12px rgba(16,185,129,0.1);">
+          ${otp}
+        </span>
       </div>
-    </body>
-    </html>
-  `;
+      
+      <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:32px 0 0 0;border-top:1px solid #1e293b;padding-top:20px;">
+        Ce code de sécurité à usage unique est valide pendant <strong>${minutes} minutes</strong>. Pour la sécurité de votre compte, ne partagez jamais ce code.
+      </p>
+    `
+  );
 
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: getFromAddress(),
       to,
       subject,
       html,
     });
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) console.log(`[EMAIL] OTP email preview: ${previewUrl}`);
   } catch (err) {
     console.error('[EMAIL] Failed to send OTP email via SMTP:', err.message);
   }
 }
 
 export async function sendAccountDeactivationEmail(to, name) {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   if (!transporter) {
     console.log(`[EMAIL DEV] Deactivation confirmation email would be sent to ${to}`);
     return;
   }
+
+  const html = getBaseTemplate(
+    'ℹ️ Confirmation de désactivation de votre compte — Sougra',
+    `
+      <h2 style="color:#f59e0b;font-size:20px;margin:0 0 16px 0;font-weight:700;">Compte désactivé 👋</h2>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 20px 0;">Bonjour ${name},</p>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 24px 0;">
+        Votre compte sur la plateforme Sougra a bien été désactivé à votre demande ou conformément à nos conditions générales.
+      </p>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 32px 0;">
+        Si vous souhaitez réactiver votre compte ou si vous pensez qu'il s'agit d'une erreur, veuillez contacter notre équipe support.
+      </p>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="mailto:support@sougra.com" 
+           style="display:inline-block;background:#f59e0b;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:700;font-size:15px;box-shadow:0 6px 20px rgba(245,158,11,0.2);">
+          📧 Contacter le support
+        </a>
+      </div>
+    `
+  );
 
   try {
     await transporter.sendMail({
       from: getFromAddress(),
       to,
       subject: 'ℹ️ Confirmation de désactivation de votre compte — Sougra',
-      html: `
-        <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;font-family:Arial,sans-serif;color:#f3f4f6;">
-          <h1 style="color:#f59e0b;">👋 Compte désactivé</h1>
-          <p style="color:#9ca3af;">Bonjour ${name},</p>
-          <p style="color:#9ca3af;">Votre compte Sougra a bien été désactivé.</p>
-          <p style="color:#9ca3af;">Si vous souhaitez réactiver votre compte, veuillez contacter notre support à <a href="mailto:support@sougra.com" style="color:#10b981;">support@sougra.com</a>.</p>
-          <p style="color:#6b7280;font-size:0.8rem;margin-top:30px;">Si vous n'êtes pas à l'origine de cette action, contactez-nous immédiatement.</p>
-        </div>
-      `,
+      html,
     });
   } catch (err) {
     console.error('[EMAIL] Failed to send deactivation email via SMTP:', err.message);
@@ -235,7 +310,7 @@ export async function sendAccountDeactivationEmail(to, name) {
 }
 
 export async function sendPasswordResetEmail(to, name, token) {
-  const transporter = createTransporter();
+  const transporter = await createTransporter();
   const APP_URL = process.env.APP_URL || 'http://localhost:5173';
   const resetUrl = `${APP_URL}/reset-password?token=${token}`;
 
@@ -250,25 +325,34 @@ export async function sendPasswordResetEmail(to, name, token) {
 
   if (!transporter) return;
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head><meta charset="UTF-8"><title>Réinitialisation du mot de passe</title></head>
-    <body style="margin:0;padding:0;background:#0b0f12;font-family:Arial,sans-serif;color:#f3f4f6;">
-      <div style="max-width:560px;margin:40px auto;background:#121a20;border-radius:16px;padding:40px;border:1px solid rgba(255,255,255,0.08);">
-        <h1 style="color:#10b981;font-size:1.6rem;margin-top:0;">Réinitialiser votre mot de passe</h1>
-        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">Bonjour ${name},</p>
-        <p style="color:#9ca3af;font-size:0.95rem;line-height:1.6;">Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte Sougra. Cliquez sur le bouton ci-dessous pour le changer.</p>
-        <div style="text-align:center;margin:32px 0;">
-          <a href="${resetUrl}" style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-weight:bold;">
-            Réinitialiser mon mot de passe
-          </a>
-        </div>
-        <p style="color:#6b7280;font-size:0.8rem;">Ce lien expire dans 1 heure. Si vous n'avez pas demandé cette réinitialisation, ignorez simplement cet e-mail.</p>
+  const html = getBaseTemplate(
+    '🔑 Réinitialisation de votre mot de passe — Sougra',
+    `
+      <h2 style="color:#f3f4f6;font-size:20px;margin:0 0 16px 0;font-weight:700;">Demande de réinitialisation de mot de passe</h2>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 20px 0;">Bonjour ${name},</p>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 32px 0;">
+        Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte Sougra. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe.
+      </p>
+
+      <div style="text-align:center;margin:32px 0;">
+        <a href="${resetUrl}" 
+           style="display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:12px;font-weight:700;font-size:16px;box-shadow:0 6px 20px rgba(16,185,129,0.3);">
+          🔑 Choisir un nouveau mot de passe
+        </a>
       </div>
-    </body>
-    </html>
-  `;
+
+      <p style="color:#6b7280;font-size:13px;line-height:1.5;margin:32px 0 16px 0;border-top:1px solid #1e293b;padding-top:20px;">
+        Ce lien expire dans <strong>1 heure</strong>. Si vous n'avez pas demandé ce changement, vous pouvez ignorer cet e-mail en toute sécurité.
+      </p>
+
+      <div style="background-color:#17222a;border:1px solid #23323e;border-radius:12px;padding:16px;margin-top:24px;">
+        <p style="color:#4b5563;font-size:11px;margin:0;line-height:1.5;word-break:break-all;">
+          Si le bouton ne fonctionne pas, copiez et collez l'URL suivante dans votre navigateur :<br>
+          <a href="${resetUrl}" style="color:#10b981;text-decoration:none;">${resetUrl}</a>
+        </p>
+      </div>
+    `
+  );
 
   try {
     await transporter.sendMail({

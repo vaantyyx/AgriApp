@@ -9,13 +9,12 @@ const BACKEND_URL = 'http://127.0.0.1:3001';
 export function computeProducerCompletion(user) {
   if (!user) return 0;
   let score = 0;
-  if (user.profilePhoto) score += 15;
   if (user.wilaya && user.wilaya.trim()) score += 15;
   if (user.commune && user.commune.trim()) score += 15;
   if (user.phone && user.phone.trim()) score += 15;
-  if (user.numeroCarteAgriculteur && user.numeroCarteAgriculteur.trim()) score += 10;
-  if (user.ficheSignaletiqueDocument) score += 15;
-  if (user.carteAgriculteurDocument) score += 15;
+  if (user.numeroCarteAgriculteur && user.numeroCarteAgriculteur.trim()) score += 15;
+  if (user.ficheSignaletiqueDocument) score += 20;
+  if (user.carteAgriculteurDocument) score += 20;
   return score;
 }
 

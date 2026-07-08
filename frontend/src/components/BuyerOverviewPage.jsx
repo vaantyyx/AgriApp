@@ -7,7 +7,6 @@ import { computeBuyerCompletion } from './BuyerProfilePage';
 function getMissingFieldsList(user, locale) {
   const missing = [];
   const labels = {
-    profilePhoto: { fr: 'Photo de profil', ar: 'الصورة الشخصية' },
     wilaya: { fr: 'Wilaya', ar: 'الولاية' },
     commune: { fr: 'Commune', ar: 'البلدية' },
     phone: { fr: 'Téléphone', ar: 'الهاتف' },
@@ -18,7 +17,6 @@ function getMissingFieldsList(user, locale) {
     nom_commercial: { fr: 'Nom commercial', ar: 'الاسم التجاري' },
   };
   if (!user) return [];
-  if (!user.profilePhoto) missing.push(labels.profilePhoto[locale] || labels.profilePhoto.fr);
   if (!user.wilaya || !user.wilaya.trim()) missing.push(labels.wilaya[locale] || labels.wilaya.fr);
   if (!user.commune || !user.commune.trim()) missing.push(labels.commune[locale] || labels.commune.fr);
   if (!user.phone || !user.phone.trim()) missing.push(labels.phone[locale] || labels.phone.fr);
@@ -33,7 +31,7 @@ function getMissingFieldsList(user, locale) {
 }
 
 export default function BuyerOverviewPage({ user, auctions }) {
-  const { locale } = useTranslation();
+  const { t, locale } = useTranslation();
   const navigate = useNavigate();
 
   const myAuctions = auctions.filter(a => a.isOwner);
@@ -42,18 +40,18 @@ export default function BuyerOverviewPage({ user, auctions }) {
   return (
     <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
       <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-main)' }}>
-        {locale === 'ar' ? `مرحباً، ${user.name} 👋` : `Bienvenue, ${user.name} 👋`}
+        {t('welcome_back', { name: user.name })}
       </h2>
       <p style={{ color: 'var(--text-muted)', marginBottom: 32, fontSize: '0.95rem' }}>
-        {locale === 'ar' ? 'إليك ملخص نشاطك.' : "Voici un aperçu de votre activité."}
+        {t('activity_summary')}
       </p>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 36 }}>
         {[
-          { icon: Gavel, label: locale === 'ar' ? 'إجمالي المزادات' : 'Total enchères', value: myAuctions.length, color: 'var(--primary)' },
-          { icon: ListOrdered, label: locale === 'ar' ? 'مزادات مفتوحة' : 'Enchères ouvertes', value: myAuctions.filter(a => a.status === 'open').length, color: '#f59e0b' },
-          { icon: Check, label: locale === 'ar' ? 'منجزة' : 'Clôturées', value: myAuctions.filter(a => a.status === 'closed').length, color: '#3b82f6' },
+          { icon: Gavel, label: t('total_auctions'), value: myAuctions.length, color: 'var(--primary)' },
+          { icon: ListOrdered, label: t('statusOpen'), value: myAuctions.filter(a => a.status === 'open').length, color: '#f59e0b' },
+          { icon: Check, label: t('statusClosed'), value: myAuctions.filter(a => a.status === 'closed').length, color: '#3b82f6' },
         ].map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -87,12 +85,12 @@ export default function BuyerOverviewPage({ user, auctions }) {
         </div>
         <div style={{ flex: 1, minWidth: '240px', textAlign: 'start' }}>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '4px', color: 'var(--text-main)' }}>
-            {locale === 'ar' ? 'مستوى اكتمال ملفك الشخصي' : 'Taux de complétion de votre profil'}
+            {t('profile_completion_title')}
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: 0, lineHeight: 1.4 }}>
             {completion < 70
-              ? (locale === 'ar' ? '⚠️ ملفك الشخصي غير مكتمل. يجب أن يصل إلى 70% لإطلاق المزادات.' : '⚠️ Votre profil est incomplet (< 70%). Complétez-le pour créer des enchères.')
-              : (locale === 'ar' ? '✓ ملفك الشخصي مكتمل بما يكفي لإطلاق المزادات!' : '✓ Votre profil est suffisant pour lancer des enchères !')}
+              ? t('profile_completion_warning')
+              : t('profile_completion_ok')}
           </p>
           {completion < 70 && (
             <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '0.72rem' }}>
@@ -104,24 +102,26 @@ export default function BuyerOverviewPage({ user, auctions }) {
             </div>
           )}
         </div>
-        <button onClick={() => navigate('/profile')} className="btn btn-secondary" style={{ fontSize: '0.85rem', padding: '8px 16px', whiteSpace: 'nowrap' }}>
-          {locale === 'ar' ? 'تعديل الملف الشخصي' : 'Compléter mon profil'}
-        </button>
+        {completion < 100 && (
+          <button onClick={() => navigate('/profile')} className="btn btn-secondary" style={{ fontSize: '0.85rem', padding: '8px 16px', whiteSpace: 'nowrap' }}>
+            {t('edit_profile_btn')}
+          </button>
+        )}
       </div>
 
       {/* CTA */}
       <div className="glass-panel" style={{ padding: '28px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
         <div>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: 6, color: 'var(--text-main)' }}>
-            {locale === 'ar' ? 'أنشئ مزادًا جديدًا' : 'Lancez une nouvelle enchère'}
+            {t('create_new_auction_title')}
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            {locale === 'ar' ? 'حدد الكميات والمواصفات وانتظر عروض المنتجين.' : 'Définissez vos besoins et recevez les offres des producteurs.'}
+            {t('create_new_auction_desc')}
           </p>
         </div>
         <button onClick={() => navigate('/dashboard/auctions')} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
           <Plus size={18} />
-          {locale === 'ar' ? 'إنشاء مزاد' : 'Créer enchère'}
+          {t('create_auction_btn')}
           <ArrowRight size={16} />
         </button>
       </div>

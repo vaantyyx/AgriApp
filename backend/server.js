@@ -103,9 +103,18 @@ app.get('/api/producers/count', async (req, res) => {
     const lat = parseFloat(req.query.lat);
     const lng = parseFloat(req.query.lng);
     const radius = parseFloat(req.query.radius) || 100;
+    const auctionType = req.query.auctionType;
+    const productIdsStr = req.query.productIds;
 
     if (isNaN(lat) || isNaN(lng)) {
       return res.status(400).json({ error: 'Coordonnées lat/lng invalides.' });
+    }
+
+    // Resolve requested product names if smart auction
+    let requestedProductNames = [];
+    if (auctionType === 'smart' && productIdsStr) {
+      const productIds = productIdsStr.split(',').filter(Boolean);
+      requestedProductNames = productIds.map(pid => PRODUCTS_MAP[pid]).filter(Boolean);
     }
 
     const db = getDb();
@@ -121,7 +130,14 @@ app.get('/api/producers/count', async (req, res) => {
 
       const dist = haversineKm(lat, lng, pCoords.lat, pCoords.lng);
       if (dist <= radius) {
-        count++;
+        if (auctionType === 'smart' && requestedProductNames.length > 0) {
+          const hasProduct = await hasProducerProduct(producer._id.toString(), requestedProductNames, db);
+          if (hasProduct) {
+            count++;
+          }
+        } else {
+          count++;
+        }
       }
     }
 
@@ -368,8 +384,8 @@ function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
     return {
       id: auction.id,
       buyerDisplay,
-      // Only buyer sees their own real demand location context
-      deliveryLocation: requestingUserId === auction.buyerId ? auction.deliveryLocation : 'Zone de livraison',
+      // Only buyer sees their own real demand location context, except producers who need it to bid
+      deliveryLocation: (requestingUserId === auction.buyerId || requestingRole === 'producer') ? auction.deliveryLocation : 'Zone de livraison',
       title: auction.title || auction.product,
       auctionType: auction.auctionType || 'open',
       product: auction.product,
@@ -415,6 +431,166 @@ const io = new Server(httpServer, {
 
 // Map of connected userId → Set of socket IDs for targeted delivery
 const connectedUsers = new Map(); // userId → Set<socketId>
+
+// Map of auctionId → { fiveMin: Timeout|null, start: Timeout|null } for precise scheduling
+const auctionTimers = new Map();
+const MAX_TIMEOUT_MS = 2147483647; // ~24.8 days — Node's setTimeout overflow ceiling
+
+/** Returns producers eligible to be notified about this auction (zone + product match). */
+async function getMatchingProducers(auction, db) {
+  const buyerCoords = (auction.buyerLat != null && auction.buyerLng != null)
+    ? { lat: auction.buyerLat, lng: auction.buyerLng }
+    : null;
+  const radiusKm = auction.radiusKm || 100;
+  const producers = await db.collection('users').find({ role: 'producer', isVerified: true }).toArray();
+  const matches = [];
+
+  for (const producer of producers) {
+    let shouldNotify = false;
+    let distKm = 0;
+
+    const pCoords = producer.commune
+      ? getCommuneCoords(producer.wilaya || '', producer.commune)
+      : getWilayaCoords(producer.wilaya || '');
+    if (buyerCoords && pCoords) {
+      distKm = haversineKm(buyerCoords.lat, buyerCoords.lng, pCoords.lat, pCoords.lng);
+    }
+
+    if (!auction.isSearchZoneChanged) {
+      if (
+        producer.wilaya &&
+        producer.commune &&
+        auction.buyerWilaya &&
+        auction.buyerCommune &&
+        producer.wilaya.toLowerCase().trim() === auction.buyerWilaya.toLowerCase().trim() &&
+        producer.commune.toLowerCase().trim() === auction.buyerCommune.toLowerCase().trim()
+      ) {
+        shouldNotify = true;
+      }
+    } else if (buyerCoords) {
+      if (distKm <= radiusKm) shouldNotify = true;
+    }
+
+    if (shouldNotify && auction.auctionType === 'smart') {
+      const requestedProductNames = (auction.lots || []).map(l => PRODUCTS_MAP[l.productId]).filter(Boolean);
+      if (requestedProductNames.length === 0 && auction.product) {
+        const fallback = PRODUCTS_MAP[auction.product] || auction.product;
+        requestedProductNames.push(fallback);
+      }
+      shouldNotify = await hasProducerProduct(producer._id.toString(), requestedProductNames, db);
+    }
+
+    if (shouldNotify) matches.push({ producer, distKm });
+  }
+
+  return matches;
+}
+
+/** Persists + pushes (if connected) a notification of `type` to every producer matching this auction. */
+async function notifyMatchingProducers(auction, db, type) {
+  const matches = await getMatchingProducers(auction, db);
+  for (const { producer, distKm } of matches) {
+    const notifId = `notif_${Date.now()}_${randomBytes(3).toString('hex')}`;
+    const notification = {
+      id: notifId,
+      userId: producer._id.toString(),
+      type,
+      auctionId: auction.id,
+      product: auction.product,
+      quantity: auction.quantity,
+      unit: auction.unit,
+      startAt: auction.startAt,
+      distanceKm: Math.round(distKm),
+      read: false,
+      createdAt: new Date().toISOString(),
+    };
+    await db.collection('notifications').insertOne(notification);
+
+    const producerSockets = connectedUsers.get(producer._id.toString());
+    if (producerSockets && producerSockets.size > 0) {
+      producerSockets.forEach(sid => io.to(sid).emit('new_notification', notification));
+    }
+  }
+}
+
+/** Broadcasts a sanitized version of the auction to every connected socket (zone/product filtered for producers). */
+async function broadcastAuction(auction, db, eventName = 'auction_updated') {
+  const allSockets = await io.fetchSockets();
+  for (const s of allSockets) {
+    if (s.user.role === 'producer') {
+      if (auction.status === 'pending') continue;
+      const allowed = await canProducerParticipate(auction, s.user.userId, s.producerCoords, db);
+      if (!allowed) continue;
+    }
+    const [sanitized] = sanitizeAuctions([auction], s.user.userId, s.user.role);
+    s.emit(eventName, sanitized);
+  }
+}
+
+function clearAuctionTimers(auctionId) {
+  const timers = auctionTimers.get(auctionId);
+  if (timers) {
+    if (timers.fiveMin) clearTimeout(timers.fiveMin);
+    if (timers.start) clearTimeout(timers.start);
+    auctionTimers.delete(auctionId);
+  }
+}
+
+/** Flips a pending auction to open, notifies matching producers, and broadcasts — called exactly at startAt. */
+async function openAuction(auctionId) {
+  try {
+    const db = getDb();
+    const auction = await db.collection('auctions').findOne({ id: auctionId });
+    if (!auction || auction.status !== 'pending') return;
+
+    await db.collection('auctions').updateOne({ id: auctionId }, { $set: { status: 'open' } });
+    auction.status = 'open';
+
+    clearAuctionTimers(auctionId);
+    await notifyMatchingProducers(auction, db, 'new_auction');
+    await broadcastAuction(auction, db, 'auction_updated');
+  } catch (err) {
+    console.error('[Scheduler] Error opening auction:', err.message);
+  }
+}
+
+/**
+ * Schedules the "5 minutes left" reminder and the exact opening of a pending auction,
+ * so both fire precisely at their target time instead of waiting on the periodic poll.
+ */
+function scheduleAuctionNotifications(auction) {
+  clearAuctionTimers(auction.id);
+  if (auction.status !== 'pending' || !auction.startAt) return;
+
+  const startMs = new Date(auction.startAt).getTime();
+  const now = Date.now();
+  const timers = {};
+
+  const fiveMinBeforeMs = startMs - 5 * 60 * 1000;
+  const fiveMinDelay = fiveMinBeforeMs - now;
+  if (fiveMinDelay > 0 && fiveMinDelay <= MAX_TIMEOUT_MS) {
+    timers.fiveMin = setTimeout(async () => {
+      try {
+        const db = getDb();
+        const current = await db.collection('auctions').findOne({ id: auction.id });
+        if (current && current.status === 'pending') {
+          await notifyMatchingProducers(current, db, 'auction_starting_soon');
+        }
+      } catch (err) {
+        console.error('[Scheduler] Error sending 5-min reminder:', err.message);
+      }
+    }, fiveMinDelay);
+  }
+
+  const startDelay = Math.max(startMs - now, 0);
+  if (startDelay <= MAX_TIMEOUT_MS) {
+    timers.start = setTimeout(() => { openAuction(auction.id); }, startDelay);
+  }
+  // If startDelay overflows setTimeout's range, the periodic checkPendingAuctions() poll
+  // below acts as a fallback and will open it once its time comes within range.
+
+  auctionTimers.set(auction.id, timers);
+}
 
 // Socket.IO auth middleware
 io.use((socket, next) => {
@@ -566,95 +742,146 @@ io.on('connection', async (socket) => {
 
       await db.collection('auctions').insertOne(newAuction);
 
-      // Notify producers matching default or custom search zones (only if status is 'open')
-      if (newAuction.status === 'open' && buyerCoords) {
-        const producers = await db.collection('users').find(
-          { role: 'producer', isVerified: true }
-        ).toArray();
-
-        for (const producer of producers) {
-          let shouldNotify = false;
-          let distKm = 0;
-
-          // Calculate distance for notifications
-          const pCoords = producer.commune
-            ? getCommuneCoords(producer.wilaya || '', producer.commune)
-            : getWilayaCoords(producer.wilaya || '');
-          if (pCoords) {
-            distKm = haversineKm(buyerCoords.lat, buyerCoords.lng, pCoords.lat, pCoords.lng);
-          }
-
-          if (!isSearchZoneChanged) {
-            // Default: match wilaya and commune
-            if (
-              producer.wilaya &&
-              producer.commune &&
-              buyer?.wilaya &&
-              buyer?.commune &&
-              producer.wilaya.toLowerCase().trim() === buyer.wilaya.toLowerCase().trim() &&
-              producer.commune.toLowerCase().trim() === buyer.commune.toLowerCase().trim()
-            ) {
-              shouldNotify = true;
-            }
-          } else {
-            // Custom search zone: match geographic distance
-            if (distKm <= radiusKm) {
-              shouldNotify = true;
-            }
-          }
-
-          // If smart auction, must check if they have the product
-          if (shouldNotify && newAuction.auctionType === 'smart') {
-            const requestedProductNames = (newAuction.lots || []).map(l => PRODUCTS_MAP[l.productId]).filter(Boolean);
-            if (requestedProductNames.length === 0 && newAuction.product) {
-              const fallback = PRODUCTS_MAP[newAuction.product] || newAuction.product;
-              requestedProductNames.push(fallback);
-            }
-            shouldNotify = await hasProducerProduct(producer._id.toString(), requestedProductNames, db);
-          }
-
-          if (shouldNotify) {
-            // Create persistent notification in DB
-            const notifId = `notif_${Date.now()}_${randomBytes(3).toString('hex')}`;
-            const notification = {
-              id: notifId,
-              userId: producer._id.toString(),
-              type: 'new_auction',
-              auctionId: newAuction.id,
-              product: newAuction.product,
-              quantity: newAuction.quantity,
-              unit: newAuction.unit,
-              distanceKm: Math.round(distKm),
-              read: false,
-              createdAt: new Date().toISOString(),
-            };
-            await db.collection('notifications').insertOne(notification);
-
-            // Push real-time notification if producer is connected
-            const producerSockets = connectedUsers.get(producer._id.toString());
-            if (producerSockets && producerSockets.size > 0) {
-              producerSockets.forEach(sid => {
-                io.to(sid).emit('new_notification', notification);
-              });
-            }
-          }
-        }
+      if (newAuction.status === 'open') {
+        // Immediate auction — notify matching producers right away.
+        await notifyMatchingProducers(newAuction, db, 'new_auction');
+      } else {
+        // Scheduled auction — notify immediately that it was created/planned,
+        // then arm the precise "5 minutes left" reminder and the exact opening trigger.
+        await notifyMatchingProducers(newAuction, db, 'auction_scheduled');
+        scheduleAuctionNotifications(newAuction);
       }
 
       // Broadcast new auction — producers only receive demands within their zone and product match if smart
-      const allSockets = await io.fetchSockets();
-      for (const s of allSockets) {
-        if (s.user.role === 'producer') {
-          if (newAuction.status === 'pending') continue;
-          const allowed = await canProducerParticipate(newAuction, s.user.userId, s.producerCoords, db);
-          if (!allowed) continue;
-        }
-        const [sanitized] = sanitizeAuctions([newAuction], s.user.userId, s.user.role);
-        s.emit('auction_created', sanitized);
-      }
+      await broadcastAuction(newAuction, db, 'auction_created');
     } catch (err) {
       console.error('[WS] Error creating auction:', err.message);
       socket.emit('error', { message: "Échec de la création de l'enchère." });
+    }
+  });
+
+  // ── Update Auction (Buyer only, only while pending / not yet started) ──
+  socket.on('update_auction', async (data) => {
+    if (role !== 'buyer') {
+      socket.emit('error', { message: 'Seuls les acheteurs peuvent modifier une enchère.' });
+      return;
+    }
+
+    const {
+      auctionId,
+      title,
+      auctionType,
+      deliveryLocation,
+      description,
+      lots,
+      radius,
+      isSearchZoneChanged,
+      startAt,
+      endAt,
+      autoProlongate,
+      prolongationMinutes,
+      maxProlongations
+    } = data;
+
+    if (!auctionId) {
+      socket.emit('error', { message: 'Enchère introuvable.' });
+      return;
+    }
+
+    const firstLot = Array.isArray(lots) && lots.length > 0 ? lots[0] : null;
+    const lotProduct = firstLot ? firstLot.productId : null;
+    const lotQuantity = firstLot ? firstLot.quantity : null;
+    const lotUnit = firstLot ? firstLot.unit : 'tonnes';
+
+    if (!title || (!lotProduct && !firstLot?.designation) || !lotQuantity || !lotUnit) {
+      socket.emit('error', { message: 'Champs obligatoires manquants (Titre, Produit, Quantité, Unité).' });
+      return;
+    }
+
+    try {
+      const db = getDb();
+      const auction = await db.collection('auctions').findOne({ id: auctionId });
+      if (!auction) { socket.emit('error', { message: 'Enchère introuvable.' }); return; }
+      if (auction.buyerId !== uid) { socket.emit('error', { message: 'Non autorisé.' }); return; }
+      if (auction.status !== 'pending') {
+        socket.emit('error', { message: "Seule une enchère non encore lancée peut être modifiée." });
+        return;
+      }
+
+      const radiusKm = Math.min(Math.max(parseFloat(radius) || 100, 10), 2000);
+      const now = new Date();
+      const isFuture = startAt && new Date(startAt) > now;
+      const newStatus = isFuture ? 'pending' : 'open';
+
+      const updates = {
+        radiusKm,
+        isSearchZoneChanged: !!isSearchZoneChanged,
+        title: String(title).slice(0, 200),
+        auctionType: String(auctionType || 'open').slice(0, 100),
+        deliveryLocation: String(deliveryLocation || '').slice(0, 300),
+        description: String(description || '').slice(0, 1000),
+        lots: Array.isArray(lots) ? lots : [],
+        startAt: startAt || null,
+        endAt: endAt || null,
+        autoProlongate: !!autoProlongate,
+        prolongationMinutes: prolongationMinutes ? parseInt(prolongationMinutes, 10) : null,
+        maxProlongations: maxProlongations ? parseInt(maxProlongations, 10) : null,
+        product: String(firstLot?.designation || title).slice(0, 200),
+        quantity: parseFloat(lotQuantity),
+        unit: String(lotUnit).slice(0, 50),
+        targetPrice: firstLot?.priceCeiling ? parseFloat(firstLot.priceCeiling) : null,
+        status: newStatus,
+      };
+
+      await db.collection('auctions').updateOne({ id: auctionId }, { $set: updates });
+      const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
+
+      clearAuctionTimers(auctionId);
+      if (updatedAuction.status === 'open') {
+        await notifyMatchingProducers(updatedAuction, db, 'new_auction');
+      } else {
+        scheduleAuctionNotifications(updatedAuction);
+      }
+
+      await broadcastAuction(updatedAuction, db, 'auction_updated');
+    } catch (err) {
+      console.error('[WS] Error updating auction:', err.message);
+      socket.emit('error', { message: "Échec de la modification de l'enchère." });
+    }
+  });
+
+  // ── Delete Auction (Buyer only, only while pending / not yet started) ──
+  socket.on('delete_auction', async (data) => {
+    if (role !== 'buyer') {
+      socket.emit('error', { message: 'Seuls les acheteurs peuvent supprimer une enchère.' });
+      return;
+    }
+
+    const { auctionId } = data;
+    if (!auctionId) { socket.emit('error', { message: 'Enchère introuvable.' }); return; }
+
+    try {
+      const db = getDb();
+      const auction = await db.collection('auctions').findOne({ id: auctionId });
+      if (!auction) { socket.emit('error', { message: 'Enchère introuvable.' }); return; }
+      if (auction.buyerId !== uid) { socket.emit('error', { message: 'Non autorisé.' }); return; }
+      if (auction.status !== 'pending') {
+        socket.emit('error', { message: "Seule une enchère non encore lancée peut être supprimée." });
+        return;
+      }
+
+      clearAuctionTimers(auctionId);
+      await notifyMatchingProducers(auction, db, 'auction_canceled');
+      await db.collection('notifications').deleteMany({ auctionId, type: { $ne: 'auction_canceled' } });
+      await db.collection('auctions').deleteOne({ id: auctionId });
+
+      const allSockets = await io.fetchSockets();
+      for (const s of allSockets) {
+        s.emit('auction_deleted', { auctionId });
+      }
+    } catch (err) {
+      console.error('[WS] Error deleting auction:', err.message);
+      socket.emit('error', { message: "Échec de la suppression de l'enchère." });
     }
   });
 
@@ -683,6 +910,23 @@ io.on('connection', async (socket) => {
         return;
       }
 
+      // Fetch producer's current rating averages and coordinates
+      const { ObjectId } = await import('mongodb');
+      const producerUser = await db.collection('users').findOne(
+        { _id: new ObjectId(uid) },
+        { projection: { wilaya: 1, commune: 1, averageRating: 1, ratingCount: 1 } }
+      );
+
+      const pCoords = producerUser?.commune
+        ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
+        : getWilayaCoords(producerUser?.wilaya || '');
+
+      const allowed = await canProducerParticipate(auction, uid, pCoords, db);
+      if (!allowed) {
+        socket.emit('error', { message: "Vous n'êtes pas autorisé à soumissionner sur cette enchère." });
+        return;
+      }
+
       // Validate images and nested properties for each line
       const validatedLines = lines.slice(0, 5).map((l, i) => {
         const safeImages = Array.isArray(l.images)
@@ -704,13 +948,6 @@ io.on('connection', async (socket) => {
         socket.emit('error', { message: 'Certains prix de vos options sont invalides.' });
         return;
       }
-
-      // Fetch producer's current rating averages
-      const { ObjectId } = await import('mongodb');
-      const producerUser = await db.collection('users').findOne(
-        { _id: new ObjectId(uid) },
-        { projection: { averageRating: 1, ratingCount: 1 } }
-      );
 
       // Consolidate: exactly one active bid document per producer on an auction
       const existingBidIndex = (auction.bids || []).findIndex(b => b.producerId === uid);
@@ -806,6 +1043,32 @@ io.on('connection', async (socket) => {
       );
 
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
+
+      // Notify the winning producer
+      const acceptedLine = bid.lines?.length === 1
+        ? bid.lines[0]
+        : (bid.lines || []).find(l => l.id === auction.acceptedLineId) || null;
+      const notifId = `notif_${Date.now()}_${randomBytes(3).toString('hex')}`;
+      const notification = {
+        id: notifId,
+        userId: bid.producerId,
+        type: 'bid_accepted',
+        auctionId: auction.id,
+        product: auction.product,
+        price: acceptedLine?.price ?? null,
+        unit: acceptedLine?.unit || auction.unit,
+        optionCount: bid.lines?.length || 0,
+        read: false,
+        createdAt: new Date().toISOString(),
+      };
+      await db.collection('notifications').insertOne(notification);
+
+      const producerSockets = connectedUsers.get(bid.producerId);
+      if (producerSockets && producerSockets.size > 0) {
+        producerSockets.forEach(sid => {
+          io.to(sid).emit('new_notification', notification);
+        });
+      }
 
       const allSockets = await io.fetchSockets();
       for (const s of allSockets) {
@@ -931,12 +1194,14 @@ io.on('connection', async (socket) => {
 });
 
 // ─── Start Time Scheduler for Pending Auctions ────────────────────────────
+// Safety-net fallback: the exact-time work is done by the per-auction timers set up in
+// scheduleAuctionNotifications(). This poll only catches auctions whose timer could not be
+// scheduled (e.g. server was down at the exact target time, or delay overflowed setTimeout's range).
 async function checkPendingAuctions() {
   try {
     const db = getDb();
     const now = new Date().toISOString();
-    
-    // Find pending auctions whose start time has arrived
+
     const pendingAuctions = await db.collection('auctions').find({
       status: 'pending',
       startAt: { $ne: null, $lte: now }
@@ -944,118 +1209,9 @@ async function checkPendingAuctions() {
 
     if (pendingAuctions.length === 0) return;
 
-    console.log(`[Scheduler] Found ${pendingAuctions.length} pending auctions to open.`);
-
+    console.log(`[Scheduler] Found ${pendingAuctions.length} pending auctions to open (fallback poll).`);
     for (const auction of pendingAuctions) {
-      // 1. Update status in DB
-      await db.collection('auctions').updateOne(
-        { id: auction.id },
-        { $set: { status: 'open' } }
-      );
-      
-      auction.status = 'open';
-
-      // 2. Fetch buyer coordinates/details to send notifications
-      const buyerId = auction.buyerId;
-      const { ObjectId } = await import('mongodb');
-      const buyer = await db.collection('users').findOne(
-        { _id: new ObjectId(buyerId) },
-        { projection: { name: 1, wilaya: 1, commune: 1 } }
-      );
-      
-      const buyerCoords = buyer?.commune
-        ? getCommuneCoords(buyer.wilaya || '', buyer.commune)
-        : getWilayaCoords(buyer?.wilaya || '');
-
-      const radiusKm = auction.radiusKm || 100;
-
-      // 3. Notify producers matching default or custom search zones
-      if (buyerCoords) {
-        const producers = await db.collection('users').find(
-          { role: 'producer', isVerified: true }
-        ).toArray();
-
-        for (const producer of producers) {
-          let shouldNotify = false;
-          let distKm = 0;
-
-          // Calculate distance
-          const pCoords = producer.commune
-            ? getCommuneCoords(producer.wilaya || '', producer.commune)
-            : getWilayaCoords(producer.wilaya || '');
-          if (pCoords) {
-            distKm = haversineKm(buyerCoords.lat, buyerCoords.lng, pCoords.lat, pCoords.lng);
-          }
-
-          const isSearchZoneChanged = auction.isSearchZoneChanged || false;
-
-          if (!isSearchZoneChanged) {
-            // Default: match wilaya and commune
-            if (
-              producer.wilaya &&
-              producer.commune &&
-              auction.buyerWilaya &&
-              auction.buyerCommune &&
-              producer.wilaya.toLowerCase().trim() === auction.buyerWilaya.toLowerCase().trim() &&
-              producer.commune.toLowerCase().trim() === auction.buyerCommune.toLowerCase().trim()
-            ) {
-              shouldNotify = true;
-            }
-          } else {
-            // Custom search zone: match geographic distance
-            if (distKm <= radiusKm) {
-              shouldNotify = true;
-            }
-          }
-
-          // If smart auction, check product match
-          if (shouldNotify && auction.auctionType === 'smart') {
-            const requestedProductNames = (auction.lots || []).map(l => PRODUCTS_MAP[l.productId]).filter(Boolean);
-            if (requestedProductNames.length === 0 && auction.product) {
-              const fallback = PRODUCTS_MAP[auction.product] || auction.product;
-              requestedProductNames.push(fallback);
-            }
-            shouldNotify = await hasProducerProduct(producer._id.toString(), requestedProductNames, db);
-          }
-
-          if (shouldNotify) {
-            // Create persistent notification in DB
-            const notifId = `notif_${Date.now()}_${randomBytes(3).toString('hex')}`;
-            const notification = {
-              id: notifId,
-              userId: producer._id.toString(),
-              type: 'new_auction',
-              auctionId: auction.id,
-              product: auction.product,
-              quantity: auction.quantity,
-              unit: auction.unit,
-              distanceKm: Math.round(distKm),
-              read: false,
-              createdAt: new Date().toISOString(),
-            };
-            await db.collection('notifications').insertOne(notification);
-
-            // Push real-time notification
-            const producerSockets = connectedUsers.get(producer._id.toString());
-            if (producerSockets && producerSockets.size > 0) {
-              producerSockets.forEach(sid => {
-                io.to(sid).emit('new_notification', notification);
-              });
-            }
-          }
-        }
-      }
-
-      // 4. Broadcast the new/started auction to all connected sockets
-      const allSockets = await io.fetchSockets();
-      for (const s of allSockets) {
-        if (s.user.role === 'producer') {
-          const allowed = await canProducerParticipate(auction, s.user.userId, s.producerCoords, db);
-          if (!allowed) continue;
-        }
-        const [sanitized] = sanitizeAuctions([auction], s.user.userId, s.user.role);
-        s.emit('auction_created', sanitized);
-      }
+      await openAuction(auction.id);
     }
   } catch (err) {
     console.error('[Scheduler] Error processing pending auctions:', err.message);
@@ -1076,7 +1232,13 @@ async function startServer() {
     await db.collection('notifications').createIndex({ userId: 1, read: 1 });
     await db.collection('ratings').createIndex({ auctionId: 1, buyerId: 1 }, { unique: true });
 
-    // Setup periodic scheduler (every 30 seconds)
+    // Recover precise timers for auctions still pending from before a restart
+    const pendingAuctions = await db.collection('auctions').find({ status: 'pending' }).toArray();
+    for (const auction of pendingAuctions) {
+      scheduleAuctionNotifications(auction);
+    }
+
+    // Setup periodic scheduler (every 30 seconds) — fallback safety net only
     setInterval(checkPendingAuctions, 30000);
     // Run once immediately on startup
     checkPendingAuctions().catch(err => console.error('[Scheduler Start Error]', err));

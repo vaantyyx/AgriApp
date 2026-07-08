@@ -35,3 +35,11 @@
 [2026-06-24T19:45:29.094Z] OTP for ramiislam040@gmail.com: 444054
 [2026-06-24T20:37:11.986Z] RESET PASSWORD for ramiislam040@gmail.com: http://localhost:5173/reset-password?token=f7cc2689-64a6-4704-8098-237cdde18505
 [2026-06-24T20:38:00.868Z] OTP for ramiislam040@gmail.com: 814634
+[2026-06-25T19:23:59.228Z] VERIFY for achikh200@gmail.com: http://localhost:5173/verify-email?token=e4942982-0c0f-4e1c-96a4-7e58ed83d79b
+[2026-06-25T19:24:48.238Z] VERIFY for achikh200@gmail.com: http://localhost:5173/verify-email?token=e4942982-0c0f-4e1c-96a4-7e58ed83d79b
+[2026-07-08T19:43:28.615Z] VERIFY for achikh200@gmail.com: http://localhost:5173/verify-email?token=5b64a7d3-ae09-4279-a566-6828a8a3bc79
+[2026-07-08T19:49:10.783Z] VERIFY for achikh200@gmail.com: http://localhost:5173/verify-email?token=test-token-123456
+[2026-07-08T19:50:08.533Z] VERIFY for achikh200@gmail.com: http://localhost:5173/verify-email?token=1a41d420-c50f-478b-828b-2bac324aebcd
+[2026-07-08T20:08:41.073Z] VERIFY for abderrahmane.c.dev@gmail.com: http://localhost:5173/verify-email?token=24637112-2119-4157-88be-ccc3fbcc3195
+[2026-07-08T21:00:40.207Z] VERIFY for achikh200@gmail.com: http://localhost:5173/verify-email?token=fb8b03bc-9479-4707-8a8b-dd38554f66f6
+[2026-07-08T21:07:35.980Z] VERIFY for abderrahmane.c.dev@gmail.com: http://localhost:5173/verify-email?token=e29e7a71-d48f-43c7-805b-7fea215c3406

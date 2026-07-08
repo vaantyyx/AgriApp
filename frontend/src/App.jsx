@@ -151,12 +151,23 @@ export default function App() {
     socket.on('auctions_list', (data) => setAuctions(data));
 
     socket.on('auction_created', (newAuction) => {
-      setAuctions(prev => prev.some(a => a.id === newAuction.id) ? prev : [newAuction, ...prev]);
+      setAuctions(prev => prev.some(a => a.id === newAuction.id)
+        ? prev.map(a => a.id === newAuction.id ? newAuction : a)
+        : [newAuction, ...prev]
+      );
+      if (newAuction.isOwner) {
+        setHighlightAuctionId(newAuction.id);
+        setTimeout(() => setHighlightAuctionId(null), 3000);
+      }
     });
 
     socket.on('auction_updated', (updatedAuction) => {
       setAuctions(prev => {
         const old = prev.find(a => a.id === updatedAuction.id);
+        const updatedList = old
+          ? prev.map(a => a.id === updatedAuction.id ? updatedAuction : a)
+          : [updatedAuction, ...prev];
+
         if (old) {
           const oldBidIds = new Set(old.bids.map(b => b.id));
           const newBids = updatedAuction.bids.filter(b => !oldBidIds.has(b.id));
@@ -166,13 +177,19 @@ export default function App() {
             setTimeout(() => setNewBidFlashIds(f => f.filter(id => !ids.includes(id))), 1500);
           }
         }
-        return prev.map(a => a.id === updatedAuction.id ? updatedAuction : a);
+
+        return updatedList;
       });
     });
 
     socket.on('data_reset', () => {
       setAuctions([]);
       setNotifications([]);
+    });
+
+    socket.on('auction_deleted', ({ auctionId }) => {
+      setAuctions(prev => prev.filter(a => a.id !== auctionId));
+      setNotifications(prev => prev.filter(n => n.auctionId !== auctionId || n.type === 'auction_canceled'));
     });
 
     // New notification
@@ -215,6 +232,8 @@ export default function App() {
   };
 
   const handleCreateAuction = (data) => socketRef.current?.emit('create_auction', data);
+  const handleUpdateAuction = (auctionId, data) => socketRef.current?.emit('update_auction', { auctionId, ...data });
+  const handleDeleteAuction = (auctionId) => socketRef.current?.emit('delete_auction', { auctionId });
   const handlePlaceBid = (data) => socketRef.current?.emit('place_bid', data);
   const handleAcceptBid = (auctionId, bidId) => socketRef.current?.emit('accept_bid', { auctionId, bidId });
   const handleRateProducer = (auctionId, rating) => socketRef.current?.emit('rate_producer', { auctionId, rating });
@@ -232,6 +251,56 @@ export default function App() {
       });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch { }
+  };
+
+  const handleNotificationClick = (n) => {
+    setNotifOpen(false);
+    if (n.auctionId) {
+      navigate('/dashboard/auctions');
+      setHighlightAuctionId(n.auctionId);
+      setTimeout(() => setHighlightAuctionId(null), 3000);
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  const getNotificationTitle = (n) => {
+    if (n.type === 'new_bid') return t('newBidNotificationTitle');
+    if (n.type === 'bid_accepted') return t('bidAcceptedNotificationTitle');
+    if (n.type === 'auction_scheduled') return t('auctionScheduledNotificationTitle');
+    if (n.type === 'auction_starting_soon') return t('auctionStartingSoonNotificationTitle');
+    if (n.type === 'auction_canceled') return t('auctionCanceledNotificationTitle');
+    return t('newDemandAtDistance', { distance: n.distanceKm || 0 });
+  };
+
+  const getNotificationBody = (n) => {
+    if (n.type === 'new_bid') return t('newBidNotificationBody', { product: n.product });
+    if (n.type === 'bid_accepted') {
+      if (n.price != null) {
+        return t('bidAcceptedNotificationBody', {
+          product: n.product,
+          price: n.price,
+          unit: t('unit_' + (n.unit || 'tonnes')),
+        });
+      }
+      return t('bidAcceptedNotificationBodyPackage', {
+        product: n.product,
+        count: n.optionCount || 0,
+      });
+    }
+    if (n.type === 'auction_scheduled') {
+      return t('auctionScheduledNotificationBody', {
+        product: n.product,
+        date: n.startAt ? new Date(n.startAt).toLocaleString('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '',
+      });
+    }
+    if (n.type === 'auction_starting_soon') {
+      return t('auctionStartingSoonNotificationBody', { product: n.product });
+    }
+    if (n.type === 'auction_canceled') {
+      return t('auctionCanceledNotificationBody', { product: n.product });
+    }
+    return `${n.product} — ${n.quantity} ${t('unit_' + n.unit)}`;
   };
 
   // Avatar
@@ -369,30 +438,16 @@ export default function App() {
                                 className={`notif-item notif-item-clickable ${n.read ? '' : 'notif-unread'}`}
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => {
-                                  setNotifOpen(false);
-                                  navigate('/dashboard');
-                                  setHighlightAuctionId(n.auctionId);
-                                  setTimeout(() => setHighlightAuctionId(null), 3000);
-                                }}
-                                onKeyDown={e => e.key === 'Enter' && (() => {
-                                  setNotifOpen(false);
-                                  navigate('/dashboard');
-                                  setHighlightAuctionId(n.auctionId);
-                                  setTimeout(() => setHighlightAuctionId(null), 3000);
-                                })()}
+                                onClick={() => handleNotificationClick(n)}
+                                onKeyDown={e => e.key === 'Enter' && handleNotificationClick(n)}
                               >
                                 <div className="notif-dot" />
                                 <div className="notif-content">
                                   <div className="notif-title">
-                                    {n.type === 'new_bid'
-                                      ? t('newBidNotificationTitle')
-                                      : t('newDemandAtDistance', { distance: n.distanceKm || 0 })}
+                                    {getNotificationTitle(n)}
                                   </div>
                                   <div className="notif-body">
-                                    {n.type === 'new_bid'
-                                      ? t('newBidNotificationBody', { product: n.product })
-                                      : `${n.product} — ${n.quantity} ${t('unit_' + n.unit)}`}
+                                    {getNotificationBody(n)}
                                   </div>
                                   <div className="notif-time">
                                     {new Date(n.createdAt).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}
@@ -528,6 +583,8 @@ export default function App() {
                     user={user}
                     auctions={auctions}
                     onCreateAuction={handleCreateAuction}
+                    onUpdateAuction={handleUpdateAuction}
+                    onDeleteAuction={handleDeleteAuction}
                     onAcceptBid={handleAcceptBid}
                     onRateProducer={handleRateProducer}
                     newBidFlashIds={newBidFlashIds}
