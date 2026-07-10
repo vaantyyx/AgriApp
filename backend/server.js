@@ -7,8 +7,11 @@ import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { createAdapter } from '@socket.io/redis-adapter';
 import jwt from 'jsonwebtoken';
 import { connectToDatabase, getDb } from './db.js';
+import { getRedis, getRedisPubSub } from './redisClient.js';
 import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
 import notificationsRoutes from './routes/notifications.js';
@@ -62,12 +65,22 @@ app.use((req, res, next) => {
 });
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────
+// Backed by Redis instead of the default in-memory store: with multiple
+// backend instances behind a load balancer, an in-memory counter only sees
+// the requests that happen to land on that one instance, so an attacker can
+// trivially bypass the limit by spreading requests across instances. Redis
+// is already connected by the time this line runs — see redisClient.js's
+// top-level await.
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez dans une minute.' },
+  store: new RedisStore({
+    sendCommand: (...args) => getRedis().call(...args),
+    prefix: 'rl:auth:',
+  }),
 });
 app.use('/api/auth', authLimiter);
 
@@ -416,9 +429,6 @@ const io = new Server(httpServer, {
   },
 });
 
-// Map of connected userId → Set of socket IDs for targeted delivery
-const connectedUsers = new Map(); // userId → Set<socketId>
-
 // Map of auctionId → { fiveMin: Timeout|null, start: Timeout|null } for precise scheduling
 const auctionTimers = new Map();
 const MAX_TIMEOUT_MS = 2147483647; // ~24.8 days — Node's setTimeout overflow ceiling
@@ -473,6 +483,15 @@ async function getMatchingProducers(auction, db) {
   return matches;
 }
 
+// Every socket joins a room named after its user id on connection (see
+// io.on('connection') below). Targeting `io.to(userRoom(id))` — rather than
+// tracking socket ids in a local Map — is what makes delivery work across
+// multiple backend instances: the Redis adapter keeps room membership in
+// sync cluster-wide, so this reaches the user no matter which instance
+// they're actually connected to. Emitting to a room nobody is in is a safe
+// no-op, so no "is this user online" check is needed first.
+const userRoom = (userId) => `user:${userId}`;
+
 /** Persists + pushes (if connected) a notification of `type` to every producer matching this auction. */
 async function notifyMatchingProducers(auction, db, type) {
   const matches = await getMatchingProducers(auction, db);
@@ -493,10 +512,7 @@ async function notifyMatchingProducers(auction, db, type) {
     };
     await db.collection('notifications').insertOne(notification);
 
-    const producerSockets = connectedUsers.get(producer._id.toString());
-    if (producerSockets && producerSockets.size > 0) {
-      producerSockets.forEach(sid => io.to(sid).emit('new_notification', notification));
-    }
+    io.to(userRoom(producer._id.toString())).emit('new_notification', notification);
   }
 }
 
@@ -504,12 +520,12 @@ async function notifyMatchingProducers(auction, db, type) {
 async function broadcastAuction(auction, db, eventName = 'auction_updated') {
   const allSockets = await io.fetchSockets();
   for (const s of allSockets) {
-    if (s.user.role === 'producer') {
+    if (s.data.user.role === 'producer') {
       if (auction.status === 'pending') continue;
-      const allowed = await canProducerParticipate(auction, s.user.userId, s.producerCoords, db);
+      const allowed = await canProducerParticipate(auction, s.data.user.userId, s.data.producerCoords, db);
       if (!allowed) continue;
     }
-    const [sanitized] = sanitizeAuctions([auction], s.user.userId, s.user.role);
+    const [sanitized] = sanitizeAuctions([auction], s.data.user.userId, s.data.user.role);
     s.emit(eventName, sanitized);
   }
 }
@@ -585,7 +601,7 @@ io.use((socket, next) => {
   if (!token) return next(new Error('Authentication required'));
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    socket.user = decoded;
+    socket.data.user = decoded;
     next();
   } catch {
     next(new Error('Invalid token'));
@@ -593,17 +609,17 @@ io.use((socket, next) => {
 });
 
 io.on('connection', async (socket) => {
-  const uid = socket.user.userId;
-  const role = socket.user.role;
+  const uid = socket.data.user.userId;
+  const role = socket.data.user.role;
 
-  // Register connected user
-  if (!connectedUsers.has(uid)) connectedUsers.set(uid, new Set());
-  connectedUsers.get(uid).add(socket.id);
+  // Join this user's room so io.to(userRoom(uid)) reaches them regardless
+  // of which backend instance they're connected to (see userRoom above).
+  socket.join(userRoom(uid));
 
-  console.log(`User connected: ${socket.user.email} [${role}] (${socket.id})`);
+  console.log(`User connected: ${socket.data.user.email} [${role}] (${socket.id})`);
 
   // Resolve producer geographic coordinates for zone-based filtering
-  socket.producerCoords = null;
+  socket.data.producerCoords = null;
 
   try {
     const db = getDb();
@@ -614,7 +630,7 @@ io.on('connection', async (socket) => {
         { _id: new ObjectId(uid) },
         { projection: { wilaya: 1, commune: 1 } }
       );
-      socket.producerCoords = producerUser?.commune
+      socket.data.producerCoords = producerUser?.commune
         ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
         : getWilayaCoords(producerUser?.wilaya || '');
     }
@@ -624,7 +640,7 @@ io.on('connection', async (socket) => {
     if (role === 'producer') {
       const allowed = [];
       for (const a of auctions) {
-        if (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.producerCoords, db)) {
+        if (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.data.producerCoords, db)) {
           allowed.push(a);
         }
       }
@@ -977,21 +993,16 @@ io.on('connection', async (socket) => {
       await db.collection('notifications').insertOne(notification);
 
       // Push real-time notification if buyer is connected
-      const buyerSockets = connectedUsers.get(auction.buyerId);
-      if (buyerSockets && buyerSockets.size > 0) {
-        buyerSockets.forEach(sid => {
-          io.to(sid).emit('new_notification', notification);
-        });
-      }
+      io.to(userRoom(auction.buyerId)).emit('new_notification', notification);
 
       // Broadcast updated auction (sanitized per receiver)
       const allSockets = await io.fetchSockets();
       for (const s of allSockets) {
-        if (s.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
+        if (s.data.user.role === 'producer') {
+          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
           if (!allowed) continue;
         }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
         s.emit('auction_updated', sanitized);
       }
     } catch (err) {
@@ -1050,20 +1061,15 @@ io.on('connection', async (socket) => {
       };
       await db.collection('notifications').insertOne(notification);
 
-      const producerSockets = connectedUsers.get(bid.producerId);
-      if (producerSockets && producerSockets.size > 0) {
-        producerSockets.forEach(sid => {
-          io.to(sid).emit('new_notification', notification);
-        });
-      }
+      io.to(userRoom(bid.producerId)).emit('new_notification', notification);
 
       const allSockets = await io.fetchSockets();
       for (const s of allSockets) {
-        if (s.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
+        if (s.data.user.role === 'producer') {
+          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
           if (!allowed) continue;
         }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
         s.emit('auction_updated', sanitized);
       }
     } catch (err) {
@@ -1157,11 +1163,11 @@ io.on('connection', async (socket) => {
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
       const allSockets = await io.fetchSockets();
       for (const s of allSockets) {
-        if (s.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
+        if (s.data.user.role === 'producer') {
+          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
           if (!allowed) continue;
         }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
         s.emit('auction_updated', sanitized);
       }
     } catch (err) {
@@ -1171,12 +1177,9 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const sockets = connectedUsers.get(uid);
-    if (sockets) {
-      sockets.delete(socket.id);
-      if (sockets.size === 0) connectedUsers.delete(uid);
-    }
-    console.log(`User disconnected: ${socket.user.email} (${socket.id})`);
+    // No manual bookkeeping needed — socket.io removes the socket from all
+    // its rooms (including userRoom(uid)) automatically on disconnect.
+    console.log(`User disconnected: ${socket.data.user.email} (${socket.id})`);
   });
 });
 
@@ -1212,15 +1215,18 @@ async function startServer() {
   try {
     await connectToDatabase();
 
+    // Cluster-aware Socket.IO: without this, io.to()/io.fetchSockets() only
+    // ever see sockets connected to this one process. Must be set before
+    // httpServer.listen() so no client can connect before it's in place.
+    const { pubClient, subClient } = getRedisPubSub();
+    io.adapter(createAdapter(pubClient, subClient));
+
     const db = getDb();
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
     await db.collection('users').createIndex({ verificationToken: 1 }, { sparse: true });
     await db.collection('auctions').createIndex({ id: 1 }, { unique: true });
     await db.collection('notifications').createIndex({ userId: 1, read: 1 });
     await db.collection('ratings').createIndex({ auctionId: 1, buyerId: 1 }, { unique: true });
-    // TTL index: auto-reaps abandoned/never-submitted CAPTCHA challenges.
-    // Not relied on for security — every read already filters expiresAt itself.
-    await db.collection('captcha_challenges').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
     // Recover precise timers for auctions still pending from before a restart
     const pendingAuctions = await db.collection('auctions').find({ status: 'pending' }).toArray();

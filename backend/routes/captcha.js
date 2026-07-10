@@ -1,5 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { getRedis } from '../redisClient.js';
 import { generateChallenge, getTile, renderTileSvg, verifySelection } from '../services/captchaService.js';
 
 const router = express.Router();
@@ -9,6 +11,14 @@ function resolveLocale(raw) {
   return SUPPORTED_LOCALES.includes(raw) ? raw : 'fr';
 }
 
+// Redis-backed (see server.js's authLimiter for why): with multiple backend
+// instances, an in-memory counter would let an attacker reset their budget
+// just by landing on a different instance.
+const redisStore = (prefix) => new RedisStore({
+  sendCommand: (...args) => getRedis().call(...args),
+  prefix,
+});
+
 // Challenge issuance + answer verification: the security-relevant surface,
 // rate-limited independently from the tile images (see below).
 const challengeLimiter = rateLimit({
@@ -17,6 +27,7 @@ const challengeLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez dans une minute.' },
+  store: redisStore('rl:captcha-challenge:'),
 });
 
 // A single grid render fires 9 of these (one per tile), so this needs a much
@@ -28,6 +39,7 @@ const imageLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes.' },
+  store: redisStore('rl:captcha-image:'),
 });
 
 // ─── GET /api/captcha/challenge ─────────────────────────────────────────────

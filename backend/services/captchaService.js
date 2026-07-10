@@ -1,10 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDb } from '../db.js';
+import { getRedis } from '../redisClient.js';
 import { CAPTCHA_CATEGORIES, getCategoryLabel } from './captchaCategories.js';
 
 const TILE_COUNT = 16;
-const CHALLENGE_TTL_MS = 3 * 60 * 1000; // time allowed to solve the grid
-const VERIFIED_TTL_MS = 2 * 60 * 1000;  // time allowed to submit the login form after solving
+const CHALLENGE_TTL_SEC = 3 * 60; // time allowed to solve the grid
+const VERIFIED_TTL_SEC = 2 * 60;  // time allowed to submit the login form after solving
+
+const challengeKey = (id) => `captcha:challenge:${id}`;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -27,11 +29,13 @@ function pickDistractors(otherKeys, count) {
 }
 
 /**
- * Generates a new 4x4 CAPTCHA challenge, stores it in MongoDB, and returns
- * only what the client needs to render the grid — never the correct answer.
+ * Generates a new 4x4 CAPTCHA challenge, stores it in Redis with a TTL, and
+ * returns only what the client needs to render the grid — never the correct
+ * answer. Redis (rather than a DB collection) fits this data naturally: it's
+ * short-lived, single-use, and needs no durability across a restart.
  */
 export async function generateChallenge(locale = 'fr') {
-  const db = getDb();
+  const redis = getRedis();
   const keys = Object.keys(CAPTCHA_CATEGORIES);
 
   const targetKey = keys[Math.floor(Math.random() * keys.length)];
@@ -50,15 +54,8 @@ export async function generateChallenge(locale = 'fr') {
 
   const challengeId = uuidv4();
 
-  await db.collection('captcha_challenges').insertOne({
-    _id: challengeId,
-    category: targetKey,
-    tiles,
-    correctIndices,
-    verified: false,
-    expiresAt: new Date(Date.now() + CHALLENGE_TTL_MS),
-    createdAt: new Date(),
-  });
+  const record = { category: targetKey, tiles, correctIndices, verified: false };
+  await redis.set(challengeKey(challengeId), JSON.stringify(record), 'EX', CHALLENGE_TTL_SEC);
 
   return {
     challengeId,
@@ -81,12 +78,10 @@ export async function getTile(challengeId, index) {
   if (!Number.isInteger(idx) || idx < 0 || idx >= TILE_COUNT) return null;
   if (typeof challengeId !== 'string' || !challengeId) return null;
 
-  const db = getDb();
-  const challenge = await db.collection('captcha_challenges').findOne({
-    _id: challengeId,
-    expiresAt: { $gt: new Date() },
-  });
-  if (!challenge) return null;
+  const redis = getRedis();
+  const raw = await redis.get(challengeKey(challengeId));
+  if (!raw) return null;
+  const challenge = JSON.parse(raw);
 
   const tile = challenge.tiles.find(t => t.index === idx);
   const cat = tile && CAPTCHA_CATEGORIES[tile.category];
@@ -135,14 +130,15 @@ export async function verifySelection(challengeId, selected) {
     return { success: false, reason: 'invalid' };
   }
 
-  const db = getDb();
-  const challenge = await db.collection('captcha_challenges').findOne({
-    _id: challengeId,
-    verified: false,
-    expiresAt: { $gt: new Date() },
-  });
+  const redis = getRedis();
+  const key = challengeKey(challengeId);
+  const raw = await redis.get(key);
+  if (!raw) {
+    return { success: false, reason: 'expired' };
+  }
 
-  if (!challenge) {
+  const challenge = JSON.parse(raw);
+  if (challenge.verified) {
     return { success: false, reason: 'expired' };
   }
 
@@ -151,30 +147,36 @@ export async function verifySelection(challengeId, selected) {
   const isExactMatch = selectedSet.size === correctSet.size && [...selectedSet].every(i => correctSet.has(i));
 
   if (!isExactMatch) {
-    await db.collection('captcha_challenges').deleteOne({ _id: challengeId });
+    await redis.del(key);
     return { success: false, reason: 'wrong' };
   }
 
-  await db.collection('captcha_challenges').updateOne(
-    { _id: challengeId },
-    { $set: { verified: true, expiresAt: new Date(Date.now() + VERIFIED_TTL_MS) } }
-  );
+  challenge.verified = true;
+  await redis.set(key, JSON.stringify(challenge), 'EX', VERIFIED_TTL_SEC);
 
   return { success: true };
 }
 
+// Atomic "get if verified, then delete" as a Lua script — same guarantee the
+// Mongo version got from findOneAndDelete({verified:true}), so two
+// concurrent login attempts can't both consume the same solved challenge.
+const CONSUME_SCRIPT = `
+local val = redis.call('GET', KEYS[1])
+if not val then return nil end
+local ok, decoded = pcall(cjson.decode, val)
+if not ok or decoded.verified ~= true then return nil end
+redis.call('DEL', KEYS[1])
+return val
+`;
+
 /**
  * Atomically consumes a verified challenge — used only by the login
  * endpoint. Returns true exactly once per solved challenge; any concurrent
- * or repeat call gets false, since findOneAndDelete is atomic.
+ * or repeat call gets false.
  */
 export async function consumeVerifiedChallenge(challengeId) {
   if (typeof challengeId !== 'string' || !challengeId) return false;
-  const db = getDb();
-  const result = await db.collection('captcha_challenges').findOneAndDelete({
-    _id: challengeId,
-    verified: true,
-    expiresAt: { $gt: new Date() },
-  });
+  const redis = getRedis();
+  const result = await redis.eval(CONSUME_SCRIPT, 1, challengeKey(challengeId));
   return !!result;
 }
