@@ -3,7 +3,6 @@ export const translations = {
     // Header & Footer
     appName: "سوقرى",
     appDesc: "شراء وبيع المحاصيل الفلاحية مباشرة في الجزائر",
-    reset: "إعادة تعيين",
     profile: "ملفي الشخصي",
     logout: "تسجيل الخروج",
     login: "تسجيل الدخول",
@@ -11,7 +10,6 @@ export const translations = {
     home: "الرئيسية",
     connected: "متصل",
     disconnected: "غير متصل",
-    reset_confirm: "هل أنت متأكد من رغبتك في إعادة تعيين جميع المناقصات؟",
     footer_text: "سوقرى © {year} • منصة بيع وشراء المحاصيل الفلاحية في الجزائر",
     lightMode: "الوضع الفاتح",
     darkMode: "الوضع الداكن",
@@ -316,7 +314,6 @@ export const translations = {
     // Header & Footer
     appName: "Sougra",
     appDesc: "Achat et Vente en Direct de Récoltes Agricoles en Algérie",
-    reset: "Réinitialiser",
     profile: "Mon profil",
     logout: "Déconnexion",
     login: "Se connecter",
@@ -324,7 +321,6 @@ export const translations = {
     home: "Accueil",
     connected: "Connecté",
     disconnected: "Déconnecté",
-    reset_confirm: "Voulez-vous vraiment réinitialiser toutes les enchères ?",
     footer_text: "Sougra &copy; {year} • Plateforme d'Achat et Vente Directe de Récoltes en Algérie",
     lightMode: "Mode Clair",
     darkMode: "Mode Sombre",
@@ -628,7 +624,6 @@ export const translations = {
     // Header & Footer
     appName: "Sougra",
     appDesc: "Algeria's Direct Crop Marketplace – Buy & Sell Farm Produce",
-    reset: "Reset",
     profile: "My Profile",
     logout: "Logout",
     login: "Login",
@@ -636,7 +631,6 @@ export const translations = {
     home: "Home",
     connected: "Connected",
     disconnected: "Disconnected",
-    reset_confirm: "Do you really want to reset all requests?",
     footer_text: "Sougra &copy; {year} • Algeria's Direct Crop Marketplace",
     lightMode: "Light Mode",
     darkMode: "Dark Mode",

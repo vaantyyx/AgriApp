@@ -75,11 +75,11 @@ router.get('/', async (req, res) => {
     let auctionsCount = 0;
     let bidsCount = 0;
     if (user.role === 'buyer') {
-      auctionsCount = await db.collection('auctions').countDocuments({ buyerName: user.name });
+      auctionsCount = await db.collection('auctions').countDocuments({ buyerId: req.user.userId });
     } else {
-      const allAuctions = await db.collection('auctions').find({}).toArray();
+      const allAuctions = await db.collection('auctions').find({ 'bids.producerId': req.user.userId }).toArray();
       bidsCount = allAuctions.reduce((acc, a) => {
-        return acc + a.bids.filter(b => b.producerName === user.name).length;
+        return acc + a.bids.filter(b => b.producerId === req.user.userId).length;
       }, 0);
     }
 

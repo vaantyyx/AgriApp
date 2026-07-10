@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Leaf, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { BACKEND_URL } from '../utils/config.js';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');

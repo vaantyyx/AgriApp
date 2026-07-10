@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprout, Mail, Lock, User, Tractor, ShoppingBag, ShieldAlert, Eye, EyeOff, CheckCircle, Phone, MapPin } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { useNavigate } from 'react-router-dom';
+import { BACKEND_URL } from '../utils/config.js';
 
 // Custom Searchable Dropdown component for a premium experience
 function SearchableSelect({ options, value, onChange, placeholder, disabled, labelKey = 'label', valueKey = 'value' }) {
@@ -144,6 +144,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
 
 export default function RegisterPage({ onNavigateToLogin }) {
   const { t, dir, locale } = useTranslation();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '', email: '', password: '', confirmPassword: '',
     role: '', phone: '', wilaya: '', commune: '', entity_type: 'particulier',
@@ -152,6 +153,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [wilayas, setWilayas] = useState([]);
   const [allCommunes, setAllCommunes] = useState([]);
@@ -210,6 +212,11 @@ export default function RegisterPage({ onNavigateToLogin }) {
       return;
     }
 
+    if (!acceptedTerms) {
+      setError("Vous devez accepter les Conditions Générales d'Utilisation pour créer un compte.");
+      return;
+    }
+
     const pwdError = validatePassword(password);
     if (pwdError) { setError(pwdError); return; }
     if (password !== confirmPassword) { setError(t('passwordMismatch')); return; }
@@ -238,6 +245,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
           wilaya: selectedWilaya ? selectedWilaya.wilaya_name_latin : '',
           commune: selectedCommune ? selectedCommune.commune_name_latin : '',
           entity_type,
+          acceptedTerms,
         }),
       });
       const data = await res.json();
@@ -625,7 +633,31 @@ export default function RegisterPage({ onNavigateToLogin }) {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px' }} disabled={loading}>
+          <label style={{
+            display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '16px',
+            fontSize: '0.85rem', color: 'var(--text-body)', cursor: 'pointer', textAlign: 'start',
+          }}>
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => { setAcceptedTerms(e.target.checked); setError(''); }}
+              style={{ marginTop: '3px', flexShrink: 0, width: '16px', height: '16px', cursor: 'pointer' }}
+              required
+            />
+            <span>
+              Je déclare avoir lu et accepté les{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/terms')}
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
+              >
+                Conditions Générales d'Utilisation
+              </button>
+              {' '}de Sougra.
+            </span>
+          </label>
+
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px' }} disabled={loading || !acceptedTerms}>
             {loading ? (
               <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <span style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />

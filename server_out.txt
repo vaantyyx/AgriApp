@@ -1,3 +1,0 @@
-Connecting to MongoDB at: mongodb://127.0.0.1:27017/agriapp
-Successfully connected to MongoDB.
-✅ Server running on http://127.0.0.1:3001

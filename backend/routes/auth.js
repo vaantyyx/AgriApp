@@ -12,11 +12,14 @@ const router = express.Router();
 // ─── POST /api/auth/register ───────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, phone, wilaya, commune, entity_type } = req.body;
+    const { name, email, password, role, phone, wilaya, commune, entity_type, acceptedTerms } = req.body;
 
     // Input validation
     if (!name || !email || !password || !role) {
       return res.status(400).json({ error: 'Les champs Nom, Email, Mot de passe et Rôle sont obligatoires.' });
+    }
+    if (!acceptedTerms) {
+      return res.status(400).json({ error: "Vous devez accepter les Conditions Générales d'Utilisation." });
     }
     if (!['buyer', 'producer'].includes(role)) {
       return res.status(400).json({ error: 'Rôle invalide.' });
@@ -66,6 +69,7 @@ router.post('/register', async (req, res) => {
       commune: commune || '',
       entity_type: role === 'buyer' ? (entity_type || 'particulier') : 'particulier',
       bio: '',
+      termsAcceptedAt: new Date(),
       createdAt: new Date(),
     };
 

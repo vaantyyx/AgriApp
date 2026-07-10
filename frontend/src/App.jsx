@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { Sprout, LogOut, Tractor, ShoppingBag, RefreshCw, Wifi, WifiOff, LogIn, Home, Bell, Leaf, Sun, Moon } from 'lucide-react';
+import { Sprout, LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Leaf, Sun, Moon } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
@@ -16,10 +16,10 @@ import DashboardLayout from './components/DashboardLayout';
 import VerifyEmailPage from './components/VerifyEmailPage';
 import ForgotPasswordPage from './components/ForgotPasswordPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
+import TermsPage from './components/TermsPage';
 import { useTranslation } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { BACKEND_URL } from './utils/config.js';
 
 // Helper: get token from sessionStorage
 // TODO(security): In production, migrate to HttpOnly cookies to prevent XSS token theft.
@@ -124,6 +124,48 @@ export default function App() {
       .catch(() => { });
   }, [token, user]);
 
+  // Refresh the session user from the authoritative profile data on load/login.
+  // Without this, fields edited on the Profile page (e.g. phone) only update the
+  // dashboard's completion widget in the tab that made the edit — any other tab,
+  // or a session restored from sessionStorage, kept showing the stale value.
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${BACKEND_URL}/api/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!data) return;
+        setUser(prev => {
+          if (!prev) return prev;
+          const updated = {
+            ...prev,
+            name: data.name,
+            phone: data.phone || '',
+            bio: data.bio || '',
+            wilaya: data.wilaya || '',
+            commune: data.commune || '',
+            profilePhoto: data.profilePhoto || null,
+            entity_type: data.entity_type || 'particulier',
+            rc: data.rc || '',
+            nif: data.nif || '',
+            forme_juridique: data.forme_juridique || '',
+            nom_commercial: data.nom_commercial || '',
+            secteur_activite: data.secteur_activite || '',
+            possede_transport: !!data.possede_transport,
+            possede_chambre_froide: !!data.possede_chambre_froide,
+            rcDocument: data.rcDocument || null,
+            numeroCarteAgriculteur: data.numeroCarteAgriculteur || '',
+            ficheSignaletiqueDocument: data.ficheSignaletiqueDocument || null,
+            carteAgriculteurDocument: data.carteAgriculteurDocument || null,
+          };
+          sessionStorage.setItem('agri_user', JSON.stringify(updated));
+          return updated;
+        });
+      })
+      .catch(() => {});
+  }, [token]);
+
   // Socket.IO — connect only when authenticated
   useEffect(() => {
     if (!token) {
@@ -182,11 +224,6 @@ export default function App() {
       });
     });
 
-    socket.on('data_reset', () => {
-      setAuctions([]);
-      setNotifications([]);
-    });
-
     socket.on('auction_deleted', ({ auctionId }) => {
       setAuctions(prev => prev.filter(a => a.id !== auctionId));
       setNotifications(prev => prev.filter(n => n.auctionId !== auctionId || n.type === 'auction_canceled'));
@@ -237,11 +274,6 @@ export default function App() {
   const handlePlaceBid = (data) => socketRef.current?.emit('place_bid', data);
   const handleAcceptBid = (auctionId, bidId) => socketRef.current?.emit('accept_bid', { auctionId, bidId });
   const handleRateProducer = (auctionId, rating) => socketRef.current?.emit('rate_producer', { auctionId, rating });
-
-  const handleResetData = async () => {
-    if (!window.confirm(t('reset_confirm'))) return;
-    try { await fetch(`${BACKEND_URL}/api/reset`, { method: 'POST' }); } catch { }
-  };
 
   const handleMarkAllRead = async () => {
     try {
@@ -392,15 +424,6 @@ export default function App() {
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
 
-                <button
-                  id="btn-reset"
-                  onClick={handleResetData}
-                  className="btn btn-secondary btn-sm"
-                  title={t('reset')}
-                >
-                  <RefreshCw size={13} /> {t('reset')}
-                </button>
-
                 {/* Notification bell */}
                 {user && (
                   <div ref={notifPanelRef} style={{ position: 'relative' }}>
@@ -540,6 +563,7 @@ export default function App() {
           } />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/profile" element={
             user && token ? (
               <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>

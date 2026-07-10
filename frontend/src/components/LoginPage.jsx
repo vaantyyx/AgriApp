@@ -2,8 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Leaf, Mail, Lock, Eye, EyeOff, ShieldAlert, AlertCircle, Zap, Users, TrendingUp, ShieldCheck, RefreshCw, KeyRound } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { BACKEND_URL } from '../utils/config.js';
 
 // ─── OTP Input ──────────────────────────────────────────────────────────────
 function OtpInput({ length = 6, value, onChange }) {
@@ -455,6 +454,18 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
               ) : t('loginBtn')}
             </button>
           </form>
+
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-faint)', textAlign: 'center', marginTop: 16 }}>
+            En vous connectant, vous acceptez nos{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/terms')}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
+            >
+              Conditions Générales d'Utilisation
+            </button>
+            .
+          </p>
 
           <div className="auth-divider">{t('appDesc')?.split('•')[0]?.trim() || '—'}</div>
 

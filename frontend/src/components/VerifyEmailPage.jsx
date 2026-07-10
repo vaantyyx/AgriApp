@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, Loader, Leaf, Mail, RefreshCw } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { BACKEND_URL } from '../utils/config.js';
 
 export default function VerifyEmailPage({ onNavigateToLogin }) {
   const { t, dir, locale } = useTranslation();

@@ -5,10 +5,16 @@ backend/node_modules/
 backend/.env
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/email_dev.log
 
 # Frontend ignores (in addition to frontend/.gitignore)
 frontend/node_modules/
 frontend/dist/
+
+# Dev server logs
+*.log
+server_out.txt
+server_err.txt
 
 # OS/IDE ignores
 .idea/

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, MapPin, FileText, Camera, Tractor, Edit3, Save, X, CheckCircle, AlertCircle, BarChart2, Shield } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import SecuritySettingsTab from './SecuritySettingsTab';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { BACKEND_URL } from '../utils/config.js';
 
 // ─── Profile completion for producers ─────────────────────────────────────────
 export function computeProducerCompletion(user) {

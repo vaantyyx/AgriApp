@@ -26,8 +26,10 @@ if (!process.env.JWT_SECRET) {
 // ─── App Setup ────────────────────────────────────────────────────────────
 const app = express();
 
-// CORS — restrict to frontend origin only
-const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'];
+// CORS — restrict to frontend origin only (comma-separated ALLOWED_ORIGINS env var, falls back to local dev origins)
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -86,17 +88,6 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Auctions REST (debug — returns raw data, no anonymization)
-app.get('/api/auctions', async (req, res) => {
-  try {
-    const db = getDb();
-    const auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).toArray();
-    res.json(auctions);
-  } catch (error) {
-    res.status(500).json({ error: 'Erreur serveur.' });
-  }
-});
-
 // Producers count within a radius
 app.get('/api/producers/count', async (req, res) => {
   try {
@@ -144,19 +135,6 @@ app.get('/api/producers/count', async (req, res) => {
     res.json({ count });
   } catch (error) {
     console.error('[API] Error counting producers:', error.message);
-    res.status(500).json({ error: 'Erreur serveur.' });
-  }
-});
-
-// Reset endpoint
-app.post('/api/reset', async (req, res) => {
-  try {
-    const db = getDb();
-    await db.collection('auctions').deleteMany({});
-    await db.collection('notifications').deleteMany({});
-    io.emit('data_reset');
-    res.json({ message: 'Data reset successfully' });
-  } catch (error) {
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

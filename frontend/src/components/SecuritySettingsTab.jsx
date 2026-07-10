@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Key, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Save } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { BACKEND_URL } from '../utils/config.js';
 
 const secTrans = {
   fr: {

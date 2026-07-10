@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName } from '../utils/wilayaCoordinates.js';
 import { cultureTypes, products } from '../utils/referenceData.js';
+import { BACKEND_URL } from '../utils/config.js';
 import { useTranslation } from '../context/LanguageContext';
 import { computeBuyerCompletion } from './BuyerProfilePage';
 import L from 'leaflet';
@@ -20,8 +21,6 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
 
 const AUCTION_TYPES = [
   { value: 'open', labelFr: 'Enchère ouverte', labelAr: 'مزاد مفتوح', labelEn: 'Open auction' },

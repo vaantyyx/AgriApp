@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Leaf, Mail, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-const BACKEND_URL = 'http://127.0.0.1:3001';
+import { BACKEND_URL } from '../utils/config.js';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
