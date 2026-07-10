@@ -18,6 +18,7 @@ import ForgotPasswordPage from './components/ForgotPasswordPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
 import TermsPage from './components/TermsPage';
 import CookieConsent from './components/CookieConsent';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import { useTranslation } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 import { BACKEND_URL } from './utils/config.js';
@@ -35,7 +36,7 @@ function getStoredUser() {
 }
 
 export default function App() {
-  const { locale, setLocale, t, dir } = useTranslation();
+  const { locale, t, dir } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [token, setToken] = useState(getStoredToken);
   const [user, setUser] = useState(getStoredUser);
@@ -108,8 +109,11 @@ export default function App() {
   // Only show sidebar on authenticated dashboard/profile routes
   const isDashboardRoute = user && token && (location.pathname.startsWith('/dashboard') || location.pathname === '/profile');
   const sidebarWidth = isDashboardRoute ? (isMobile ? 0 : (isSidebarOpen ? 220 : 70)) : 0;
-  // The landing page owns its own navbar/footer to match its dedicated design
+  // The landing page owns its own navbar/footer to match its dedicated design.
+  // Login/register/terms render that same navbar (SiteNavbar) themselves too,
+  // so the generic global header is skipped on all of these routes.
   const isLandingRoute = location.pathname === '/';
+  const hasOwnNavbar = isLandingRoute || ['/login', '/register', '/terms'].includes(location.pathname);
 
   // Close notif panel on outside click
   useEffect(() => {
@@ -360,13 +364,18 @@ export default function App() {
     <div className="page-wrapper">
 
       {/* ── HEADER ── */}
-      {!isLandingRoute && (
+      {!hasOwnNavbar && (
       <header className="app-header" style={{
         paddingLeft: dir === 'ltr' ? sidebarWidth : 0,
         paddingRight: dir === 'rtl' ? sidebarWidth : 0,
         transition: 'padding 0.3s ease',
       }}>
-        <div className="header-container" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+        {/* Always a plain "row" (never reversed): with dir=rtl a normal row's
+            start edge is the physical right — same side the sidebar docks to
+            (see DashboardLayout's `right: 0` in rtl) — so the logo (first
+            child) lands right next to the sidebar and the nav cluster (last
+            child) lands on the opposite edge, in both languages. */}
+        <div className="header-container">
 
           {/* Hamburger — opens the mobile sidebar drawer (dashboard routes only) */}
           {isDashboardRoute && (
@@ -379,17 +388,17 @@ export default function App() {
             </button>
           )}
 
-          {/* Logo */}
+          {/* Logo — icon + wordmark, same lockup as the landing header */}
           <a
             href="/"
             className="logo"
             onClick={(e) => { e.preventDefault(); navigate(user ? '/dashboard' : '/'); }}
           >
-            <img
-              src="/logo.png"
-              alt="Sougra"
-              style={{ height: 38, width: 'auto', objectFit: 'contain' }}
-            />
+            <img src="/logo.png" alt="Sougra" />
+            <div className="logo-text">
+              <strong>SOUGRA</strong>
+              <span>{t('landingLogoTagline')}</span>
+            </div>
           </a>
 
           {/* Right side */}
@@ -403,16 +412,7 @@ export default function App() {
             )}
 
             {/* Language */}
-            <select
-              className="lang-select"
-              value={locale}
-              onChange={(e) => setLocale(e.target.value)}
-              id="lang-switcher"
-            >
-              <option value="ar">العربية</option>
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-            </select>
+            <LanguageSwitcher />
 
             {/* Theme */}
             <button
@@ -423,6 +423,8 @@ export default function App() {
             >
               {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </button>
+
+            {user && <span className="header-divider" />}
 
             {/* Navigation */}
             {!user ? (
@@ -518,24 +520,15 @@ export default function App() {
                   className={`user-pill ${location.pathname === '/profile' ? 'active' : ''}`}
                   onClick={() => navigate('/profile')}
                   title={t('profile')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
-                    background: location.pathname === '/profile' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${location.pathname === '/profile' ? 'rgba(16,185,129,0.3)' : 'var(--border)'}`,
-                    padding: '5px 14px 5px 6px', borderRadius: '999px',
-                    cursor: 'pointer', transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; }}
-                  onMouseLeave={e => { if (location.pathname !== '/profile') { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'var(--border)'; } }}
                 >
                   {photoUrl ? (
-                    <img src={photoUrl} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />
+                    <img className="user-pill-avatar" src={photoUrl} alt="" />
                   ) : (
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: `linear-gradient(135deg, ${avatarColors[colorIndex]}, ${avatarColors[(colorIndex + 1) % avatarColors.length]})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: '800', color: 'white', flexShrink: 0 }}>
+                    <div className="user-pill-avatar" style={{ background: `linear-gradient(135deg, ${avatarColors[colorIndex]}, ${avatarColors[(colorIndex + 1) % avatarColors.length]})` }}>
                       {initials}
                     </div>
                   )}
-                  <span className="user-pill-name" style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-main)' }}>{user.name}</span>
+                  <span className="user-pill-name">{user.name}</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                     {user.role === 'buyer' ? <ShoppingBag size={11} /> : <Tractor size={11} />}
                   </span>

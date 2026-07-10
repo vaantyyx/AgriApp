@@ -199,8 +199,6 @@ img { max-width: 100%; }
 }
 
 .header-container {
-  max-width: 1240px;
-  margin: 0 auto;
   padding: 0 24px;
   height: 64px;
   display: flex;
@@ -213,29 +211,30 @@ img { max-width: 100%; }
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--font-heading);
-  font-size: 1.375rem;
-  font-weight: 800;
-  color: var(--text-main);
   text-decoration: none;
-  letter-spacing: -0.02em;
   flex-shrink: 0;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 2px 8px var(--primary-glow);
-}
+.logo img { height: 38px; width: auto; object-fit: contain; flex-shrink: 0; }
 
-.logo-text { color: var(--text-main); }
-.logo-text span { color: var(--primary); }
+.logo-text { display: flex; flex-direction: column; line-height: 1.15; }
+.logo-text strong {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.01em;
+}
+.logo-text span {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+@media (max-width: 480px) {
+  .logo-text span { display: none; }
+}
 
 .header-nav {
   display: flex;
@@ -243,32 +242,18 @@ img { max-width: 100%; }
   gap: 12px;
 }
 
-/* Language Select */
-.lang-select {
-  appearance: none;
-  background: var(--bg-section);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-body);
-  padding: 6px 10px;
-  font-size: 0.8125rem;
-  font-family: var(--font-body);
-  font-weight: 500;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
-}
-.lang-select:hover { border-color: var(--primary); }
-.lang-select option { background: var(--bg-panel); color: var(--text-main); }
-
-/* Theme Toggle */
-.theme-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
+/* Header icon-button family — theme toggle, language switcher, and (below)
+   notifications bell + hamburger all share this same 38px rounded-square
+   look so the header reads as one consistent toolbar instead of a mix of
+   circles/squares in different sizes. */
+.theme-btn,
+.lang-trigger-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-section);
-  color: var(--text-muted);
+  color: var(--text-main);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -276,18 +261,58 @@ img { max-width: 100%; }
   transition: all 0.2s;
   flex-shrink: 0;
 }
-.theme-btn:hover {
+.theme-btn:hover,
+.lang-trigger-btn:hover {
   background: var(--primary-soft);
   border-color: var(--primary);
   color: var(--primary);
 }
 
+/* Language switcher — flag-icon trigger + dropdown, same pattern as the
+   landing navbar's language menu. */
+.header-lang-wrap { position: relative; }
+.header-lang-btn img { display: block; }
+
+.header-lang-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  inset-inline-end: 0;
+  min-width: 170px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl);
+  padding: 8px;
+  z-index: 200;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+.header-lang-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: inherit;
+  background: none;
+  border: none;
+  color: var(--text-body);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.header-lang-dropdown button:hover { background: var(--primary-soft); color: var(--primary); }
+.header-lang-dropdown button img { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+
+.header-divider { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+
 /* Hamburger — opens the mobile sidebar drawer; hidden on desktop */
 .hamburger-btn {
   display: none;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-section);
   color: var(--text-main);
@@ -371,6 +396,7 @@ img { max-width: 100%; }
   height: 30px;
   border-radius: 50%;
   overflow: hidden;
+  object-fit: cover;
   flex-shrink: 0;
   border: 2px solid var(--primary);
   display: flex;
@@ -1656,7 +1682,7 @@ textarea { resize: vertical; min-height: 90px; }
 .captcha-trigger.verified .captcha-trigger-icon { color: var(--primary); }
 
 /* Popup modal */
-.captcha-modal { max-width: 420px; }
+.captcha-modal { max-width: 460px; }
 .captcha-validate-btn { width: 100%; padding: 11px; margin-top: 14px; font-size: 0.9rem; }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1779,7 +1805,7 @@ textarea { resize: vertical; min-height: 90px; }
 
 .captcha-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
 
@@ -1967,12 +1993,12 @@ textarea { resize: vertical; min-height: 90px; }
 ══════════════════════════════════════════════════════ */
 .notif-bell-btn {
   position: relative;
-  background: rgba(255,255,255,0.05);
+  background: var(--bg-section);
   border: 1px solid var(--border);
   color: var(--text-main);
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1980,8 +2006,9 @@ textarea { resize: vertical; min-height: 90px; }
   transition: all 0.2s ease;
 }
 .notif-bell-btn:hover {
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.2);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 .notif-badge {
   position: absolute;

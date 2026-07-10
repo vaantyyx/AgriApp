@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, ArrowLeft } from 'lucide-react';
+import SiteNavbar from './SiteNavbar';
 
 // Conditions Générales d'Utilisation — contenu repris du document officiel
 // "CONDITIONS GÉNÉRALES D'UTILISATION — PLATEFORME SOUGRA".
@@ -166,6 +167,8 @@ export default function TermsPage() {
   const navigate = useNavigate();
 
   return (
+    <>
+    <SiteNavbar />
     <div style={{ flex: 1, padding: '32px 20px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ maxWidth: 820, width: '100%' }}>
         <button
@@ -246,5 +249,6 @@ export default function TermsPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

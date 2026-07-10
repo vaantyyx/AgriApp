@@ -4,6 +4,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
 import CaptchaGrid from './CaptchaGrid';
+import SiteNavbar from './SiteNavbar';
 
 // ─── OTP Input ──────────────────────────────────────────────────────────────
 function OtpInput({ length = 6, value, onChange }) {
@@ -188,6 +189,8 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   // ── OTP screen ──────────────────────────────────────────────────────────
   if (otpRequired) {
     return (
+      <>
+      <SiteNavbar />
       <div className="auth-page animate-fade-in" dir={dir}>
         <div className="auth-left">
           <div className="auth-left-content">
@@ -280,11 +283,14 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   // ── Normal login screen ──────────────────────────────────────────────────
   return (
+    <>
+    <SiteNavbar />
     <div className="auth-page animate-fade-in" dir={dir}>
 
       {/* Left panel */}
@@ -487,5 +493,6 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

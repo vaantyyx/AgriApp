@@ -3,6 +3,7 @@ import { Sprout, Mail, Lock, User, Tractor, ShoppingBag, ShieldAlert, Eye, EyeOf
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
+import SiteNavbar from './SiteNavbar';
 
 // Custom Searchable Dropdown component for a premium experience
 function SearchableSelect({ options, value, onChange, placeholder, disabled, labelKey = 'label', valueKey = 'value' }) {
@@ -263,6 +264,8 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
   if (success) {
     return (
+      <>
+      <SiteNavbar />
       <div className="auth-page animate-fade-in" dir={dir}>
         <div className="auth-left">
           <div className="auth-left-content">
@@ -299,6 +302,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
@@ -313,6 +317,8 @@ export default function RegisterPage({ onNavigateToLogin }) {
   }));
 
   return (
+    <>
+    <SiteNavbar />
     <div className="auth-page animate-fade-in" dir={dir}>
 
       {/* Left panel */}
@@ -740,5 +746,6 @@ export default function RegisterPage({ onNavigateToLogin }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

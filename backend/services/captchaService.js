@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db.js';
 import { CAPTCHA_CATEGORIES, getCategoryLabel } from './captchaCategories.js';
 
-const TILE_COUNT = 9;
+const TILE_COUNT = 16;
 const CHALLENGE_TTL_MS = 3 * 60 * 1000; // time allowed to solve the grid
 const VERIFIED_TTL_MS = 2 * 60 * 1000;  // time allowed to submit the login form after solving
 
@@ -27,7 +27,7 @@ function pickDistractors(otherKeys, count) {
 }
 
 /**
- * Generates a new 3x3 CAPTCHA challenge, stores it in MongoDB, and returns
+ * Generates a new 4x4 CAPTCHA challenge, stores it in MongoDB, and returns
  * only what the client needs to render the grid — never the correct answer.
  */
 export async function generateChallenge(locale = 'fr') {
@@ -37,7 +37,7 @@ export async function generateChallenge(locale = 'fr') {
   const targetKey = keys[Math.floor(Math.random() * keys.length)];
   const otherKeys = keys.filter(k => k !== targetKey);
 
-  const correctCount = 2 + Math.floor(Math.random() * 3); // 2-4
+  const correctCount = 3 + Math.floor(Math.random() * 4); // 3-6
   const distractorCount = TILE_COUNT - correctCount;
 
   const tileCategories = shuffle([
@@ -62,7 +62,11 @@ export async function generateChallenge(locale = 'fr') {
 
   return {
     challengeId,
-    category: { key: targetKey, label: getCategoryLabel(targetKey, locale) },
+    category: {
+      key: targetKey,
+      label: getCategoryLabel(targetKey, locale),
+      emoji: CAPTCHA_CATEGORIES[targetKey].emoji,
+    },
     tileCount: TILE_COUNT,
   };
 }

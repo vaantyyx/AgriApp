@@ -379,10 +379,24 @@
 .slp-cat-pill:hover { background: var(--primary-soft); border-color: var(--primary); }
 
 @media (max-width: 640px) {
+  /* On mobile, the search card's fields stack into several rows (making
+     it much taller) while the hero trust badges also wrap onto more
+     lines. The desktop "straddle" trick (absolute + translateY(50%))
+     can no longer reliably avoid overlapping the trust list text, so
+     the card is placed back in normal flow after the hero content and
+     only peeks below the hero via a small negative margin instead. */
   .slp-hero { min-height: auto; }
-  .slp-hero-inner { padding: 36px 6%; }
-  .slp-search-card { width: 88%; }
-  .slp-pills-section { padding-top: 22px; }
+  .slp-hero-inner { padding: 36px 6% 0; }
+  .slp-search-card {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 32px 0 -48px;
+  }
+  .slp-pills-section { padding-top: 70px; }
 }
 
 /* ── SECTION HEAD (shared) ──────────────────────────────────── */

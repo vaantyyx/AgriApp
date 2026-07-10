@@ -5,7 +5,7 @@ import { BACKEND_URL } from '../utils/config.js';
 
 /**
  * reCAPTCHA-style trigger: a small "I'm not a robot" style badge that opens
- * a popup with the actual 3x3 image challenge. Exposes to the parent form:
+ * a popup with the actual 4x4 image challenge. Exposes to the parent form:
  *   - getToken(): the verified challengeId, or null if not yet verified
  *   - reset(): clears the verified state (call after any login attempt —
  *     the token is single-use and gets consumed server-side either way)
@@ -17,7 +17,8 @@ const CaptchaGrid = forwardRef(function CaptchaGrid(_props, ref) {
 
   const [challengeId, setChallengeId] = useState(null);
   const [categoryLabel, setCategoryLabel] = useState('');
-  const [tileCount, setTileCount] = useState(9);
+  const [categoryEmoji, setCategoryEmoji] = useState('');
+  const [tileCount, setTileCount] = useState(16);
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -37,7 +38,8 @@ const CaptchaGrid = forwardRef(function CaptchaGrid(_props, ref) {
       if (!res.ok) { setError(t('captchaLoadError')); return; }
       setChallengeId(data.challengeId);
       setCategoryLabel(data.category?.label || '');
-      setTileCount(data.tileCount || 9);
+      setCategoryEmoji(data.category?.emoji || '');
+      setTileCount(data.tileCount || 16);
     } catch {
       if (myRequestId === requestIdRef.current) setError(t('captchaLoadError'));
     } finally {
@@ -122,7 +124,7 @@ const CaptchaGrid = forwardRef(function CaptchaGrid(_props, ref) {
 
             <div className="captcha-header">
               <span className="captcha-prompt">
-                {loading ? t('captchaLoading') : `${t('captchaPromptPrefix')} ${categoryLabel}`}
+                {loading ? t('captchaLoading') : `${t('captchaPromptPrefix')} ${categoryLabel} ${categoryEmoji}`}
               </span>
               <button
                 type="button"
