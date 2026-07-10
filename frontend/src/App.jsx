@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import { Sprout, LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Leaf, Sun, Moon } from 'lucide-react';
+import { Sprout, LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Leaf, Sun, Moon, Menu } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
@@ -92,9 +92,23 @@ export default function App() {
     return !prev;
   });
 
+  // On narrow screens the sidebar becomes an overlay drawer rather than
+  // pushing content, so it must not reserve any header/main padding.
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth <= 768); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  // Close the drawer automatically on route changes (e.g. back/forward nav)
+  useEffect(() => { setIsMobileDrawerOpen(false); }, [location.pathname]);
+
   // Only show sidebar on authenticated dashboard/profile routes
   const isDashboardRoute = user && token && (location.pathname.startsWith('/dashboard') || location.pathname === '/profile');
-  const sidebarWidth = isDashboardRoute ? (isSidebarOpen ? 220 : 70) : 0;
+  const sidebarWidth = isDashboardRoute ? (isMobile ? 0 : (isSidebarOpen ? 220 : 70)) : 0;
+  // The landing page owns its own navbar/footer to match its dedicated design
+  const isLandingRoute = location.pathname === '/';
 
   // Close notif panel on outside click
   useEffect(() => {
@@ -345,12 +359,24 @@ export default function App() {
     <div className="page-wrapper">
 
       {/* ── HEADER ── */}
+      {!isLandingRoute && (
       <header className="app-header" style={{
         paddingLeft: dir === 'ltr' ? sidebarWidth : 0,
         paddingRight: dir === 'rtl' ? sidebarWidth : 0,
         transition: 'padding 0.3s ease',
       }}>
         <div className="header-container" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+
+          {/* Hamburger — opens the mobile sidebar drawer (dashboard routes only) */}
+          {isDashboardRoute && (
+            <button
+              className="hamburger-btn"
+              onClick={() => setIsMobileDrawerOpen(o => !o)}
+              aria-label={t('showSidebar')}
+            >
+              <Menu size={18} />
+            </button>
+          )}
 
           {/* Logo */}
           <a
@@ -508,7 +534,7 @@ export default function App() {
                       {initials}
                     </div>
                   )}
-                  <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-main)' }}>{user.name}</span>
+                  <span className="user-pill-name" style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-main)' }}>{user.name}</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                     {user.role === 'buyer' ? <ShoppingBag size={11} /> : <Tractor size={11} />}
                   </span>
@@ -525,13 +551,14 @@ export default function App() {
                   onClick={handleLogout}
                   className="btn btn-secondary btn-sm"
                 >
-                  <LogOut size={13} /> {t('logout')}
+                  <LogOut size={13} /> <span className="logout-label">{t('logout')}</span>
                 </button>
               </div>
             )}
           </div>
         </div>
       </header>
+      )}
 
       {/* ── MAIN CONTENT ── */}
       <main style={{
@@ -566,7 +593,7 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/profile" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 {user.role === 'buyer' ? (
                   <BuyerProfilePage
                     token={token}
@@ -589,7 +616,7 @@ export default function App() {
           } />
           <Route path="/dashboard" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 {user.role === 'buyer' ? (
                   <BuyerOverviewPage user={user} auctions={auctions} />
                 ) : (
@@ -601,7 +628,7 @@ export default function App() {
           
           <Route path="/dashboard/auctions" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 {user.role === 'buyer' ? (
                   <BuyerAuctionsPage
                     user={user}
@@ -630,7 +657,7 @@ export default function App() {
 
           <Route path="/dashboard/parcelles" element={
             user && token && user.role === 'producer' ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar}>
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 <ProducerParcellesPage
                   user={user}
                   parcelles={parcelles}
@@ -646,10 +673,12 @@ export default function App() {
       </main>
 
       {/* ── FOOTER ── */}
+      {!isLandingRoute && (
       <footer className="app-footer">
         <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{t('appName')}</span>
         {' '}&copy; {new Date().getFullYear()} &bull; {t('appDesc')}
       </footer>
+      )}
     </div>
   );
 }

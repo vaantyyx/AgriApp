@@ -38,7 +38,7 @@ export default function BuyerOverviewPage({ user, auctions }) {
   const completion = computeBuyerCompletion(user);
 
   return (
-    <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
+    <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
       <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-main)' }}>
         {t('welcome_back', { name: user.name })}
       </h2>
@@ -47,7 +47,7 @@ export default function BuyerOverviewPage({ user, auctions }) {
       </p>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 36 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 36 }}>
         {[
           { icon: Gavel, label: t('total_auctions'), value: myAuctions.length, color: 'var(--primary)' },
           { icon: ListOrdered, label: t('statusOpen'), value: myAuctions.filter(a => a.status === 'open').length, color: '#f59e0b' },

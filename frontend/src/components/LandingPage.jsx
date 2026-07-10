@@ -1,473 +1,512 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ShoppingBag, Tractor, Zap, ArrowRight, CheckCircle2,
-  TrendingUp, Users, Clock, ShieldCheck, MapPin, Star,
-  ChevronDown, Wheat, Package, BarChart3, Gavel
+  Leaf, Info, Users, HelpCircle, ShieldCheck, LayoutGrid, Phone,
+  ChevronDown, Search, Wheat, ShoppingBag, Droplet,
+  Scale, Eye, Headset, Star, Tractor, BarChart3, Quote, Gavel,
+  ArrowUp, MapPin, Mail, Sun, Moon, Sprout, Apple,
 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import '../landing.css';
 
-const landTrans = {
-  fr: {
-    heroBrand: "SOUGRA",
-    heroSubtitle: "La première plateforme algérienne d'enchères inversées B2B agricole",
-    heroTagline: "Publiez votre besoin, Recevez des offres. Comparez. Choisissez.",
-    popularCategories: "Catégories populaires :",
-    catHarvest: "Les récoltes",
-    catOrganic: "Bios",
-    catFruitsVeg: "Fruits/Légumes",
-    btnLaunchAuction: "LANCER UNE ENCHÈRE",
-    statProducers: "500+",
-    statProducersLabel: "Producteurs",
-    statTransactions: "200+",
-    statTransactionsLabel: "Transactions",
-    statSecure: "100%",
-    statSecureLabel: "Sécurisé"
-  },
-  ar: {
-    heroBrand: "سوقرى",
-    heroSubtitle: "أول منصة جزائرية للمزادات العكسية الزراعية B2B",
-    heroTagline: "انشر احتياجك، استقبل العروض. قارن. اختر.",
-    popularCategories: "الفئات الشائعة:",
-    catHarvest: "الحصاد",
-    catOrganic: "عضوي",
-    catFruitsVeg: "فواكه/خضروات",
-    btnLaunchAuction: "إطلاق مزاد",
-    statProducers: "500+",
-    statProducersLabel: "منتجون",
-    statTransactions: "200+",
-    statTransactionsLabel: "معاملات",
-    statSecure: "100%",
-    statSecureLabel: "آمن"
-  },
-  en: {
-    heroBrand: "SOUGRA",
-    heroSubtitle: "The first Algerian B2B crop reverse auction marketplace",
-    heroTagline: "Publish your need, receive offers. Compare. Choose.",
-    popularCategories: "Popular categories:",
-    catHarvest: "Crops / Harvest",
-    catOrganic: "Organic",
-    catFruitsVeg: "Fruits/Vegetables",
-    btnLaunchAuction: "LAUNCH AN AUCTION",
-    statProducers: "500+",
-    statProducersLabel: "Producers",
-    statTransactions: "200+",
-    statTransactionsLabel: "Transactions",
-    statSecure: "100%",
-    statSecureLabel: "Secure"
-  }
-};
+/* Simplified Union Jack — no external asset needed for the English option */
+function UKFlag({ size = 18 }) {
+  return (
+    <svg width={size} height={size * 0.65} viewBox="0 0 60 36" style={{ borderRadius: 3, flexShrink: 0, display: 'block' }}>
+      <rect width="60" height="36" fill="#00247d" />
+      <path d="M0,0 L60,36 M60,0 L0,36" stroke="#fff" strokeWidth="7" />
+      <path d="M0,0 L60,36 M60,0 L0,36" stroke="#cf142b" strokeWidth="2.6" />
+      <path d="M30,0 L30,36 M0,18 L60,18" stroke="#fff" strokeWidth="11" />
+      <path d="M30,0 L30,36 M0,18 L60,18" stroke="#cf142b" strokeWidth="6.5" />
+    </svg>
+  );
+}
 
-/* ─── Animated counter ─────────────────────────────────────────────────────── */
-function AnimatedNumber({ target, suffix = '' }) {
-  const [val, setVal] = useState(0);
+const LANGS = [
+  { code: 'fr', label: 'Français', flag: '/img/flags/fr.png' },
+  { code: 'ar', label: 'العربية', flag: '/img/flags/dz.png' },
+  { code: 'en', label: 'English', flag: null },
+];
+
+const NAV_ITEMS = [
+  { labelKey: 'landingNavAbout', icon: Info, anchor: 'slp-about' },
+  { labelKey: 'landingNavWho', icon: Users, anchor: 'slp-roles' },
+  { labelKey: 'landingNavHow', icon: HelpCircle, anchor: 'slp-how' },
+  { labelKey: 'landingNavSecurity', icon: ShieldCheck, anchor: 'slp-why' },
+  { labelKey: 'landingNavServices', icon: LayoutGrid, anchor: 'slp-categories' },
+  { labelKey: 'landingNavContact', icon: Phone, anchor: 'slp-footer' },
+];
+
+const CATEGORIES = [
+  { nameKey: 'landingCatFruitsVegName', count: '1248', img: '/img/categories/category-fruits-vegetables.jpg' },
+  { nameKey: 'landingCatCerealsName', count: '856', img: '/img/categories/category-cereals.jpg' },
+  { nameKey: 'landingCatOilseedsName', count: '432', img: '/img/categories/category-oilseeds.jpg' },
+  { nameKey: 'landingCatLegumesName', count: '398', img: '/img/categories/category-legumes.jpg' },
+  { nameKey: 'landingCatOrganicName', count: '215', img: '/img/categories/category-organic.jpg' },
+];
+
+const WHY_CARDS = [
+  { titleKey: 'landingWhy1Title', descKey: 'landingWhy1Desc', icon: ShieldCheck },
+  { titleKey: 'landingWhy2Title', descKey: 'landingWhy2Desc', icon: Scale },
+  { titleKey: 'landingWhy3Title', descKey: 'landingWhy3Desc', icon: Eye },
+  { titleKey: 'landingWhy4Title', descKey: 'landingWhy4Desc', icon: Headset },
+];
+
+const STATS = [
+  { value: '2 450+', labelKey: 'landingStat1Label', icon: Users },
+  { value: '8 760+', labelKey: 'landingStat2Label', icon: Tractor },
+  { value: '12 500+', labelKey: 'landingStat3Label', icon: BarChart3 },
+  { value: '98%', labelKey: 'landingStat4Label', icon: Star },
+];
+
+const HOW_STEPS = [
+  { n: 1, titleKey: 'landingHowStep1Title', descKey: 'landingHowStep1Desc' },
+  { n: 2, titleKey: 'landingHowStep2Title', descKey: 'landingHowStep2Desc' },
+  { n: 3, titleKey: 'landingHowStep3Title', descKey: 'landingHowStep3Desc' },
+  { n: 4, titleKey: 'landingHowStep4Title', descKey: 'landingHowStep4Desc' },
+];
+
+const SOCIALS = ['FB', 'in', 'X', 'IG', 'YT'];
+
+/* ─── Scroll-reveal wrapper ─────────────────────────────────────────────── */
+function Reveal({ children, className = '', stagger = false, ...rest }) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setInView(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.15 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const cls = ['slp-reveal', stagger ? 'slp-stagger' : '', inView ? 'slp-in-view' : '', className].filter(Boolean).join(' ');
+  return <div ref={ref} className={cls} {...rest}>{children}</div>;
+}
+
+/* ─── Image reveal on scroll (clip-path wipe + zoom settle) ────────────── */
+function ImageReveal({ src, alt, className = '' }) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setInView(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.2 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const cls = ['slp-img-reveal', inView ? 'slp-img-in-view' : '', className].filter(Boolean).join(' ');
+  return (
+    <div ref={ref} className={cls}>
+      <img src={src} alt={alt} />
+    </div>
+  );
+}
+
+/* ─── Animated stat number (counts up once visible) ────────────────────── */
+function AnimatedStat({ value }) {
+  const match = value.match(/^([\d\s]+)(.*)$/);
+  const target = match ? parseInt(match[1].replace(/\s/g, ''), 10) : 0;
+  const suffix = match ? match[2] : value;
+  const [display, setDisplay] = useState(0);
   const ref = useRef(null);
   const started = useRef(false);
 
   useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting && !started.current) {
         started.current = true;
-        const duration = 1800;
+        const duration = 1600;
         const start = performance.now();
-        const num = parseFloat(target);
         const tick = (now) => {
           const t = Math.min((now - start) / duration, 1);
-          const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-          setVal(Math.floor(ease * num));
+          const ease = 1 - Math.pow(1 - t, 3);
+          setDisplay(Math.floor(ease * target));
           if (t < 1) requestAnimationFrame(tick);
-          else setVal(num);
+          else setDisplay(target);
         };
         requestAnimationFrame(tick);
       }
     }, { threshold: 0.4 });
-    if (ref.current) observer.observe(ref.current);
+    observer.observe(el);
     return () => observer.disconnect();
   }, [target]);
 
-  return <span ref={ref}>{val}{suffix}</span>;
+  return <strong ref={ref}>{display.toLocaleString('fr-FR')}{suffix}</strong>;
 }
 
 export default function LandingPage({ onNavigateToLogin, onNavigateToRegister }) {
-  const { t, dir, locale } = useTranslation();
-  const landT = landTrans[locale] || landTrans['fr'] || landTrans['en'];
+  const { t, dir, locale, setLocale } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
+  const [espaceOpen, setEspaceOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const espaceRef = useRef(null);
+  const langRef = useRef(null);
 
-  const steps = [
-    {
-      number: '01',
-      icon: <ShoppingBag size={26} />,
-      color: 'var(--primary)',
-      bgColor: 'var(--primary-soft)',
-      titleKey: 'stepBuyerTitle',
-      descKey: 'stepBuyerDesc',
-    },
-    {
-      number: '02',
-      icon: <Tractor size={26} />,
-      color: '#f59e0b',
-      bgColor: 'rgba(245,158,11,0.1)',
-      titleKey: 'stepProducerTitle',
-      descKey: 'stepProducerDesc',
-    },
-    {
-      number: '03',
-      icon: <Zap size={26} />,
-      color: '#3b82f6',
-      bgColor: 'rgba(59,130,246,0.1)',
-      titleKey: 'stepSocketTitle',
-      descKey: 'stepSocketDesc',
-    },
-    {
-      number: '04',
-      icon: <BarChart3 size={26} />,
-      color: '#8b5cf6',
-      bgColor: 'rgba(139,92,246,0.1)',
-      titleKey: 'stepGalleryTitle',
-      descKey: 'stepGalleryDesc',
-    },
-  ];
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (espaceRef.current && !espaceRef.current.contains(e.target)) setEspaceOpen(false);
+      if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
 
-  const stats = [
-    { value: 50, suffix: 'k+', unit: 'Tonnes', labelKey: 'statProductsLabel', icon: <Wheat size={20} /> },
-    { value: 0, suffix: '', unit: 'DA', labelKey: 'statCommissionLabel', icon: <ShieldCheck size={20} /> },
-    { value: 100, suffix: '%', unit: 'Direct', labelKey: 'statDirectLabel', icon: <TrendingUp size={20} /> },
-    { value: 48, suffix: '', unit: 'Wilayas', labelKey: 'statCountriesLabel', icon: <MapPin size={20} /> },
-  ];
+  useEffect(() => {
+    function onScroll() { setShowScrollTop(window.scrollY > 600); }
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
-  const trust = [
-    { icon: <ShieldCheck size={16} />, key: 'trustSafe' },
-    { icon: <Clock size={16} />, key: 'trustRealtime' },
-    { icon: <Users size={16} />, key: 'trustCommunity' },
-    { icon: <TrendingUp size={16} />, key: 'trustGrowth' },
-  ];
+  const goRegister = onNavigateToRegister || onNavigateToLogin;
 
-  const scrollDown = () => {
-    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToAnchor = (id) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  const currentLang = LANGS.find(l => l.code === locale) || LANGS[0];
+  const trustLogoAghtia = locale === 'ar' ? 'أغذية' : 'Aghtia';
+  const TRUST_LOGOS = ['MADAR', 'Cevital', 'GROUPE SMA', trustLogoAghtia, 'Tchin-Lait'];
 
   return (
     <div className="landing-root" dir={dir}>
 
-      {/* ══════════════════════════════════════════════
-          HERO
-      ══════════════════════════════════════════════ */}
-      <section className="landing-hero" style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        textAlign: 'center',
-        minHeight: '85vh',
-        padding: '100px 24px 80px',
-        background: 'none',
-        position: 'relative'
-      }}>
-        {/* Background Image */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: "url('/img/background_10.jpg')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed',
-          zIndex: 0
-        }} />
-
-        {/* Dark overlay for readability */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.65), rgba(0,0,0,0.55), rgba(0,0,0,0.45))',
-          zIndex: 1
-        }} />
-
-        <div style={{
-          position: 'relative',
-          zIndex: 2,
-          maxWidth: '850px',
-          margin: '0 auto',
-          color: '#ffffff',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center'
-        }}>
-          {/* Brand Title */}
-          <h1 style={{
-            fontFamily: "'Plus Jakarta Sans', sans-serif",
-            fontWeight: 800,
-            fontSize: 'clamp(3rem, 8vw, 6rem)',
-            color: '#ffffff',
-            letterSpacing: '0.05em',
-            textShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-            lineHeight: 1.1,
-            marginBottom: '16px'
-          }}>
-            {landT.heroBrand}
-          </h1>
-
-          {/* Subtitle */}
-          <p style={{
-            fontSize: 'clamp(1rem, 2.5vw, 1.25rem)',
-            fontWeight: 500,
-            lineHeight: 1.6,
-            color: 'rgba(255, 255, 255, 0.95)',
-            textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-            marginBottom: '24px',
-            maxWidth: '650px'
-          }}>
-            {landT.heroSubtitle}
-          </p>
-
-          {/* Tagline */}
-          <h2 style={{
-            fontSize: 'clamp(1.1rem, 2.8vw, 1.5rem)',
-            fontWeight: 600,
-            lineHeight: 1.4,
-            color: 'rgba(255, 255, 255, 0.9)',
-            textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-            marginBottom: '32px',
-            maxWidth: '750px'
-          }}>
-            {landT.heroTagline}
-          </h2>
-
-          {/* Popular Categories */}
-          <div style={{ marginBottom: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'rgba(255, 255, 255, 0.8)', marginBottom: '12px' }}>
-              {landT.popularCategories}
-            </p>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {[
-                { label: landT.catHarvest, icon: <Wheat size={14} style={{ color: '#059669' }} /> },
-                { label: landT.catOrganic, icon: <Star size={14} style={{ color: '#f59e0b' }} fill="#f59e0b" /> },
-                { label: landT.catFruitsVeg, icon: <ShoppingBag size={14} style={{ color: '#10b981' }} /> }
-              ].map((cat, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    background: '#ffffff',
-                    color: '#064e3b',
-                    padding: '8px 16px',
-                    borderRadius: '24px',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s ease'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                  onClick={onNavigateToRegister || onNavigateToLogin}
-                >
-                  {cat.icon}
-                  <span>{cat.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* CTA Button */}
-          <button
-            onClick={onNavigateToRegister || onNavigateToLogin}
-            style={{
-              background: '#ffffff',
-              color: '#047857',
-              border: 'none',
-              padding: '16px 44px',
-              borderRadius: '16px',
-              fontSize: '1.05rem',
-              fontWeight: 800,
-              letterSpacing: '0.04em',
-              cursor: 'pointer',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              transition: 'all 0.2s ease',
-              marginBottom: '48px'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.4)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.3)'; }}
-          >
-            <Gavel size={18} />
-            <span>{landT.btnLaunchAuction}</span>
-          </button>
-
-          {/* Quick Stats */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '24px',
-            width: '100%',
-            maxWidth: '600px',
-            borderTop: '1px solid rgba(255,255,255,0.2)',
-            paddingTop: '24px',
-            marginTop: '12px'
-          }}>
-            {[
-              { value: landT.statProducers, label: landT.statProducersLabel },
-              { value: landT.statTransactions, label: landT.statTransactionsLabel },
-              { value: landT.statSecure, label: landT.statSecureLabel }
-            ].map((stat, idx) => (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <span style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2.2rem)', fontWeight: 800, color: '#ffffff', textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                  {stat.value}
-                </span>
-                <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.85)', fontWeight: 500, marginTop: '2px' }}>
-                  {stat.label}
-                </span>
-              </div>
-            ))}
+      {/* ══════════════ NAVBAR ══════════════ */}
+      <nav className="slp-navbar">
+        <div className="slp-logo">
+          <img src="/logo.png" alt="Sougra" />
+          <div className="slp-logo-text">
+            <strong>SOUGRA</strong>
+            <span>{t('landingLogoTagline')}</span>
           </div>
         </div>
-      </section>
 
-      {/* ══════════════════════════════════════════════
-          STATS BAND
-      ══════════════════════════════════════════════ */}
-      <div className="landing-stats-band">
-        {stats.map((s, i) => (
-          <React.Fragment key={i}>
-            <div className="landing-stat-item">
-              <div className="landing-stat-icon">{s.icon}</div>
-              <div>
-                <div className="landing-stat-number">
-                  <AnimatedNumber target={s.value} suffix={s.suffix} />
-                  {' '}<span style={{ fontSize: '0.6em', opacity: 0.7 }}>{s.unit}</span>
-                </div>
-                <div className="landing-stat-label">{t(s.labelKey)}</div>
-              </div>
-            </div>
-            {i < stats.length - 1 && <div className="landing-stat-divider" />}
-          </React.Fragment>
-        ))}
-      </div>
-
-      {/* ══════════════════════════════════════════════
-          HOW IT WORKS
-      ══════════════════════════════════════════════ */}
-      <section className="landing-how" id="how-it-works">
-        <div className="landing-section-head">
-          <span className="landing-section-tag">{t('howItWorksTag')}</span>
-          <h2 className="landing-section-title">{t('howItWorks')}</h2>
-          <p className="landing-section-sub">{t('howItWorksSub')}</p>
-        </div>
-
-        <div className="landing-steps-grid">
-          {steps.map((step, i) => (
-            <div key={i} className="landing-step-card">
-              <div className="landing-step-number">{step.number}</div>
-              <div
-                className="landing-step-icon"
-                style={{ background: step.bgColor, color: step.color }}
-              >
-                {step.icon}
-              </div>
-              <h3 className="landing-step-title">{t(step.titleKey)}</h3>
-              <p className="landing-step-desc">{t(step.descKey)}</p>
-            </div>
+        <div className="slp-nav-links">
+          {NAV_ITEMS.map(item => (
+            <button key={item.labelKey} className="slp-nav-link" onClick={() => scrollToAnchor(item.anchor)}>
+              <item.icon size={14} /> {t(item.labelKey)}
+            </button>
           ))}
         </div>
-      </section>
 
-      {/* ══════════════════════════════════════════════
-          CHOOSE YOUR ROLE
-      ══════════════════════════════════════════════ */}
-      <section className="landing-roles">
-        <div className="landing-section-head">
-          <span className="landing-section-tag">{t('getStartedTag')}</span>
-          <h2 className="landing-section-title">{t('getStartedTitle')}</h2>
-        </div>
+        <div className="slp-navbar-actions">
+          <button className="slp-btn-accent slp-pulse" onClick={goRegister}>
+            <Gavel size={14} /> {t('landingNavLaunchAuction')}
+          </button>
 
-        <div className="landing-roles-grid">
-          {/* Buyer */}
-          <div className="landing-role-card landing-role-buyer">
-            <div className="landing-role-top">
-              <div className="landing-role-icon" style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--primary)' }}>
-                <ShoppingBag size={28} />
-              </div>
-              <div>
-                <h3>{t('buyerRoleTitle')}</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
-                  {t('buyerDesc')}
-                </p>
-              </div>
-            </div>
-            <ul className="landing-benefits">
-              {[t('buyerBenefit1'), t('buyerBenefit2'), t('buyerBenefit3')].filter(Boolean).map((b, i) => (
-                <li key={i}>
-                  <CheckCircle2 size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              id="join-as-buyer"
-              className="landing-role-btn landing-role-btn-primary"
-              onClick={onNavigateToRegister || onNavigateToLogin}
-            >
-              {t('joinAsBuyer')}
-              <ArrowRight size={16} style={{ transform: dir === 'rtl' ? 'rotate(180deg)' : 'none' }} />
+          <div className="slp-espace-wrap" ref={espaceRef}>
+            <button className="slp-btn-white" onClick={() => setEspaceOpen(o => !o)}>
+              {t('landingNavClientArea')} <ChevronDown size={13} />
             </button>
+            {espaceOpen && (
+              <div className="slp-dropdown">
+                <button onClick={onNavigateToLogin}>{t('landingNavLogin')}</button>
+                <button onClick={onNavigateToRegister}>{t('landingNavRegister')}</button>
+              </div>
+            )}
           </div>
 
-          {/* Producer */}
-          <div className="landing-role-card landing-role-producer">
-            <div className="landing-role-top">
-              <div className="landing-role-icon" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
-                <Tractor size={28} />
-              </div>
-              <div>
-                <h3>{t('producerRoleTitle')}</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: 4 }}>
-                  {t('producerDesc')}
-                </p>
-              </div>
-            </div>
-            <ul className="landing-benefits">
-              {[t('producerBenefit1'), t('producerBenefit2'), t('producerBenefit3')].filter(Boolean).map((b, i) => (
-                <li key={i}>
-                  <CheckCircle2 size={16} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              id="join-as-producer"
-              className="landing-role-btn landing-role-btn-accent"
-              onClick={onNavigateToRegister || onNavigateToLogin}
-            >
-              {t('joinAsProducer')}
-              <ArrowRight size={16} style={{ transform: dir === 'rtl' ? 'rotate(180deg)' : 'none' }} />
+          <div className="slp-espace-wrap" ref={langRef}>
+            <button className="slp-globe-btn" onClick={() => setLangOpen(o => !o)} title="Language">
+              {currentLang.flag ? <img src={currentLang.flag} alt="" style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} /> : <UKFlag size={18} />}
             </button>
+            {langOpen && (
+              <div className="slp-dropdown">
+                {LANGS.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLocale(l.code); setLangOpen(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                  >
+                    {l.flag ? <img src={l.flag} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} /> : <UKFlag size={18} />}
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      </section>
 
-      {/* ══════════════════════════════════════════════
-          FINAL CTA
-      ══════════════════════════════════════════════ */}
-      <section className="landing-final-cta">
-        <div className="landing-cta-blob-1" />
-        <div className="landing-cta-blob-2" />
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: 12 }}>🌿</div>
-          <h2 className="landing-cta-title">{t('readyToModernize')}</h2>
-          <p className="landing-cta-sub">{t('readyToModernizeSub')}</p>
-          <button
-            id="cta-final"
-            className="landing-btn-primary"
-            onClick={onNavigateToRegister || onNavigateToLogin}
-          >
-            {t('joinPlatform')}
-            <ArrowRight size={18} style={{ transform: dir === 'rtl' ? 'rotate(180deg)' : 'none' }} />
+          <button className="slp-globe-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
+      </nav>
+
+      {/* ══════════════ HERO (full-bleed, content centered as a column) ══════════════ */}
+      <section className="slp-hero" id="slp-about">
+        <div className="slp-hero-inner">
+          <div className="slp-hero-content">
+            <h1 className="slp-hero-title">
+              {t('landingHeroTitleMain')}<em>{t('landingHeroTitleAccent')}</em>
+            </h1>
+            <p className="slp-hero-sub">{t('landingHeroSub')}</p>
+
+            <div className="slp-hero-trust">
+              <div className="slp-hero-trust-item">
+                <span className="slp-hero-trust-icon"><ShieldCheck size={18} /></span>
+                <div><strong>{t('landingTrustSecureTitle')}</strong><span>{t('landingTrustSecureSub')}</span></div>
+              </div>
+              <div className="slp-hero-trust-item">
+                <span className="slp-hero-trust-icon"><Scale size={18} /></span>
+                <div><strong>{t('landingTrustFairTitle')}</strong><span>{t('landingTrustFairSub')}</span></div>
+              </div>
+              <div className="slp-hero-trust-item">
+                <span className="slp-hero-trust-icon"><Eye size={18} /></span>
+                <div><strong>{t('landingTrustTransparentTitle')}</strong><span>{t('landingTrustTransparentSub')}</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="slp-search-card">
+            <div className="slp-search-field">
+              <label>{t('landingSearchCategory')}</label>
+              <select defaultValue=""><option value="">{t('landingSearchCategoryValue')}</option></select>
+              <ChevronDown size={13} className="slp-search-field-chevron" />
+            </div>
+            <div className="slp-search-divider" />
+            <div className="slp-search-field">
+              <label>{t('landingSearchRegion')}</label>
+              <select defaultValue=""><option value="">{t('landingSearchRegionValue')}</option></select>
+              <ChevronDown size={13} className="slp-search-field-chevron" />
+            </div>
+            <div className="slp-search-divider" />
+            <div className="slp-search-field">
+              <label>{t('landingSearchProduct')}</label>
+              <select defaultValue=""><option value="">{t('landingSearchProductValue')}</option></select>
+              <ChevronDown size={13} className="slp-search-field-chevron" />
+            </div>
+            <button className="slp-search-btn" onClick={goRegister}>
+              <Search size={15} /> {t('landingSearchBtn')}
+            </button>
+          </div>
+        </div>
       </section>
 
+      {/* ══════════════ POPULAR CATEGORY PILLS ══════════════ */}
+      <section className="slp-pills-section">
+        <div className="slp-container">
+          <div className="slp-cat-pills-row">
+            <span className="slp-cat-pills-label">{t('landingPopularCatLabel')}</span>
+            <button className="slp-cat-pill" onClick={goRegister}><Sprout size={13} /> {t('landingCatHarvest')}</button>
+            <button className="slp-cat-pill" onClick={goRegister}><Leaf size={13} /> {t('landingCatBio')}</button>
+            <button className="slp-cat-pill" onClick={goRegister}><Apple size={13} /> {t('landingCatFruitsVeg')}</button>
+            <button className="slp-cat-pill" onClick={goRegister}><Wheat size={13} /> {t('landingCatCerealsName')}</button>
+            <button className="slp-cat-pill" onClick={goRegister}><Droplet size={13} /> {t('landingCatOilseedsName')}</button>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════ CATEGORIES ══════════════ */}
+      <section className="slp-section" id="slp-categories">
+        <div className="slp-container">
+          <Reveal className="slp-section-head-row">
+            <div>
+              <h2 className="slp-section-title">{t('landingCategoriesTitle')}</h2>
+              <p className="slp-section-sub">{t('landingCategoriesSub')}</p>
+            </div>
+            <button className="slp-btn-white" style={{ color: 'var(--primary)', border: '1px solid var(--border)' }} onClick={goRegister}>
+              {t('landingViewAllAuctions')}
+            </button>
+          </Reveal>
+
+          <Reveal stagger className="slp-categories-grid">
+            {CATEGORIES.map((cat, i) => (
+              <div key={i} className="slp-cat-card" onClick={goRegister}>
+                <ImageReveal className="slp-cat-card-img" src={cat.img} alt={t(cat.nameKey)} />
+                <div className="slp-cat-card-body">
+                  <div>
+                    <h4>{t(cat.nameKey)}</h4>
+                    <p>{cat.count} {t('landingOffersSuffix')}</p>
+                  </div>
+                  <span className="slp-cat-card-arrow"><ChevronDown size={13} style={{ transform: dir === 'rtl' ? 'rotate(90deg)' : 'rotate(-90deg)' }} /></span>
+                </div>
+              </div>
+            ))}
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ══════════════ HOW IT WORKS ══════════════ */}
+      <section className="slp-section slp-section-alt" id="slp-how">
+        <div className="slp-container">
+          <Reveal className="slp-section-head-center">
+            <h2 className="slp-section-title">{t('landingHowTitle')}</h2>
+          </Reveal>
+          <Reveal stagger className="slp-how-grid">
+            {HOW_STEPS.map(step => (
+              <div key={step.n} className="slp-how-step">
+                <div className="slp-how-icon">{step.n}</div>
+                <h4>{t(step.titleKey)}</h4>
+                <p>{t(step.descKey)}</p>
+              </div>
+            ))}
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ══════════════ WHY CHOOSE ══════════════ */}
+      <section className="slp-section" id="slp-why">
+        <div className="slp-container">
+          <Reveal className="slp-section-head-center">
+            <h2 className="slp-section-title">{t('landingWhyTitle')}</h2>
+          </Reveal>
+          <Reveal stagger className="slp-why-grid">
+            {WHY_CARDS.map((card, i) => (
+              <div key={i} className="slp-why-card">
+                <div className="slp-why-icon"><card.icon size={22} /></div>
+                <h5>{t(card.titleKey)}</h5>
+                <p>{t(card.descKey)}</p>
+              </div>
+            ))}
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ══════════════ STATS ══════════════ */}
+      <section className="slp-stats-dark">
+        <div className="slp-container">
+          <Reveal>
+            <h3>{t('landingStatsTitle')}</h3>
+          </Reveal>
+          <Reveal stagger className="slp-stats-dark-grid">
+            {STATS.map((s, i) => (
+              <div key={i} className="slp-stat-dark-item">
+                <s.icon size={22} />
+                <AnimatedStat value={s.value} />
+                <span>{t(s.labelKey)}</span>
+              </div>
+            ))}
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ══════════════ TESTIMONIAL + CTA ══════════════ */}
+      <section className="slp-section" id="slp-roles">
+        <div className="slp-container">
+          <Reveal stagger className="slp-testi-cta-grid">
+            <div className="slp-testi-card">
+              <Quote size={22} className="quote-icon" />
+              <p className="slp-testi-quote">« {t('landingTestimonialQuote')} »</p>
+              <div className="slp-testi-author">
+                <div className="slp-testi-avatar">MA</div>
+                <div>
+                  <strong>{t('landingTestimonialName')}</strong>
+                  <span>{t('landingTestimonialRole')}</span>
+                </div>
+              </div>
+              <div className="slp-testi-dots">
+                <span className="active" /><span /><span /><span />
+              </div>
+            </div>
+
+            <div className="slp-cta-card">
+              <h4>{t('landingCtaTitle')}</h4>
+              <p>{t('landingCtaDesc')}</p>
+              <div className="slp-cta-card-actions">
+                <button className="slp-btn-accent" onClick={goRegister}>{t('landingCtaBtnLaunch')}</button>
+                <button className="slp-btn-ghost-sm" onClick={() => scrollToAnchor('slp-how')}>{t('landingCtaBtnMore')}</button>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ══════════════ TRUST LOGOS ══════════════ */}
+      <section className="slp-section slp-section-alt">
+        <div className="slp-container">
+          <Reveal className="slp-trust-strip">
+            <h5>{t('landingTrustLogosTitle')}</h5>
+            <div className="slp-trust-logos">
+              {TRUST_LOGOS.map((logo, i) => (
+                <span key={i} className="slp-trust-logo">{logo}</span>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ══════════════ FOOTER ══════════════ */}
+      <footer className="slp-footer" id="slp-footer">
+        <div className="slp-footer-grid">
+          <div className="slp-footer-brand">
+            <div className="slp-logo">
+              <img src="/logo.png" alt="Sougra" />
+              <div className="slp-logo-text">
+                <strong>SOUGRA</strong>
+                <span>{t('landingLogoTagline')}</span>
+              </div>
+            </div>
+            <p>{t('landingFooterDesc')}</p>
+            <div className="slp-footer-badge"><ShieldCheck size={13} /> {t('landingFooterBadge')}</div>
+          </div>
+
+          <div>
+            <h6>{t('landingFooterNavTitle')}</h6>
+            <ul className="slp-footer-links">
+              <li><Leaf size={13} /><button onClick={scrollTop}>{t('landingFooterNavHome')}</button></li>
+              <li><Info size={13} /><button onClick={() => scrollToAnchor('slp-about')}>{t('landingFooterNavAbout')}</button></li>
+              <li><HelpCircle size={13} /><button onClick={() => scrollToAnchor('slp-how')}>{t('landingFooterNavHow')}</button></li>
+              <li><Users size={13} /><button onClick={() => scrollToAnchor('slp-roles')}>{t('landingFooterNavWho')}</button></li>
+              <li><ShoppingBag size={13} /><button onClick={() => scrollToAnchor('slp-categories')}>{t('landingFooterNavMarket')}</button></li>
+              <li><Gavel size={13} /><button onClick={goRegister}>{t('landingFooterNavAuctions')}</button></li>
+            </ul>
+          </div>
+
+          <div>
+            <h6>{t('landingFooterResourcesTitle')}</h6>
+            <ul className="slp-footer-links">
+              <li><a href="/terms">{t('landingFooterTerms')}</a></li>
+              <li><button onClick={() => scrollToAnchor('slp-footer')}>{t('landingFooterPrivacy')}</button></li>
+              <li><button onClick={() => scrollToAnchor('slp-footer')}>{t('landingFooterHelp')}</button></li>
+              <li><button onClick={() => scrollToAnchor('slp-footer')}>{t('landingFooterBlog')}</button></li>
+              <li><button onClick={() => scrollToAnchor('slp-footer')}>{t('landingFooterSupport')}</button></li>
+            </ul>
+          </div>
+
+          <div>
+            <h6>{t('landingFooterContactTitle')}</h6>
+            <div className="slp-footer-contact-item"><Mail size={14} /><span>contact@sougra.dz</span></div>
+            <div className="slp-footer-contact-item"><Phone size={14} /><span>+213 (0) XX XX XX XX</span></div>
+            <div className="slp-footer-contact-item"><MapPin size={14} /><span>{t('landingFooterAddress')}</span></div>
+            <div className="slp-social-row">
+              {SOCIALS.map((s, i) => <button key={i} className="slp-social-btn">{s}</button>)}
+            </div>
+          </div>
+        </div>
+
+        <div className="slp-footer-bottom">
+          <span>© {new Date().getFullYear()} {t('landingFooterCopyright')}</span>
+          <div className="slp-footer-bottom-links">
+            <button onClick={() => scrollToAnchor('slp-footer')}>{t('landingFooterLegal')}</button>
+            <button onClick={() => scrollToAnchor('slp-footer')}>{t('landingFooterCookies')}</button>
+            <button onClick={() => scrollToAnchor('slp-footer')}>{t('landingFooterSitemap')}</button>
+          </div>
+        </div>
+      </footer>
+
+      {showScrollTop && (
+        <button className="slp-scroll-top" onClick={scrollTop} title="Scroll to top">
+          <ArrowUp size={18} />
+        </button>
+      )}
     </div>
   );
 }

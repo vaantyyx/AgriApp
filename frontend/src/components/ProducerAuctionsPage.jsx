@@ -143,7 +143,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
   };
 
   return (
-    <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
+    <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
       
       {activeZoomImage && (
         <div className="lightbox-modal" onClick={() => setActiveZoomImage(null)}>
@@ -361,13 +361,14 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
 
             return (
               <div key={auction.id} ref={el => auctionRefs.current[auction.id] = el}
-                style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg-panel)' }}>
-                
+                style={{ marginBottom: 12, borderRadius: 12, border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', background: 'var(--bg-panel)' }}>
+
                 {/* Clickable Line Row */}
                 <div onClick={() => setExpandedAuctionId(expandedAuctionId === auction.id ? null : auction.id)}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '2fr 1.2fr 1fr 1fr 1fr 40px',
+                    minWidth: 620,
                     padding: '16px 20px',
                     alignItems: 'center',
                     cursor: 'pointer',

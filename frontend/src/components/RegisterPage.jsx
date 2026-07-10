@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sprout, Mail, Lock, User, Tractor, ShoppingBag, ShieldAlert, Eye, EyeOff, CheckCircle, Phone, MapPin } from 'lucide-react';
+import { Sprout, Mail, Lock, User, Tractor, ShoppingBag, ShieldAlert, Eye, EyeOff, CheckCircle, Phone, MapPin, Zap, Users, TrendingUp } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
@@ -263,24 +263,40 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
   if (success) {
     return (
-      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
-        <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', padding: '20px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', marginBottom: '24px' }}>
-            <CheckCircle size={48} style={{ color: 'var(--primary)' }} />
+      <div className="auth-page animate-fade-in" dir={dir}>
+        <div className="auth-left">
+          <div className="auth-left-content">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
+              <div style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Sprout size={22} color="white" />
+              </div>
+              <span style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-heading)' }}>{t('appName')}</span>
+            </div>
+            <h2>{t('regSuccessTitle')}</h2>
+            <h2 style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginBottom: 16 }}>{t('joinSougra')}</h2>
+            <p>{t('heroSubtitle')}</p>
           </div>
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>{t('regSuccessTitle')}</h2>
-          <p style={{ color: 'var(--text-muted)', lineHeight: '1.7', marginBottom: '8px' }}>
-            {t('regSuccessEmailSent', { email: form.email })}
-          </p>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '32px' }}>
-            {t('regSuccessVerifyLink')}
-          </p>
-          <div style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '14px', marginBottom: '28px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {t('regSuccessDevTip')}
+        </div>
+
+        <div className="auth-right">
+          <div style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+            <div style={{ display: 'inline-flex', padding: '20px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', marginBottom: '24px' }}>
+              <CheckCircle size={48} style={{ color: 'var(--primary)' }} />
+            </div>
+            <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>{t('regSuccessTitle')}</h2>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.7', marginBottom: '8px' }}>
+              {t('regSuccessEmailSent', { email: form.email })}
+            </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '32px' }}>
+              {t('regSuccessVerifyLink')}
+            </p>
+            <div style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '14px', marginBottom: '28px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              {t('regSuccessDevTip')}
+            </div>
+            <button onClick={onNavigateToLogin} className="btn btn-primary" style={{ width: '100%', padding: '14px' }}>
+              {t('accessLogin')}
+            </button>
           </div>
-          <button onClick={onNavigateToLogin} className="btn btn-primary" style={{ width: '100%', padding: '14px' }}>
-            {t('accessLogin')}
-          </button>
         </div>
       </div>
     );
@@ -297,16 +313,64 @@ export default function RegisterPage({ onNavigateToLogin }) {
   }));
 
   return (
-    <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
-      <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '560px' }}>
+    <div className="auth-page animate-fade-in" dir={dir}>
 
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)', marginBottom: '12px' }}>
-            <Sprout size={28} />
+      {/* Left panel */}
+      <div className="auth-left">
+        <div className="auth-left-content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
+            <div style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sprout size={22} color="white" />
+            </div>
+            <span style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-heading)' }}>
+              {t('appName')}
+            </span>
           </div>
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '6px' }}>{t('registerTitle')}</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{t('joinSougra')}</p>
+
+          <h2>{t('registerTitle')} —</h2>
+          <h2 style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginBottom: 16 }}>
+            {t('joinSougra')}
+          </h2>
+          <p>{t('heroSubtitle')}</p>
+
+          <div className="auth-left-feature">
+            <div className="auth-left-feature-icon"><Zap size={16} /></div>
+            <div>
+              <h4>{t('trustRealtime')}</h4>
+              <p>{t('stepSocketDesc')?.slice(0, 80)}...</p>
+            </div>
+          </div>
+          <div className="auth-left-feature">
+            <div className="auth-left-feature-icon"><Users size={16} /></div>
+            <div>
+              <h4>{t('trustCommunity')}</h4>
+              <p>{t('statDirect')} — {t('statDirectLabel')}</p>
+            </div>
+          </div>
+          <div className="auth-left-feature">
+            <div className="auth-left-feature-icon"><TrendingUp size={16} /></div>
+            <div>
+              <h4>{t('trustGrowth')}</h4>
+              <p>{t('statProducts')} {t('statProductsLabel')}</p>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Right panel — form */}
+      <div className="auth-right auth-right-wide">
+        <div style={{ maxWidth: 480, width: '100%' }}>
+          <div className="auth-logo-row">
+            <div style={{ width: 36, height: 36, background: 'var(--primary)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Sprout size={18} color="white" />
+            </div>
+            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '1.1rem', color: 'var(--primary)' }}>
+              {t('appName')}
+            </span>
+          </div>
+
+          <h1 className="auth-form-title">{t('registerTitle')}</h1>
+          <p className="auth-form-sub">{t('joinSougra')}</p>
 
         <form onSubmit={handleSubmit}>
 
@@ -673,6 +737,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
             {t('login')}
           </button>
         </p>
+        </div>
       </div>
     </div>
   );

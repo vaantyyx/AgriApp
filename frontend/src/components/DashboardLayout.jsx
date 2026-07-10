@@ -1,12 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { LayoutDashboard, Gavel, User, MapPin, ChevronRight, ChevronLeft } from 'lucide-react';
 
-export default function DashboardLayout({ user, isOpen, onToggle, children }) {
+export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, onCloseMobile, children }) {
   const { t, locale, dir } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
+  useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth <= 768); }
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // On mobile the sidebar is a full-width-labels overlay drawer (no
+  // collapsed-to-rail state), independent of the desktop open/collapsed toggle.
+  const effectiveOpen = isMobile ? true : isOpen;
 
   // Determine active tab based on URL
   let activeTab = 'dashboard';
@@ -37,20 +48,27 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
     } else {
       navigate(`/dashboard/${id}`);
     }
+    if (isMobile) onCloseMobile?.();
   };
 
   const sidebarLabel = (item) => t(item.labelKey);
 
   return (
     <>
+      {isMobile && mobileOpen && (
+        <div className="dash-sidebar-backdrop" onClick={onCloseMobile} />
+      )}
+
       {/* ── FIXED FULL-HEIGHT SIDEBAR ── */}
-      <aside style={{
+      <aside
+        className={`dash-sidebar ${isMobile && mobileOpen ? 'dash-sidebar-mobile-open' : ''}`}
+        style={{
         position: 'fixed',
         top: 0,
         bottom: 0,
         left: dir === 'ltr' ? 0 : 'auto',
         right: dir === 'rtl' ? 0 : 'auto',
-        width: isOpen ? 220 : 70,
+        width: effectiveOpen ? 220 : 70,
         background: 'var(--bg-panel)',
         borderRight: dir === 'ltr' ? '1px solid var(--border)' : 'none',
         borderLeft: dir === 'rtl' ? '1px solid var(--border)' : 'none',
@@ -64,14 +82,14 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
 
         {/* Brand / logo zone at the very top */}
         <div style={{
-          padding: isOpen ? '20px 16px 16px' : '20px 0 16px',
+          padding: effectiveOpen ? '20px 16px 16px' : '20px 0 16px',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: isOpen ? 'space-between' : 'center',
+          justifyContent: effectiveOpen ? 'space-between' : 'center',
           position: 'relative',
-          flexDirection: dir === 'rtl' && isOpen ? 'row-reverse' : 'row',
+          flexDirection: dir === 'rtl' && effectiveOpen ? 'row-reverse' : 'row',
           gap: 8,
         }}>
           {/* App icon */}
@@ -85,7 +103,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
           </div>
 
           {/* Name + role — only when expanded */}
-          {isOpen && (
+          {effectiveOpen && (
             <div style={{ flex: 1, minWidth: 0, textAlign: dir === 'rtl' ? 'right' : 'left' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.name}
@@ -96,35 +114,37 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
             </div>
           )}
 
-          {/* Toggle button — right edge of the sidebar header */}
-          <button
-            onClick={onToggle}
-            title={isOpen ? t('hideSidebar') : t('showSidebar')}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              right: dir === 'ltr' ? -12 : 'auto',
-              left: dir === 'rtl' ? -12 : 'auto',
-              width: 24, height: 24,
-              borderRadius: '50%',
-              background: 'var(--bg-panel)',
-              border: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer',
-              zIndex: 10,
-              color: 'var(--text-muted)',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
-              transition: 'color 0.2s, box-shadow 0.2s',
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(16,185,129,0.3)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.18)'; }}
-          >
-            {isOpen
-              ? (dir === 'rtl' ? <ChevronRight size={14} /> : <ChevronLeft size={14} />)
-              : (dir === 'rtl' ? <ChevronLeft size={14} /> : <ChevronRight size={14} />)}
-          </button>
+          {/* Toggle button — right edge of the sidebar header (desktop only; mobile closes via backdrop/nav click) */}
+          {!isMobile && (
+            <button
+              onClick={onToggle}
+              title={isOpen ? t('hideSidebar') : t('showSidebar')}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                right: dir === 'ltr' ? -12 : 'auto',
+                left: dir === 'rtl' ? -12 : 'auto',
+                width: 24, height: 24,
+                borderRadius: '50%',
+                background: 'var(--bg-panel)',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+                zIndex: 10,
+                color: 'var(--text-muted)',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+                transition: 'color 0.2s, box-shadow 0.2s',
+                flexShrink: 0,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(16,185,129,0.3)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.18)'; }}
+            >
+              {isOpen
+                ? (dir === 'rtl' ? <ChevronRight size={14} /> : <ChevronLeft size={14} />)
+                : (dir === 'rtl' ? <ChevronLeft size={14} /> : <ChevronRight size={14} />)}
+            </button>
+          )}
         </div>
 
         {/* Navigation items */}
@@ -136,14 +156,14 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
               <button
                 key={item.id}
                 onClick={() => handleItemClick(item.id)}
-                title={!isOpen ? sidebarLabel(item) : ''}
+                title={!effectiveOpen ? sidebarLabel(item) : ''}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
-                  padding: isOpen ? '12px 20px' : '12px 0',
-                  justifyContent: isOpen ? 'flex-start' : 'center',
-                  flexDirection: dir === 'rtl' && isOpen ? 'row-reverse' : 'row',
+                  padding: effectiveOpen ? '12px 20px' : '12px 0',
+                  justifyContent: effectiveOpen ? 'flex-start' : 'center',
+                  flexDirection: dir === 'rtl' && effectiveOpen ? 'row-reverse' : 'row',
                   background: isActive ? 'rgba(16,185,129,0.12)' : 'transparent',
                   border: 'none',
                   borderLeft: dir === 'ltr' ? `3px solid ${isActive ? 'var(--primary)' : 'transparent'}` : 'none',
@@ -162,15 +182,15 @@ export default function DashboardLayout({ user, isOpen, onToggle, children }) {
                 onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(16,185,129,0.06)'; }}
                 onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
               >
-                <Icon size={isOpen ? 18 : 22} style={{ flexShrink: 0 }} />
-                {isOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{sidebarLabel(item)}</span>}
+                <Icon size={effectiveOpen ? 18 : 22} style={{ flexShrink: 0 }} />
+                {effectiveOpen && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{sidebarLabel(item)}</span>}
               </button>
             );
           })}
         </nav>
 
         {/* Footer of sidebar */}
-        {isOpen && (
+        {effectiveOpen && (
           <div style={{
             padding: '12px 16px',
             borderTop: '1px solid var(--border)',

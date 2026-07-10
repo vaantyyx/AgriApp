@@ -533,7 +533,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
-      <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start', height: '100%' }}>
+      <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start', height: '100%' }}>
 
 
         {/* Rating Modal */}
@@ -1066,7 +1066,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
             </p>
 
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 36 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 36 }}>
               {[
                 { icon: Gavel, label: locale === 'ar' ? 'إجمالي المزادات' : (locale === 'en' ? 'Total auctions' : 'Total enchères'), value: myAuctions.length, color: 'var(--primary)' },
                 { icon: ListOrdered, label: locale === 'ar' ? 'مزادات مفتوحة' : (locale === 'en' ? 'Open auctions' : 'Enchères ouvertes'), value: myAuctions.filter(a => a.status === 'open').length, color: '#f59e0b' },
@@ -1230,10 +1230,10 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
   }, [highlightAuctionId]);
 
   return (
-    <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg-panel)' }}>
+    <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', background: 'var(--bg-panel)' }}>
       {/* Table Header */}
       <div style={{
-        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px 80px 40px',
+        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px 80px 40px', minWidth: 640,
         padding: '10px 20px',
         background: 'rgba(255,255,255,0.03)',
         borderBottom: '1px solid var(--border)',
@@ -1268,7 +1268,7 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
             <div
               onClick={() => setExpandedId(isExpanded ? null : auction.id)}
               style={{
-                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px 80px 40px',
+                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px 80px 40px', minWidth: 640,
                 padding: '14px 20px', alignItems: 'center', cursor: 'pointer',
                 background: isNew ? 'rgba(16,185,129,0.06)' : isExpanded ? 'rgba(255,255,255,0.04)' : 'transparent',
                 transition: 'background 0.2s',

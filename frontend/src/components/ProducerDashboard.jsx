@@ -572,7 +572,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
   const uniqueWilayasCount = new Set(parcelles.map(p => p.wilayaId).filter(Boolean)).size;
 
   return (
-      <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start', height: '100%' }}>
+      <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start', height: '100%' }}>
 
         {/* Lightbox */}
         {activeZoomImage && (
@@ -597,7 +597,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
             </p>
 
             {/* Stats grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 36 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 36 }}>
               <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Activity size={24} style={{ color: '#f59e0b' }} />
@@ -667,7 +667,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
             </div>
 
             {/* Parcelles summary statistics */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 32 }}>
               <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ background: 'rgba(16,185,129,0.06)', padding: 10, borderRadius: 10 }}>
                   <Layers size={20} style={{ color: 'var(--primary)' }} />

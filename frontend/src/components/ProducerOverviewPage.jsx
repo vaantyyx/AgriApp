@@ -11,7 +11,7 @@ export default function ProducerOverviewPage({ user, auctions, parcelles }) {
   const wonAuctionsCount = auctions.filter(a => a.status === 'closed' && a.myBidId && a.acceptedBidId === a.myBidId).length;
 
   return (
-    <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
+    <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
       <h2 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: 8, color: 'var(--text-main)' }}>
         {t('welcome_back', { name: user.name })}
       </h2>
@@ -20,7 +20,7 @@ export default function ProducerOverviewPage({ user, auctions, parcelles }) {
       </p>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 36 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 36 }}>
         {[
           { icon: Activity, label: t('activeBidsProducer'), value: activeBidsCount, color: '#f59e0b' },
           { icon: Trophy, label: t('wonAuctions'), value: wonAuctionsCount, color: 'var(--primary)' },

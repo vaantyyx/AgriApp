@@ -230,7 +230,7 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
   const uniqueWilayasCount = new Set(parcelles.map(p => p.wilayaId).filter(Boolean)).size;
 
   return (
-    <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
+    <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
       
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <div>
@@ -247,7 +247,7 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 32 }}>
         <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ background: 'rgba(16,185,129,0.06)', padding: 10, borderRadius: 10 }}><Layers size={20} style={{ color: 'var(--primary)' }} /></div>
           <div>

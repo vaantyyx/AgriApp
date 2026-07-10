@@ -262,7 +262,7 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
   const completion = computeProducerCompletion(profile);
 
   return (
-    <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
+    <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
       {/* Toast */}
       {toast && (
         <div style={{ position: 'fixed', top: '80px', right: dir === 'ltr' ? '24px' : 'auto', left: dir === 'rtl' ? '24px' : 'auto', zIndex: 1000, background: toast.type === 'success' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', border: `1px solid ${toast.type === 'success' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, color: toast.type === 'success' ? 'var(--primary)' : 'var(--danger)', padding: '12px 20px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row', backdropFilter: 'blur(10px)', animation: 'fadeIn 0.3s ease', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>

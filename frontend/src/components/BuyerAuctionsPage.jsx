@@ -469,7 +469,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
   useEffect(() => { if (highlightAuctionId) setExpandedId(highlightAuctionId); }, [highlightAuctionId]);
 
   return (
-    <div style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
+    <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
 
       {/* Rating Modal */}
       {ratingAuctionId && (
@@ -894,8 +894,8 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
             </div>
           </div>
         ) : (
-          <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg-panel)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 80px 80px 95px', padding: '10px 20px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', background: 'var(--bg-panel)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 80px 80px 95px', minWidth: 680, padding: '10px 20px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               <span>{locale === 'ar' ? 'العنوان' : 'Titre'}</span>
               <span>{locale === 'ar' ? 'النوع' : 'Type'}</span>
               <span>{locale === 'ar' ? 'التاريخ' : 'Date'}</span>
@@ -912,7 +912,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                 <div key={auction.id} ref={el => { if (highlightAuctionId === auction.id && el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100); }}
                   style={{ borderBottom: idx < myAuctions.length - 1 ? '1px solid var(--border)' : 'none' }}>
                   <div
-                    style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 80px 80px 95px', padding: '14px 20px', alignItems: 'center', background: isNew ? 'rgba(16,185,129,0.06)' : 'transparent', transition: 'background 0.2s' }}>
+                    style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 80px 80px 95px', minWidth: 680, padding: '14px 20px', alignItems: 'center', background: isNew ? 'rgba(16,185,129,0.06)' : 'transparent', transition: 'background 0.2s' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                       <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {isNew && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#10b981', marginRight: 6, verticalAlign: 'middle', boxShadow: '0 0 6px #10b981' }} />}
