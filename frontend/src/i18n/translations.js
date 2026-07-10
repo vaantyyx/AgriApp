@@ -1,7 +1,7 @@
 export const translations = {
   ar: {
     // Header & Footer
-    appName: "سوقرى",
+    appName: "سوقرة",
     appDesc: "شراء وبيع المحاصيل الفلاحية مباشرة في الجزائر",
     profile: "ملفي الشخصي",
     logout: "تسجيل الخروج",
@@ -10,7 +10,7 @@ export const translations = {
     home: "الرئيسية",
     connected: "متصل",
     disconnected: "غير متصل",
-    footer_text: "سوقرى © {year} • منصة بيع وشراء المحاصيل الفلاحية في الجزائر",
+    footer_text: "سوقرة © {year} • منصة بيع وشراء المحاصيل الفلاحية في الجزائر",
     lightMode: "الوضع الفاتح",
     darkMode: "الوضع الداكن",
 
@@ -42,7 +42,7 @@ export const translations = {
     stepGalleryTitle: "معرض صور شفاف",
     stepGalleryDesc: "يمكن للمشترين إضافة صور لتوضيح طلبهم. يعاين المنتجون الصور فورًا لتقدير السعر بدقة أكبر.",
     readyToModernize: "هل أنت مستعد لبيع وشراء محاصيلك مباشرة؟",
-    readyToModernizeSub: "سجل الدخول الآن للانضمام إلى منصة سوقرى الفلاحية.",
+    readyToModernizeSub: "سجل الدخول الآن للانضمام إلى منصة سوقرة الفلاحية.",
     accessLogin: "الدخول إلى المنصة",
     getStartedTag: "ابدأ الآن",
     getStartedTitle: "اختر نوع حسابك",
@@ -63,7 +63,7 @@ export const translations = {
 
     // Login Page
     loginTitle: "تسجيل الدخول",
-    loginPortal: "بوابة سوقرى",
+    loginPortal: "بوابة سوقرة",
     emailLabel: "البريد الإلكتروني",
     passwordLabel: "كلمة المرور",
     passwordPlaceholder: "أدخل كلمة المرور",
@@ -97,7 +97,7 @@ export const translations = {
 
     // Register Page
     registerTitle: "إنشاء حساب",
-    joinSougra: "انضم إلى منصة سوقرى",
+    joinSougra: "انضم إلى منصة سوقرة",
     accountType: "نوع الحساب",
     buyerLabel: "مشتري",
     buyerDesc: "أبحث عن منتجات فلاحية",
@@ -260,7 +260,7 @@ export const translations = {
     rating_5: "ممتاز !",
     rateLaterBtn: "لاحقاً",
     confirmBtn: "تأكيد",
-    newDemandNearbyAlert: "🔔 سوقرى — طلب جديد متوفر!",
+    newDemandNearbyAlert: "🔔 سوقرة — طلب جديد متوفر!",
     newBidNotificationTitle: "عرض جديد مستلم",
     newBidNotificationBody: "تم تقديم عرض جديد للمزاد {product}",
     bidAcceptedNotificationTitle: "تم قبول عرضك!",
@@ -303,7 +303,7 @@ export const translations = {
     mockProducerMe: "أنت",
     mockValidateBtn: "✓ قبول أفضل عرض",
     priceDAOnly: "السعر (د.ج) *",
-    tabTitle: "سوقرى - بيع وشراء المحاصيل الفلاحية مباشرة",
+    tabTitle: "سوقرة - بيع وشراء المحاصيل الفلاحية مباشرة",
     dashboard: "لوحة القيادة",
     myAuctions: "مزاداتي",
     myParcelles: "حقولي",
@@ -378,7 +378,7 @@ export const translations = {
     landingHowStep3Desc: "قارن العروض المستلمة بفضل أدوات المقارنة لدينا.",
     landingHowStep4Title: "اختر بثقة",
     landingHowStep4Desc: "اختر أفضل شريك وأمّن معاملتك.",
-    landingWhyTitle: "لماذا تختار سوقرى؟",
+    landingWhyTitle: "لماذا تختار سوقرة؟",
     landingWhy1Title: "أمان قصوى",
     landingWhy1Desc: "معاملات مؤمّنة بالكامل وبيانات محمية.",
     landingWhy2Title: "عدالة مضمونة",
@@ -387,12 +387,12 @@ export const translations = {
     landingWhy3Desc: "مسار واضح وقابل للتتبع في كل خطوة.",
     landingWhy4Title: "دعم مخصص",
     landingWhy4Desc: "فريق مستعد للاستماع إليك في كل خطوة.",
-    landingStatsTitle: "سوقرى بالأرقام",
+    landingStatsTitle: "سوقرة بالأرقام",
     landingStat1Label: "مشترون نشطون",
     landingStat2Label: "منتجون مسجلون",
     landingStat3Label: "مزادات منشورة",
     landingStat4Label: "نسبة الرضا",
-    landingTestimonialQuote: "بفضل سوقرى، وجدنا موردين موثوقين وتنافسيين. المنصة توفر علينا الوقت وتؤمّن مشترياتنا.",
+    landingTestimonialQuote: "بفضل سوقرة، وجدنا موردين موثوقين وتنافسيين. المنصة توفر علينا الوقت وتؤمّن مشترياتنا.",
     landingTestimonialName: "محمد أ.",
     landingTestimonialRole: "مسؤول المشتريات",
     landingCtaTitle: "جاهز لإطلاق أول مزاد لك؟",
@@ -417,7 +417,7 @@ export const translations = {
     landingFooterSupport: "الدعم",
     landingFooterContactTitle: "الاتصال والشبكات",
     landingFooterAddress: "الجزائر العاصمة، الجزائر",
-    landingFooterCopyright: "سوقرى. جميع الحقوق محفوظة.",
+    landingFooterCopyright: "سوقرة. جميع الحقوق محفوظة.",
     landingFooterLegal: "الإشعارات القانونية",
     landingFooterCookies: "ملفات تعريف الارتباط",
     landingFooterSitemap: "خريطة الموقع"

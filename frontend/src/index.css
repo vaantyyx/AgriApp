@@ -1670,6 +1670,11 @@ textarea { resize: vertical; min-height: 90px; }
   z-index: 1400;
   padding: 16px;
   animation: cookieSlideUp 0.35s var(--ease-smooth);
+  pointer-events: none; /* only the visible card (below) should catch clicks — this
+                            wrapper spans the full viewport width even though the
+                            card is centered/narrower, which was blocking clicks on
+                            anything else fixed near the bottom (e.g. the scroll-top
+                            button) in the empty margin area on either side of it */
 }
 @keyframes cookieSlideUp {
   from { opacity: 0; transform: translateY(24px); }
@@ -1677,6 +1682,7 @@ textarea { resize: vertical; min-height: 90px; }
 }
 
 .cookie-banner-inner {
+  pointer-events: auto;
   max-width: 900px;
   margin: 0 auto;
   display: flex;
