@@ -332,29 +332,6 @@ img { max-width: 100%; }
   z-index: 1290;
 }
 
-@media (max-width: 768px) {
-  .hamburger-btn { display: flex; }
-
-  .dash-sidebar {
-    width: 240px !important;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-  }
-  [dir="rtl"] .dash-sidebar { transform: translateX(100%); }
-  .dash-sidebar.dash-sidebar-mobile-open { transform: translateX(0); }
-}
-
-@media (max-width: 640px) {
-  .header-container { padding: 0 14px; gap: 8px; }
-  .conn-dot { display: none; }
-  .user-pill-name { display: none; }
-  .logout-label { display: none; }
-  .dash-page-scroll { padding: 20px 16px !important; }
-}
-@media (max-width: 900px) {
-  .dash-page-scroll { padding: 26px 24px !important; }
-}
-
 /* Connection indicator */
 .conn-dot {
   display: flex;
@@ -405,6 +382,43 @@ img { max-width: 100%; }
   font-size: 0.7rem;
   font-weight: 800;
   color: white;
+}
+
+@media (max-width: 768px) {
+  .hamburger-btn { display: flex; }
+
+  .dash-sidebar {
+    width: 240px !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  [dir="rtl"] .dash-sidebar { transform: translateX(100%); }
+  .dash-sidebar.dash-sidebar-mobile-open { transform: translateX(0); }
+}
+
+@media (max-width: 640px) {
+  /* The header packs a lot of controls (logo+wordmark, language, theme,
+     notifications, profile pill, logout, divider) that simply don't fit
+     a phone-width row unwrapped. Nothing here may force a min-width wider
+     than the viewport, or mobile browsers expand the whole page's layout
+     viewport to fit it — breaking responsiveness site-wide, not just the
+     header. So on small screens this trims down to icon-only controls.
+     This block must come after the base rules above in source order —
+     same-specificity CSS resolves ties by source order, not by whether a
+     rule sits inside a media query. */
+  .header-container { padding: 0 10px; gap: 6px; }
+  .conn-dot { display: none; }
+  .logo-text { display: none; }
+  .header-divider { display: none; }
+  .user-pill { padding: 4px; gap: 4px; }
+  .user-pill-name { display: none; }
+  .user-pill-role-icon { display: none; }
+  .logout-label { display: none; }
+  .btn.btn-secondary.btn-sm#btn-logout { padding: 8px; }
+  .dash-page-scroll { padding: 20px 16px !important; }
+}
+@media (max-width: 900px) {
+  .dash-page-scroll { padding: 26px 24px !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════

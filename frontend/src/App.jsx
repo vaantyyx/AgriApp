@@ -529,7 +529,7 @@ export default function App() {
                     </div>
                   )}
                   <span className="user-pill-name">{user.name}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  <span className="user-pill-role-icon" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                     {user.role === 'buyer' ? <ShoppingBag size={11} /> : <Tractor size={11} />}
                   </span>
                   <div style={{
