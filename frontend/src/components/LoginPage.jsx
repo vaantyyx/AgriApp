@@ -3,6 +3,7 @@ import { Leaf, Mail, Lock, Eye, EyeOff, ShieldAlert, AlertCircle, Zap, Users, Tr
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
+import CaptchaGrid from './CaptchaGrid';
 
 // ─── OTP Input ──────────────────────────────────────────────────────────────
 function OtpInput({ length = 6, value, onChange }) {
@@ -72,12 +73,16 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   const [otpError, setOtpError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef(null);
+  const captchaRef = useRef(null);
 
   const { t, dir } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password) { setError(t('fieldsRequired')); return; }
+    const captchaChallengeId = captchaRef.current?.getToken();
+    if (!captchaChallengeId) { setError(t('captchaRequired')); return; }
+
     setLoading(true);
     setError('');
     setNeedsVerification(false);
@@ -85,8 +90,11 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, captchaChallengeId }),
       });
+      // The token is single-use and gets consumed server-side on this call
+      // regardless of outcome below, so the badge must go back to unverified.
+      captchaRef.current?.reset();
       const data = await res.json();
       if (!res.ok) {
         if (data.needsVerification) setNeedsVerification(true);
@@ -440,6 +448,8 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
                 </span>
               </div>
             )}
+
+            <CaptchaGrid ref={captchaRef} />
 
             <button
               id="login-submit" type="submit" className="btn btn-primary"

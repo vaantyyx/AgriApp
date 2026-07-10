@@ -13,6 +13,8 @@ import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
 import notificationsRoutes from './routes/notifications.js';
 import parcellesRoutes from './routes/parcelles.js';
+import captchaRoutes from './routes/captcha.js';
+import { CAPTCHA_CATEGORIES } from './services/captchaCategories.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,6 +23,12 @@ if (!process.env.JWT_SECRET) {
   const ephemeral = randomBytes(32).toString('hex');
   process.env.JWT_SECRET = ephemeral;
   console.warn('[SECURITY WARNING] JWT_SECRET not set in .env — using ephemeral secret. All sessions will be invalidated on restart!');
+}
+
+// Login is hard-gated behind the CAPTCHA, so an empty/broken category
+// catalog would lock everyone out — warn loudly rather than fail silently.
+if (Object.keys(CAPTCHA_CATEGORIES).length < 4) {
+  console.warn('[CAPTCHA WARNING] Fewer than 4 categories in captchaCategories.js — CAPTCHA grids may fail to generate, blocking all logins.');
 }
 
 // ─── App Setup ────────────────────────────────────────────────────────────
@@ -76,6 +84,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/parcelles', parcellesRoutes);
+app.use('/api/captcha', captchaRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -1209,6 +1218,9 @@ async function startServer() {
     await db.collection('auctions').createIndex({ id: 1 }, { unique: true });
     await db.collection('notifications').createIndex({ userId: 1, read: 1 });
     await db.collection('ratings').createIndex({ auctionId: 1, buyerId: 1 }, { unique: true });
+    // TTL index: auto-reaps abandoned/never-submitted CAPTCHA challenges.
+    // Not relied on for security — every read already filters expiresAt itself.
+    await db.collection('captcha_challenges').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
     // Recover precise timers for auctions still pending from before a restart
     const pendingAuctions = await db.collection('auctions').find({ status: 'pending' }).toArray();

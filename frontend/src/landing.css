@@ -208,7 +208,7 @@
    centered (max-width) so it doesn't hug the edge on wide screens. */
 .slp-hero {
   position: relative;
-  min-height: 420px;
+  min-height: 540px;
   display: flex;
   align-items: center;
   background-image: url('/img/hero-farmer-field.jpg');

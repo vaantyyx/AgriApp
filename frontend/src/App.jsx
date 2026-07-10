@@ -17,6 +17,7 @@ import VerifyEmailPage from './components/VerifyEmailPage';
 import ForgotPasswordPage from './components/ForgotPasswordPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
 import TermsPage from './components/TermsPage';
+import CookieConsent from './components/CookieConsent';
 import { useTranslation } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 import { BACKEND_URL } from './utils/config.js';
@@ -679,6 +680,8 @@ export default function App() {
         {' '}&copy; {new Date().getFullYear()} &bull; {t('appDesc')}
       </footer>
       )}
+
+      <CookieConsent />
     </div>
   );
 }

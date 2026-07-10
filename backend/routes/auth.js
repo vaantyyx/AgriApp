@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db.js';
 import { sendVerificationEmail, sendWelcomeEmail, sendOtpEmail, sendPasswordResetEmail } from '../services/emailService.js';
 import { createOtp, verifyOtp } from '../services/otpService.js';
+import { consumeVerifiedChallenge } from '../services/captchaService.js';
 
 
 const router = express.Router();
@@ -186,7 +187,7 @@ router.get('/verify-email', async (req, res) => {
 // ─── POST /api/auth/login ──────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, captchaChallengeId } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email et mot de passe requis.' });
@@ -196,6 +197,12 @@ router.post('/login', async (req, res) => {
     }
 
     const db = getDb();
+
+    const captchaOk = captchaChallengeId && await consumeVerifiedChallenge(captchaChallengeId);
+    if (!captchaOk) {
+      return res.status(400).json({ error: 'Captcha invalide ou expiré. Veuillez réessayer.', captchaExpired: true });
+    }
+
     const user = await db.collection('users').findOne({ email: email.toLowerCase() });
 
     // Use constant-time comparison to prevent timing attacks
