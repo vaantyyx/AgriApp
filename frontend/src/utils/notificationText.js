@@ -9,7 +9,8 @@ export function getNotificationTitle(n, t) {
 }
 
 /** Resolve the display body for a notification, keyed by its `type`. */
-export function getNotificationBody(n, t) {
+export function getNotificationBody(n, t, locale = 'fr') {
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
   if (n.type === 'new_bid') return t('newBidNotificationBody', { product: n.product });
   if (n.type === 'bid_accepted') {
     if (n.price != null) {
@@ -27,7 +28,7 @@ export function getNotificationBody(n, t) {
   if (n.type === 'auction_scheduled') {
     return t('auctionScheduledNotificationBody', {
       product: n.product,
-      date: n.startAt ? new Date(n.startAt).toLocaleString('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '',
+      date: n.startAt ? new Date(n.startAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '',
     });
   }
   if (n.type === 'auction_starting_soon') {

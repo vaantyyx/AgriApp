@@ -232,7 +232,7 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
           </div>
 
           <div className="slp-espace-wrap" ref={langRef}>
-            <button className="slp-globe-btn" onClick={() => setLangOpen(o => !o)} title="Language">
+            <button className="slp-globe-btn" onClick={() => setLangOpen(o => !o)} title={t('languageLabel')}>
               {currentLang.flag ? <img src={currentLang.flag} alt="" style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} /> : <UKFlag size={18} />}
             </button>
             {langOpen && (
@@ -251,7 +251,7 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
             )}
           </div>
 
-          <button className="slp-globe-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+          <button className="slp-globe-btn" onClick={toggleTheme} title={theme === 'dark' ? t('lightMode') : t('darkMode')}>
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
@@ -514,7 +514,7 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
       </footer>
 
       {showScrollTop && (
-        <button className="slp-scroll-top" onClick={scrollTop} title="Scroll to top">
+        <button className="slp-scroll-top" onClick={scrollTop} title={t('scrollToTopLabel')}>
           <ArrowUp size={18} />
         </button>
       )}

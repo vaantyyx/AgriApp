@@ -5,7 +5,8 @@ import { resolveAcceptedLine } from '../utils/auctionHelpers.js';
 import { downloadCsv } from '../utils/csvExport.js';
 
 export default function BuyerTransactionsPage({ auctions }) {
-  const { t, dir } = useTranslation();
+  const { t, dir, locale } = useTranslation();
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
 
   const rows = useMemo(() => {
     return auctions
@@ -26,8 +27,8 @@ export default function BuyerTransactionsPage({ auctions }) {
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [auctions]);
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('fr-DZ', { dateStyle: 'medium' }) : '-';
-  const formatPrice = (r) => r.price != null ? `${Math.round(r.price).toLocaleString('fr-DZ')} ${t('currencyDA')}` : '-';
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString(localeTag, { dateStyle: 'medium' }) : '-';
+  const formatPrice = (r) => r.price != null ? `${Math.round(r.price).toLocaleString(localeTag)} ${t('currencyDA')}` : '-';
 
   const handleExport = () => {
     downloadCsv('sougra-transactions.csv',

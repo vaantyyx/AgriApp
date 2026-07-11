@@ -413,7 +413,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
           {form.role === 'buyer' && (
             <div className="form-group animate-fade-in" style={{ marginBottom: '20px' }}>
               <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                {locale === 'ar' ? 'نوع الكيان' : "Type d'entité"}
+                {t('entityTypeLabel')}
               </label>
               <div style={{
                 display: 'flex',
@@ -439,7 +439,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
                     fontSize: '0.9rem',
                   }}
                 >
-                  {locale === 'ar' ? 'فرد' : 'Particulier'}
+                  {t('entityTypeParticulier')}
                 </button>
                 <button
                   type="button"
@@ -457,13 +457,15 @@ export default function RegisterPage({ onNavigateToLogin }) {
                     fontSize: '0.9rem',
                   }}
                 >
-                  {locale === 'ar' ? 'مؤسسة' : 'Entreprise'}
+                  {t('entityTypeEntreprise')}
                 </button>
               </div>
               {form.entity_type === 'entreprise' && (
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
                   {locale === 'ar'
                     ? 'يمكنك إكمال معلومات مؤسستك (السجل التجاري، NIF...) لاحقاً من صفحة الملف الشخصي.'
+                    : locale === 'en'
+                    ? 'You can complete your company information (RC, NIF...) later from your profile page.'
                     : 'Vous pourrez compléter les informations de votre entreprise (RC, NIF...) plus tard depuis votre profil.'}
                 </p>
               )}

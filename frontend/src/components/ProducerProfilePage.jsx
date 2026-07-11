@@ -93,15 +93,15 @@ function DocUploadField({ label, docKey, profile, inputRef, uploading, onChange,
         <input type="file" accept=".pdf,image/jpeg,image/png,image/webp" ref={inputRef} style={{ display: 'none' }} onChange={onChange} />
         <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', fontWeight: 600, background: 'rgba(245,158,11,0.12)', color: '#d97706', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '8px', cursor: uploading ? 'not-allowed' : 'pointer', transition: 'all 0.3s ease' }}>
           {uploading ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(217,119,6,0.3)', borderTopColor: '#d97706', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <FileText size={15} />}
-          {profile?.[docKey] ? (locale === 'ar' ? 'تغيير الملف' : 'Changer le fichier') : (locale === 'ar' ? 'اختيار ملف' : 'Choisir un fichier')}
+          {profile?.[docKey] ? (locale === 'ar' ? 'تغيير الملف' : (locale === 'en' ? 'Change file' : 'Changer le fichier')) : (locale === 'ar' ? 'اختيار ملف' : (locale === 'en' ? 'Choose a file' : 'Choisir un fichier'))}
         </button>
         {profile?.[docKey] && (
           <a href={`${BACKEND_URL}/uploads/${profile[docKey]}?token=${token}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
-            <FileText size={15} />{locale === 'ar' ? 'عرض الوثيقة' : 'Voir le document'}
+            <FileText size={15} />{locale === 'ar' ? 'عرض الوثيقة' : (locale === 'en' ? 'View document' : 'Voir le document')}
           </a>
         )}
       </div>
-      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'ar' ? 'JPEG, PNG, WebP أو PDF. الحد الأقصى 20 ميغابايت.' : 'JPEG, PNG, WebP ou PDF. Max 20 Mo.'}</p>
+      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'ar' ? 'JPEG, PNG, WebP أو PDF. الحد الأقصى 20 ميغابايت.' : (locale === 'en' ? 'JPEG, PNG, WebP or PDF. Max 20 MB.' : 'JPEG, PNG, WebP ou PDF. Max 20 Mo.')}</p>
     </div>
   );
 }
@@ -277,7 +277,7 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <Avatar photoUrl={photoUrl} name={profile?.name} size={96} />
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoChange} />
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingPhoto} title="Modifier la photo de profil" style={{ position: 'absolute', bottom: '0', right: dir === 'ltr' ? '0' : 'auto', left: dir === 'rtl' ? '0' : 'auto', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s ease' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingPhoto} title={locale === 'ar' ? 'تغيير صورة الملف الشخصي' : (locale === 'en' ? 'Change profile photo' : 'Modifier la photo de profil')} style={{ position: 'absolute', bottom: '0', right: dir === 'ltr' ? '0' : 'auto', left: dir === 'rtl' ? '0' : 'auto', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s ease' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
               {uploadingPhoto ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Camera size={14} style={{ color: 'white' }} />}
             </button>
           </div>
@@ -315,7 +315,7 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
       <div className="glass-panel" style={{ padding: '20px 24px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'start' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
           <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)' }}>
-            {locale === 'ar' ? 'نسبة اكتمال الملف الشخصي' : 'Taux de complétion du profil'}
+            {locale === 'ar' ? 'نسبة اكتمال الملف الشخصي' : (locale === 'en' ? 'Profile completion rate' : 'Taux de complétion du profil')}
           </span>
           <span style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--primary)' }}>{completion}%</span>
         </div>
@@ -323,13 +323,13 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
           <div style={{ width: `${completion}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary) 0%, #10B981 100%)', borderRadius: '5px', transition: 'width 0.5s ease-out' }} />
         </div>
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-          {locale === 'ar' ? 'أكمل ملفك الشخصي لتعزيز مصداقيتك أمام المشترين.' : 'Complétez votre profil pour renforcer votre crédibilité auprès des acheteurs.'}
+          {locale === 'ar' ? 'أكمل ملفك الشخصي لتعزيز مصداقيتك أمام المشترين.' : (locale === 'en' ? 'Complete your profile to strengthen your credibility with buyers.' : 'Complétez votre profil pour renforcer votre crédibilité auprès des acheteurs.')}
         </p>
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--border)', marginBottom: '24px', paddingBottom: '2px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-        {[{ id: 'profile', icon: <User size={16} />, label: locale === 'ar' ? 'معلومات الحساب' : 'Informations du profil' }, { id: 'security', icon: <Shield size={16} />, label: locale === 'ar' ? 'الأمان والوصول' : 'Sécurité & Accès' }].map(tab => (
+        {[{ id: 'profile', icon: <User size={16} />, label: locale === 'ar' ? 'معلومات الحساب' : (locale === 'en' ? 'Profile information' : 'Informations du profil') }, { id: 'security', icon: <Shield size={16} />, label: locale === 'ar' ? 'الأمان والوصول' : (locale === 'en' ? 'Security & Access' : 'Sécurité & Accès') }].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ background: 'none', border: 'none', padding: '10px 16px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: activeTab === tab.id ? 700 : 500, color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)', borderBottom: `3px solid ${activeTab === tab.id ? 'var(--primary)' : 'transparent'}`, transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: 8, flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
             {tab.icon}<span>{tab.label}</span>
           </button>
@@ -365,12 +365,12 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
                 {[
                   { icon: <User size={16} />, label: t('fullNameLabel'), value: profile?.name },
                   { icon: <Mail size={16} />, label: t('emailLabel'), value: profile?.email },
-                  { icon: <FileText size={16} />, label: locale === 'ar' ? 'رقم بطاقة الفلاح' : 'Numéro carte agriculture', value: profile?.numeroCarteAgriculteur || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
+                  { icon: <FileText size={16} />, label: locale === 'ar' ? 'رقم بطاقة الفلاح' : (locale === 'en' ? 'Farmer card number' : 'Numéro carte agriculture'), value: profile?.numeroCarteAgriculteur || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not provided' : 'Non renseigné')}</span> },
                   { icon: <Phone size={16} />, label: t('phoneLabel'), value: displayPhone || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('phoneNotProvided')}</span> },
                   { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: profile?.wilaya || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
                   { icon: <MapPin size={16} />, label: t('communeLabel'), value: profile?.commune || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
-                  { icon: <FileText size={16} />, label: locale === 'ar' ? 'البطاقة الفنية (Fiche Signalétique)' : 'Fiche Signalétique', value: profile?.ficheSignaletiqueDocument ? (locale === 'ar' ? 'مرفوع ✓' : 'Téléversé ✓') : (locale === 'ar' ? 'غير متوفر ✗' : 'Non renseigné ✗') },
-                  { icon: <FileText size={16} />, label: locale === 'ar' ? 'بطاقة الفلاح' : "Carte d'Agriculteur", value: profile?.carteAgriculteurDocument ? (locale === 'ar' ? 'مرفوع ✓' : 'Téléversé ✓') : (locale === 'ar' ? 'غير متوفر ✗' : 'Non renseigné ✗') },
+                  { icon: <FileText size={16} />, label: locale === 'ar' ? 'البطاقة الفنية (Fiche Signalétique)' : (locale === 'en' ? 'Descriptive Sheet' : 'Fiche Signalétique'), value: profile?.ficheSignaletiqueDocument ? (locale === 'ar' ? 'مرفوع ✓' : (locale === 'en' ? 'Uploaded ✓' : 'Téléversé ✓')) : (locale === 'ar' ? 'غير متوفر ✗' : (locale === 'en' ? 'Not provided ✗' : 'Non renseigné ✗')) },
+                  { icon: <FileText size={16} />, label: locale === 'ar' ? 'بطاقة الفلاح' : (locale === 'en' ? "Farmer's Card" : "Carte d'Agriculteur"), value: profile?.carteAgriculteurDocument ? (locale === 'ar' ? 'مرفوع ✓' : (locale === 'en' ? 'Uploaded ✓' : 'Téléversé ✓')) : (locale === 'ar' ? 'غير متوفر ✗' : (locale === 'en' ? 'Not provided ✗' : 'Non renseigné ✗')) },
                   { icon: <FileText size={16} />, label: t('bioLabel'), value: profile?.bio || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('bioPlaceholder')}</span> },
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
@@ -394,9 +394,9 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
                 </div>
                 {/* Numéro carte agriculture */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label htmlFor="prod-edit-carte">{locale === 'ar' ? 'رقم بطاقة الفلاح' : 'Numéro carte agriculture'}</label>
+                  <label htmlFor="prod-edit-carte">{locale === 'ar' ? 'رقم بطاقة الفلاح' : (locale === 'en' ? 'Farmer card number' : 'Numéro carte agriculture')}</label>
                   <div style={{ position: 'relative' }}>
-                    <input id="prod-edit-carte" type="text" placeholder="Ex: 123456789" value={form.numeroCarteAgriculteur || ''} onChange={e => setForm(prev => ({ ...prev, numeroCarteAgriculteur: e.target.value }))} style={{ width: '100%', paddingLeft: dir === 'ltr' ? '40px' : '16px', paddingRight: dir === 'rtl' ? '40px' : '16px', textAlign: 'start' }} />
+                    <input id="prod-edit-carte" type="text" placeholder={locale === 'ar' ? 'مثال: 123456789' : (locale === 'en' ? 'E.g. 123456789' : 'Ex: 123456789')} value={form.numeroCarteAgriculteur || ''} onChange={e => setForm(prev => ({ ...prev, numeroCarteAgriculteur: e.target.value }))} style={{ width: '100%', paddingLeft: dir === 'ltr' ? '40px' : '16px', paddingRight: dir === 'rtl' ? '40px' : '16px', textAlign: 'start' }} />
                     <FileText size={15} style={{ position: 'absolute', left: dir === 'ltr' ? '12px' : 'auto', right: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   </div>
                 </div>
@@ -432,10 +432,10 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
                 {/* Producer documents section */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', padding: '20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '16px' }}>
                   <h4 style={{ gridColumn: '1 / -1', margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                    {locale === 'ar' ? 'الوثائق المهنية' : 'Documents professionnels'}
+                    {locale === 'ar' ? 'الوثائق المهنية' : (locale === 'en' ? 'Professional documents' : 'Documents professionnels')}
                   </h4>
-                  <DocUploadField label={locale === 'ar' ? 'البطاقة الفنية (Fiche Signalétique)' : 'Fiche Signalétique'} docKey="ficheSignaletiqueDocument" profile={profile} inputRef={ficheFileInputRef} uploading={uploadingFiche} onChange={handleFicheDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} token={token} />
-                  <DocUploadField label={locale === 'ar' ? 'بطاقة الفلاح' : "Carte d'Agriculteur"} docKey="carteAgriculteurDocument" profile={profile} inputRef={carteFileInputRef} uploading={uploadingCarte} onChange={handleCarteDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} token={token} />
+                  <DocUploadField label={locale === 'ar' ? 'البطاقة الفنية (Fiche Signalétique)' : (locale === 'en' ? 'Descriptive Sheet' : 'Fiche Signalétique')} docKey="ficheSignaletiqueDocument" profile={profile} inputRef={ficheFileInputRef} uploading={uploadingFiche} onChange={handleFicheDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} token={token} />
+                  <DocUploadField label={locale === 'ar' ? 'بطاقة الفلاح' : (locale === 'en' ? "Farmer's Card" : "Carte d'Agriculteur")} docKey="carteAgriculteurDocument" profile={profile} inputRef={carteFileInputRef} uploading={uploadingCarte} onChange={handleCarteDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} token={token} />
                 </div>
               </div>
             )}

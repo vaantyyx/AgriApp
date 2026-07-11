@@ -7,7 +7,7 @@ import { UKFlag, LANGS } from './landingShared';
    menu, styled to sit on the theme-aware header instead of the landing
    page's fixed dark navbar. */
 export default function LanguageSwitcher() {
-  const { locale, setLocale } = useTranslation();
+  const { t, locale, setLocale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -28,7 +28,7 @@ export default function LanguageSwitcher() {
         id="lang-switcher"
         className="lang-trigger-btn header-lang-btn"
         onClick={() => setOpen(o => !o)}
-        title="Language"
+        title={t('languageLabel')}
       >
         {currentLang.flag ? <img src={currentLang.flag} alt="" style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} /> : <UKFlag size={18} />}
       </button>

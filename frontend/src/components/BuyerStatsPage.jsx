@@ -5,7 +5,8 @@ import { resolveAcceptedLine } from '../utils/auctionHelpers.js';
 import HorizontalBarChart from './HorizontalBarChart';
 
 export default function BuyerStatsPage({ auctions }) {
-  const { t, dir } = useTranslation();
+  const { t, dir, locale } = useTranslation();
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
 
   const stats = useMemo(() => {
     const mine = auctions.filter(a => a.isOwner);
@@ -36,7 +37,7 @@ export default function BuyerStatsPage({ auctions }) {
     return { closedCount: closed.length, totalSpent, spentRows, avgPriceRows };
   }, [auctions]);
 
-  const formatDA = (v) => `${Math.round(v).toLocaleString('fr-DZ')} ${t('currencyDA')}`;
+  const formatDA = (v) => `${Math.round(v).toLocaleString(localeTag)} ${t('currencyDA')}`;
 
   const tiles = [
     { icon: Gavel, label: t('statClosedAuctions'), value: stats.closedCount, color: 'var(--primary)' },

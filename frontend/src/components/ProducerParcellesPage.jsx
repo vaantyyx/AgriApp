@@ -4,6 +4,7 @@ import { useTranslation } from '../context/LanguageContext';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
+import { BACKEND_URL } from '../utils/config.js';
 
 const cultureTypes = [
   { value: 'Grandes Cultures', label: 'Grandes Cultures' },
@@ -57,7 +58,8 @@ const getPrimaryCultureType = (parcelle) => {
 
 export default function ProducerParcellesPage({ user, parcelles, token, fetchParcelles, loadingParcelles }) {
   const { locale } = useTranslation();
-  
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingParcelle, setEditingParcelle] = useState(null);
   
@@ -177,10 +179,10 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
 
   const handleSaveParcelle = async (e) => {
     e.preventDefault();
-    if (!formIntitule.trim()) { alert(locale === 'ar' ? 'اسم الحقل مطلوب' : 'Nom de la parcelle requis'); return; }
-    if (!formSuperficie || parseFloat(formSuperficie) <= 0) { alert(locale === 'ar' ? 'المساحة يجب أن تكون أكبر من 0' : 'La superficie doit être supérieure à 0'); return; }
-    if (!formWilayaId) { alert(locale === 'ar' ? 'الرجاء اختيار الولاية' : 'Veuillez sélectionner une wilaya'); return; }
-    if (formCultures.some(c => !c.type_culture)) { alert(locale === 'ar' ? 'الرجاء تحديد نوع الزراعة' : 'Veuillez sélectionner le type pour toutes les cultures'); return; }
+    if (!formIntitule.trim()) { alert(locale === 'ar' ? 'اسم الحقل مطلوب' : (locale === 'en' ? 'Plot name is required' : 'Nom de la parcelle requis')); return; }
+    if (!formSuperficie || parseFloat(formSuperficie) <= 0) { alert(locale === 'ar' ? 'المساحة يجب أن تكون أكبر من 0' : (locale === 'en' ? 'Area must be greater than 0' : 'La superficie doit être supérieure à 0')); return; }
+    if (!formWilayaId) { alert(locale === 'ar' ? 'الرجاء اختيار الولاية' : (locale === 'en' ? 'Please select a wilaya' : 'Veuillez sélectionner une wilaya')); return; }
+    if (formCultures.some(c => !c.type_culture)) { alert(locale === 'ar' ? 'الرجاء تحديد نوع الزراعة' : (locale === 'en' ? 'Please select a type for all crops' : 'Veuillez sélectionner le type pour toutes les cultures')); return; }
 
     const wilayaObj = WILAYA_COORDS[parseInt(formWilayaId)];
     const payload = {
@@ -191,19 +193,23 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
     };
 
     try {
-      const url = editingParcelle ? `http://127.0.0.1:3001/api/parcelles/${editingParcelle._id}` : 'http://127.0.0.1:3001/api/parcelles';
+      const url = editingParcelle ? `${BACKEND_URL}/api/parcelles/${editingParcelle._id}` : `${BACKEND_URL}/api/parcelles`;
       const method = editingParcelle ? 'PUT' : 'POST';
       const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
       if (res.ok) { setFormOpen(false); fetchParcelles(); }
-      else { const err = await res.json(); alert(err.error || 'Erreur lors de l\'enregistrement de la parcelle'); }
+      else {
+        const err = await res.json();
+        alert(err.error || (locale === 'ar' ? 'خطأ أثناء حفظ الحقل' : (locale === 'en' ? 'Error while saving the plot' : "Erreur lors de l'enregistrement de la parcelle")));
+      }
     } catch (err) { console.error('Erreur lors de l\'enregistrement de la parcelle:', err); }
   };
 
   const handleDeleteParcelle = async (id) => {
-    if (!window.confirm(locale === 'ar' ? 'هل أنت متأكد من حذف هذه القطعة؟' : 'Voulez-vous vraiment supprimer cette parcelle ?')) return;
+    if (!window.confirm(locale === 'ar' ? 'هل أنت متأكد من حذف هذه القطعة؟' : (locale === 'en' ? 'Are you sure you want to delete this plot?' : 'Voulez-vous vraiment supprimer cette parcelle ?'))) return;
     try {
-      const res = await fetch(`http://127.0.0.1:3001/api/parcelles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) fetchParcelles(); else alert('Erreur lors de la suppression de la parcelle');
+      const res = await fetch(`${BACKEND_URL}/api/parcelles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) fetchParcelles();
+      else alert(locale === 'ar' ? 'خطأ أثناء حذف الحقل' : (locale === 'en' ? 'Error while deleting the plot' : 'Erreur lors de la suppression de la parcelle'));
     } catch (err) { console.error('Erreur lors de la suppression de la parcelle:', err); }
   };
 
@@ -321,7 +327,7 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                     </div>
                   </div>
                   <div style={{ marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> {p.acquisitionDate ? new Date(p.acquisitionDate).toLocaleDateString('fr-DZ', { year: 'numeric', month: 'short' }) : '—'}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> {p.acquisitionDate ? new Date(p.acquisitionDate).toLocaleDateString(localeTag, { year: 'numeric', month: 'short' }) : '—'}</span>
                     <span style={{ color: 'var(--primary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)' }} /> {locale === 'ar' ? 'نشط' : (locale === 'en' ? 'Active' : 'Actif')}</span>
                   </div>
                 </div>
@@ -339,8 +345,8 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ background: 'rgba(16,185,129,0.1)', padding: 8, borderRadius: 8 }}><MapPin size={18} style={{ color: 'var(--primary)' }} /></div>
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)', margin: 0 }}>{editingParcelle ? 'Modifier la parcelle' : 'Nouvelle parcelle'}</h3>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{editingParcelle ? 'Mettre à jour vos cultures et coordonnées' : 'Configurer vos terrains agricoles'}</span>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)', margin: 0 }}>{editingParcelle ? (locale === 'ar' ? 'تعديل الحقل' : (locale === 'en' ? 'Edit plot' : 'Modifier la parcelle')) : (locale === 'ar' ? 'حقل جديد' : (locale === 'en' ? 'New plot' : 'Nouvelle parcelle'))}</h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{editingParcelle ? (locale === 'ar' ? 'تحديث زراعاتك وإحداثياتك' : (locale === 'en' ? 'Update your crops and coordinates' : 'Mettre à jour vos cultures et coordonnées')) : (locale === 'ar' ? 'إعداد أراضيك الزراعية' : (locale === 'en' ? 'Configure your agricultural lands' : 'Configurer vos terrains agricoles'))}</span>
                 </div>
               </div>
               <button onClick={() => setFormOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20} /></button>
@@ -349,19 +355,19 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
             <div className="parcel-modal-body">
               <form onSubmit={handleSaveParcelle} className="parcel-modal-form">
                 <div>
-                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12 }}>Informations générales</h4>
+                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12 }}>{locale === 'ar' ? 'معلومات عامة' : (locale === 'en' ? 'General information' : 'Informations générales')}</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>Nom de la parcelle <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <label>{locale === 'ar' ? 'اسم الحقل' : (locale === 'en' ? 'Plot name' : 'Nom de la parcelle')} <span style={{ color: 'var(--danger)' }}>*</span></label>
                       <input type="text" value={formIntitule} onChange={e => setFormIntitule(e.target.value)} required />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>Superficie (ha) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        <label>{locale === 'ar' ? 'المساحة (هكتار)' : (locale === 'en' ? 'Area (ha)' : 'Superficie (ha)')} <span style={{ color: 'var(--danger)' }}>*</span></label>
                         <input type="number" step="any" value={formSuperficie} onChange={e => setFormSuperficie(e.target.value)} required />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>Date d'acquisition</label>
+                        <label>{locale === 'ar' ? 'تاريخ الاقتناء' : (locale === 'en' ? 'Acquisition date' : "Date d'acquisition")}</label>
                         <input type="date" value={formAcquisitionDate} onChange={e => setFormAcquisitionDate(e.target.value)} />
                       </div>
                     </div>
@@ -370,8 +376,8 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
 
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12, marginTop: 12 }}>
-                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, margin: 0 }}>Gestion des cultures</h4>
-                    <button type="button" onClick={() => setFormCultures(prev => [...prev, { type_culture: '', sous_type_culture: [] }])} className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '3px 8px', gap: 3 }}><Plus size={11} /> Ajouter culture</button>
+                    <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, margin: 0 }}>{locale === 'ar' ? 'إدارة الزراعات' : (locale === 'en' ? 'Crop management' : 'Gestion des cultures')}</h4>
+                    <button type="button" onClick={() => setFormCultures(prev => [...prev, { type_culture: '', sous_type_culture: [] }])} className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '3px 8px', gap: 3 }}><Plus size={11} /> {locale === 'ar' ? 'إضافة زراعة' : (locale === 'en' ? 'Add crop' : 'Ajouter culture')}</button>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {formCultures.map((c, index) => (
@@ -382,16 +388,16 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label style={{ fontSize: '0.7rem' }}>Type de culture</label>
+                            <label style={{ fontSize: '0.7rem' }}>{locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')}</label>
                             <select value={c.type_culture} onChange={e => handleUpdateCulture(index, 'type_culture', e.target.value)} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 10px', color: 'var(--text-main)', fontSize: '0.85rem' }}>
-                              <option value="">-- Choisir --</option>
+                              <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
                               {cultureTypes.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label style={{ fontSize: '0.7rem' }}>Variétés (Sous-types)</label>
+                            <label style={{ fontSize: '0.7rem' }}>{locale === 'ar' ? 'الأصناف (الأنواع الفرعية)' : (locale === 'en' ? 'Varieties (Sub-types)' : 'Variétés (Sous-types)')}</label>
                             <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 6, background: 'var(--bg-input)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              {!c.type_culture ? <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: 4 }}>Choisir le type</span> : (
+                              {!c.type_culture ? <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: 4 }}>{locale === 'ar' ? 'اختر النوع' : (locale === 'en' ? 'Choose the type' : 'Choisir le type')}</span> : (
                                 (subTypes[c.type_culture] || []).map(st => {
                                   const isChecked = (c.sous_type_culture || []).includes(st);
                                   return (
@@ -410,19 +416,19 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                 </div>
 
                 <div>
-                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12, marginTop: 12 }}>Caractéristiques</h4>
+                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12, marginTop: 12 }}>{locale === 'ar' ? 'الخصائص' : (locale === 'en' ? 'Characteristics' : 'Caractéristiques')}</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>Système d'irrigation</label>
+                      <label>{locale === 'ar' ? 'نظام الري' : (locale === 'en' ? 'Irrigation system' : "Système d'irrigation")}</label>
                       <select value={formIrrigationMethod} onChange={e => setFormIrrigationMethod(e.target.value)} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.875rem' }}>
-                        <option value="">-- Choisir --</option>
+                        <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
                         {irrigationOptions.map(io => <option key={io.value} value={io.value}>{io.label}</option>)}
                       </select>
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>Nature du sol</label>
+                      <label>{locale === 'ar' ? 'نوع التربة' : (locale === 'en' ? 'Soil type' : 'Nature du sol')}</label>
                       <select value={formSoilType} onChange={e => setFormSoilType(e.target.value)} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.875rem' }}>
-                        <option value="">-- Choisir --</option>
+                        <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
                         {soilOptions.map(so => <option key={so.value} value={so.value}>{so.label}</option>)}
                       </select>
                     </div>
@@ -430,27 +436,27 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                 </div>
 
                 <div>
-                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12, marginTop: 12 }}>Localisation</h4>
+                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12, marginTop: 12 }}>{locale === 'ar' ? 'الموقع' : (locale === 'en' ? 'Location' : 'Localisation')}</h4>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Wilaya <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label>{locale === 'ar' ? 'الولاية' : (locale === 'en' ? 'Wilaya' : 'Wilaya')} <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <select value={formWilayaId} onChange={e => handleWilayaSelect(e.target.value)} required style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.875rem' }}>
-                      <option value="">-- Choisir wilaya --</option>
+                      <option value="">{locale === 'ar' ? '-- اختر الولاية --' : (locale === 'en' ? '-- Select wilaya --' : '-- Choisir wilaya --')}</option>
                       {WILAYA_LIST.map(w => <option key={w.id} value={w.id}>{w.id} – {w.name}</option>)}
                     </select>
                   </div>
                 </div>
 
                 <div style={{ marginTop: 'auto', display: 'flex', gap: 12, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                  <button type="button" onClick={() => setFormOpen(false)} className="btn btn-secondary" style={{ flex: 1 }}>Annuler</button>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 2, justifyContent: 'center' }}><Check size={16} /> Enregistrer la parcelle</button>
+                  <button type="button" onClick={() => setFormOpen(false)} className="btn btn-secondary" style={{ flex: 1 }}>{locale === 'ar' ? 'إلغاء' : (locale === 'en' ? 'Cancel' : 'Annuler')}</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 2, justifyContent: 'center' }}><Check size={16} /> {locale === 'ar' ? 'حفظ الحقل' : (locale === 'en' ? 'Save plot' : 'Enregistrer la parcelle')}</button>
                 </div>
               </form>
 
               <div className="parcel-modal-map-container">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 18px', borderBottom: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
                   <div>
-                    <h5 style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Délimitation</h5>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>Position GPS précise</span>
+                    <h5 style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>{locale === 'ar' ? 'ترسيم الحدود' : (locale === 'en' ? 'Boundary mapping' : 'Délimitation')}</h5>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>{locale === 'ar' ? 'موقع GPS دقيق' : (locale === 'en' ? 'Precise GPS position' : 'Position GPS précise')}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 6, border: '1px solid var(--border)' }}>
                     <button type="button" onClick={() => handleSwitchLayer('satellite')} style={{ border: 'none', background: mapLayer === 'satellite' ? 'var(--primary)' : 'transparent', color: mapLayer === 'satellite' ? 'white' : 'var(--text-muted)', fontSize: '0.68rem', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>{locale === 'ar' ? 'قمر صناعي' : (locale === 'en' ? 'Satellite' : 'Satellite')}</button>
@@ -460,12 +466,12 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                 <div ref={mapRef} style={{ flex: 1 }} />
                 <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, background: 'rgba(10,15,25,0.85)', backdropFilter: 'blur(8px)', padding: '8px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 16, fontSize: '0.78rem' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Latitude</div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{locale === 'ar' ? 'خط العرض' : 'Latitude'}</div>
                     <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontFamily: 'monospace' }}>{formLatitude ? parseFloat(formLatitude).toFixed(6) : '--.------'}</div>
                   </div>
                   <div style={{ width: 1, background: 'rgba(255,255,255,0.1)' }} />
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Longitude</div>
+                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{locale === 'ar' ? 'خط الطول' : 'Longitude'}</div>
                     <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontFamily: 'monospace' }}>{formLongitude ? parseFloat(formLongitude).toFixed(6) : '--.------'}</div>
                   </div>
                 </div>

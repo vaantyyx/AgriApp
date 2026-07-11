@@ -545,3 +545,52 @@ export async function sendPasswordResetEmail(to, name, token, locale = 'fr') {
     console.error('[EMAIL] Failed to send password reset email via SMTP:', err.message);
   }
 }
+
+const SUPPORT_ADDRESS = process.env.SUPPORT_EMAIL || 'achikh200@gmail.com';
+
+// Sends a user's help-page message to the support inbox, with Reply-To set to the
+// user so the support team can answer directly. Unlike the other send* functions,
+// this one THROWS on failure — the caller needs to know the message truly went out.
+export async function sendSupportMessage(name, fromEmail, subject, message, locale = 'fr') {
+  const transporter = await createTransporter();
+
+  if (isDev) {
+    console.log(`\n==================================================`);
+    console.log(`[SUPPORT DEV] Message from ${name} <${fromEmail}> (app locale: ${locale}):`);
+    console.log(`Subject: ${subject}`);
+    console.log(message);
+    console.log(`==================================================\n`);
+  }
+
+  if (!transporter) {
+    throw new Error('Email transport unavailable');
+  }
+
+  const safeMessageHtml = message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+
+  const html = getBaseTemplate(
+    'Nouveau message support — Sougra',
+    `
+      <h2 style="color:#f3f4f6;font-size:20px;margin:0 0 16px 0;font-weight:700;">📩 Nouveau message de support</h2>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 8px 0;"><strong style="color:#ffffff;">De :</strong> ${name} (${fromEmail})</p>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 8px 0;"><strong style="color:#ffffff;">Langue de l'application :</strong> ${locale}</p>
+      <p style="color:#9ca3af;line-height:1.6;margin:0 0 24px 0;"><strong style="color:#ffffff;">Sujet :</strong> ${subject}</p>
+      <div style="background-color:#17222a;border:1px solid #23323e;border-radius:12px;padding:20px;color:#f3f4f6;line-height:1.7;">
+        ${safeMessageHtml}
+      </div>
+    `,
+    'fr'
+  );
+
+  await transporter.sendMail({
+    from: getFromAddress(),
+    to: SUPPORT_ADDRESS,
+    replyTo: fromEmail,
+    subject: `[Support Sougra] ${subject}`,
+    html,
+  });
+}

@@ -249,7 +249,7 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <Avatar photoUrl={photoUrl} name={profile?.name} size={96} />
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handlePhotoChange} />
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingPhoto} title="Modifier la photo de profil" style={{ position: 'absolute', bottom: '0', right: dir === 'ltr' ? '0' : 'auto', left: dir === 'rtl' ? '0' : 'auto', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s ease' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingPhoto} title={locale === 'ar' ? 'تغيير صورة الملف الشخصي' : (locale === 'en' ? 'Change profile photo' : 'Modifier la photo de profil')} style={{ position: 'absolute', bottom: '0', right: dir === 'ltr' ? '0' : 'auto', left: dir === 'rtl' ? '0' : 'auto', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', border: '2px solid var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'transform 0.2s ease' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
               {uploadingPhoto ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Camera size={14} style={{ color: 'white' }} />}
             </button>
           </div>
@@ -287,7 +287,7 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
       <div className="glass-panel" style={{ padding: '20px 24px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'start' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
           <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--text-main)' }}>
-            {locale === 'ar' ? 'نسبة اكتمال الملف الشخصي' : 'Taux de complétion du profil'}
+            {locale === 'ar' ? 'نسبة اكتمال الملف الشخصي' : (locale === 'en' ? 'Profile completion rate' : 'Taux de complétion du profil')}
           </span>
           <span style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--primary)' }}>{completion}%</span>
         </div>
@@ -295,13 +295,13 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
           <div style={{ width: `${completion}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary) 0%, #10B981 100%)', borderRadius: '5px', transition: 'width 0.5s ease-out' }} />
         </div>
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-          {locale === 'ar' ? 'يجب أن تصل نسبة اكتمال ملفك الشخصي إلى 70% على الأقل لتتمكن من إنشاء مزاد جديد.' : "Votre profil doit être complété à au moins 70% pour pouvoir lancer une enchère."}
+          {locale === 'ar' ? 'يجب أن تصل نسبة اكتمال ملفك الشخصي إلى 70% على الأقل لتتمكن من إنشاء مزاد جديد.' : (locale === 'en' ? 'Your profile must be at least 70% complete to be able to launch an auction.' : "Votre profil doit être complété à au moins 70% pour pouvoir lancer une enchère.")}
         </p>
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--border)', marginBottom: '24px', paddingBottom: '2px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-        {[{ id: 'profile', icon: <User size={16} />, label: locale === 'ar' ? 'معلومات الحساب' : 'Informations du profil' }, { id: 'security', icon: <Shield size={16} />, label: locale === 'ar' ? 'الأمان والوصول' : 'Sécurité & Accès' }].map(tab => (
+        {[{ id: 'profile', icon: <User size={16} />, label: locale === 'ar' ? 'معلومات الحساب' : (locale === 'en' ? 'Profile information' : 'Informations du profil') }, { id: 'security', icon: <Shield size={16} />, label: locale === 'ar' ? 'الأمان والوصول' : (locale === 'en' ? 'Security & Access' : 'Sécurité & Accès') }].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ background: 'none', border: 'none', padding: '10px 16px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: activeTab === tab.id ? 700 : 500, color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)', borderBottom: `3px solid ${activeTab === tab.id ? 'var(--primary)' : 'transparent'}`, transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: 8, flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
             {tab.icon}<span>{tab.label}</span>
           </button>
@@ -340,16 +340,16 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
                   { icon: <Phone size={16} />, label: t('phoneLabel'), value: displayPhone || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('phoneNotProvided')}</span> },
                   { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: profile?.wilaya || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
                   { icon: <MapPin size={16} />, label: t('communeLabel'), value: profile?.commune || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
-                  { icon: <User size={16} />, label: locale === 'ar' ? 'نوع الكيان' : "Type d'entité", value: profile?.entity_type === 'entreprise' ? (locale === 'ar' ? 'مؤسسة' : 'Entreprise') : (locale === 'ar' ? 'فرد' : 'Particulier') },
+                  { icon: <User size={16} />, label: locale === 'ar' ? 'نوع الكيان' : (locale === 'en' ? 'Entity type' : "Type d'entité"), value: profile?.entity_type === 'entreprise' ? (locale === 'ar' ? 'مؤسسة' : (locale === 'en' ? 'Company' : 'Entreprise')) : (locale === 'ar' ? 'فرد' : (locale === 'en' ? 'Individual' : 'Particulier')) },
                   ...(profile?.entity_type === 'entreprise' ? [
-                    { icon: <ShoppingBag size={16} />, label: locale === 'ar' ? 'الاسم التجاري' : 'Nom commercial', value: profile?.nom_commercial || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
-                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'الشكل القانوني' : 'Forme juridique', value: profile?.forme_juridique || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
-                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'رقم السجل التجاري (RC)' : 'Registre de commerce (RC)', value: profile?.rc || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
-                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'الرقم التعريف الجبائي (NIF)' : "Numéro d'identification fiscale (NIF)", value: profile?.nif || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
-                    { icon: <ShoppingBag size={16} />, label: locale === 'ar' ? 'قطاع النشاط' : "Secteur d'activité", value: profile?.secteur_activite || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Non renseigné</span> },
+                    { icon: <ShoppingBag size={16} />, label: locale === 'ar' ? 'الاسم التجاري' : (locale === 'en' ? 'Trade name' : 'Nom commercial'), value: profile?.nom_commercial || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not provided' : 'Non renseigné')}</span> },
+                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'الشكل القانوني' : (locale === 'en' ? 'Legal form' : 'Forme juridique'), value: profile?.forme_juridique || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not provided' : 'Non renseigné')}</span> },
+                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'رقم السجل التجاري (RC)' : (locale === 'en' ? 'Business registration (RC)' : 'Registre de commerce (RC)'), value: profile?.rc || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not provided' : 'Non renseigné')}</span> },
+                    { icon: <FileText size={16} />, label: locale === 'ar' ? 'الرقم التعريف الجبائي (NIF)' : (locale === 'en' ? 'Tax ID (NIF)' : "Numéro d'identification fiscale (NIF)"), value: profile?.nif || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not provided' : 'Non renseigné')}</span> },
+                    { icon: <ShoppingBag size={16} />, label: locale === 'ar' ? 'قطاع النشاط' : (locale === 'en' ? 'Business sector' : "Secteur d'activité"), value: profile?.secteur_activite || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not provided' : 'Non renseigné')}</span> },
                   ] : []),
-                  { icon: <Tractor size={16} />, label: locale === 'ar' ? 'وسائل النقل' : 'Possède un transport', value: profile?.possede_transport ? (locale === 'ar' ? 'نعم ✓' : 'Oui ✓') : (locale === 'ar' ? 'لا ✗' : 'Non ✗') },
-                  { icon: <Tractor size={16} />, label: locale === 'ar' ? 'غرفة تبريد' : 'Possède une chambre froide', value: profile?.possede_chambre_froide ? (locale === 'ar' ? 'نعم ✓' : 'Oui ✓') : (locale === 'ar' ? 'لا ✗' : 'Non ✗') },
+                  { icon: <Tractor size={16} />, label: locale === 'ar' ? 'وسائل النقل' : (locale === 'en' ? 'Has transport' : 'Possède un transport'), value: profile?.possede_transport ? (locale === 'ar' ? 'نعم ✓' : (locale === 'en' ? 'Yes ✓' : 'Oui ✓')) : (locale === 'ar' ? 'لا ✗' : (locale === 'en' ? 'No ✗' : 'Non ✗')) },
+                  { icon: <Tractor size={16} />, label: locale === 'ar' ? 'غرفة تبريد' : (locale === 'en' ? 'Has cold storage' : 'Possède une chambre froide'), value: profile?.possede_chambre_froide ? (locale === 'ar' ? 'نعم ✓' : (locale === 'en' ? 'Yes ✓' : 'Oui ✓')) : (locale === 'ar' ? 'لا ✗' : (locale === 'en' ? 'No ✗' : 'Non ✗')) },
                   { icon: <FileText size={16} />, label: t('bioLabel'), value: profile?.bio || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('bioPlaceholder')}</span> },
                 ].map((item, i) => (
                   <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
@@ -402,50 +402,50 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
                 </div>
                 {/* Buyer-specific fields */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label>{locale === 'ar' ? 'نوع الكيان' : "Type d'entité"} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem' }}>({locale === 'ar' ? 'محدد عند التسجيل' : "défini à l'inscription"})</span></label>
+                  <label>{locale === 'ar' ? 'نوع الكيان' : (locale === 'en' ? 'Entity type' : "Type d'entité")} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem' }}>({locale === 'ar' ? 'محدد عند التسجيل' : (locale === 'en' ? 'set at registration' : "défini à l'inscription")})</span></label>
                   <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'not-allowed', opacity: 0.7 }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '24px', height: '24px', borderRadius: '50%', background: form.entity_type === 'entreprise' ? 'var(--warning)' : 'var(--primary)', color: 'white', fontSize: '0.7rem' }}>{form.entity_type === 'entreprise' ? 'E' : 'P'}</span>
-                    {form.entity_type === 'entreprise' ? (locale === 'ar' ? 'مؤسسة' : 'Entreprise') : (locale === 'ar' ? 'فرد' : 'Particulier')}
+                    {form.entity_type === 'entreprise' ? (locale === 'ar' ? 'مؤسسة' : (locale === 'en' ? 'Company' : 'Entreprise')) : (locale === 'ar' ? 'فرد' : (locale === 'en' ? 'Individual' : 'Particulier'))}
                   </div>
                 </div>
                 {form.entity_type === 'entreprise' && (
                   <>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>{locale === 'ar' ? 'الاسم التجاري' : 'Nom commercial'}</label>
-                      <input type="text" placeholder={locale === 'ar' ? 'مثال: شركة التوزيع الكبرى' : 'Ex: DistriAgri S.A.R.L.'} value={form.nom_commercial || ''} onChange={e => setForm(prev => ({ ...prev, nom_commercial: e.target.value }))} style={{ width: '100%', textAlign: 'start' }} />
+                      <label>{locale === 'ar' ? 'الاسم التجاري' : (locale === 'en' ? 'Trade name' : 'Nom commercial')}</label>
+                      <input type="text" placeholder={locale === 'ar' ? 'مثال: شركة التوزيع الكبرى' : (locale === 'en' ? 'E.g. DistriAgri Ltd.' : 'Ex: DistriAgri S.A.R.L.')} value={form.nom_commercial || ''} onChange={e => setForm(prev => ({ ...prev, nom_commercial: e.target.value }))} style={{ width: '100%', textAlign: 'start' }} />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>{locale === 'ar' ? 'الشكل القانوني' : 'Forme juridique'}</label>
+                      <label>{locale === 'ar' ? 'الشكل القانوني' : (locale === 'en' ? 'Legal form' : 'Forme juridique')}</label>
                       <select value={form.forme_juridique || ''} onChange={e => setForm(prev => ({ ...prev, forme_juridique: e.target.value }))} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}>
-                        <option value="">{locale === 'ar' ? '-- اختر الشكل القانوني --' : '-- Choisir forme juridique --'}</option>
+                        <option value="">{locale === 'ar' ? '-- اختر الشكل القانوني --' : (locale === 'en' ? '-- Select legal form --' : '-- Choisir forme juridique --')}</option>
                         <option value="SARL">SARL</option><option value="EURL">EURL</option><option value="SNC">SNC</option><option value="Entreprise individuelle">Entreprise individuelle</option><option value="Autre">Autre</option>
                       </select>
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>{locale === 'ar' ? 'رقم السجل التجاري (RC)' : 'Numéro Registre de Commerce (RC)'}</label>
-                      <input type="text" placeholder="Ex: 16/00-1234567B20" value={form.rc || ''} onChange={e => setForm(prev => ({ ...prev, rc: e.target.value }))} style={{ width: '100%', textAlign: 'start' }} />
+                      <label>{locale === 'ar' ? 'رقم السجل التجاري (RC)' : (locale === 'en' ? 'Business registration number (RC)' : 'Numéro Registre de Commerce (RC)')}</label>
+                      <input type="text" placeholder={locale === 'ar' ? 'مثال: 16/00-1234567B20' : (locale === 'en' ? 'E.g. 16/00-1234567B20' : 'Ex: 16/00-1234567B20')} value={form.rc || ''} onChange={e => setForm(prev => ({ ...prev, rc: e.target.value }))} style={{ width: '100%', textAlign: 'start' }} />
                     </div>
                     {/* RC Document upload */}
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>{locale === 'ar' ? 'تحميل وثيقة السجل التجاري' : 'Joindre le Registre de Commerce'}</label>
+                      <label>{locale === 'ar' ? 'تحميل وثيقة السجل التجاري' : (locale === 'en' ? 'Attach business registration document' : 'Joindre le Registre de Commerce')}</label>
                       <input ref={rcFileInputRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" style={{ display: 'none' }} onChange={handleRcDocumentChange} />
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                         <button type="button" onClick={() => rcFileInputRef.current?.click()} disabled={uploadingRc} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', fontWeight: 600, background: 'rgba(245,158,11,0.12)', color: '#d97706', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '8px', cursor: uploadingRc ? 'not-allowed' : 'pointer', transition: 'all 0.3s ease' }}>
                           {uploadingRc ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(217,119,6,0.3)', borderTopColor: '#d97706', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <FileText size={15} />}
-                          {profile?.rcDocument ? (locale === 'ar' ? 'تغيير الملف' : 'Changer le fichier') : (locale === 'ar' ? 'اختيار ملف' : 'Choisir un fichier')}
+                          {profile?.rcDocument ? (locale === 'ar' ? 'تغيير الملف' : (locale === 'en' ? 'Change file' : 'Changer le fichier')) : (locale === 'ar' ? 'اختيار ملف' : (locale === 'en' ? 'Choose a file' : 'Choisir un fichier'))}
                         </button>
-                        {profile?.rcDocument && <a href={`${BACKEND_URL}/uploads/${profile.rcDocument}?token=${token}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}><FileText size={15} />{locale === 'ar' ? 'عرض الوثيقة' : 'Voir le document'}</a>}
+                        {profile?.rcDocument && <a href={`${BACKEND_URL}/uploads/${profile.rcDocument}?token=${token}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}><FileText size={15} />{locale === 'ar' ? 'عرض الوثيقة' : (locale === 'en' ? 'View document' : 'Voir le document')}</a>}
                       </div>
-                      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'ar' ? 'JPEG, PNG, WebP أو PDF. الحد الأقصى 20 ميغابايت.' : 'JPEG, PNG, WebP ou PDF. Max 20 Mo.'}</p>
+                      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'ar' ? 'JPEG, PNG, WebP أو PDF. الحد الأقصى 20 ميغابايت.' : (locale === 'en' ? 'JPEG, PNG, WebP or PDF. Max 20 MB.' : 'JPEG, PNG, WebP ou PDF. Max 20 Mo.')}</p>
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>{locale === 'ar' ? 'الرقم التعريف الجبائي (NIF)' : "Numéro d'Identification Fiscale (NIF)"}</label>
-                      <input type="text" placeholder="Ex: 001234567890123" value={form.nif || ''} onChange={e => setForm(prev => ({ ...prev, nif: e.target.value }))} style={{ width: '100%', textAlign: 'start' }} />
+                      <label>{locale === 'ar' ? 'الرقم التعريف الجبائي (NIF)' : (locale === 'en' ? 'Tax ID Number (NIF)' : "Numéro d'Identification Fiscale (NIF)")}</label>
+                      <input type="text" placeholder={locale === 'ar' ? 'مثال: 001234567890123' : (locale === 'en' ? 'E.g. 001234567890123' : 'Ex: 001234567890123')} value={form.nif || ''} onChange={e => setForm(prev => ({ ...prev, nif: e.target.value }))} style={{ width: '100%', textAlign: 'start' }} />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label>{locale === 'ar' ? 'قطاع النشاط' : "Secteur d'activité"}</label>
+                      <label>{locale === 'ar' ? 'قطاع النشاط' : (locale === 'en' ? 'Business sector' : "Secteur d'activité")}</label>
                       <select value={form.secteur_activite || ''} onChange={e => setForm(prev => ({ ...prev, secteur_activite: e.target.value }))} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none', cursor: 'pointer' }}>
-                        <option value="">{locale === 'ar' ? '-- اختر القطاع --' : '-- Choisir secteur --'}</option>
+                        <option value="">{locale === 'ar' ? '-- اختر القطاع --' : (locale === 'en' ? '-- Select sector --' : '-- Choisir secteur --')}</option>
                         <option value="Agroalimentaire">Agroalimentaire</option><option value="Distribution">Distribution</option><option value="Restauration">Restauration</option><option value="Export">Export</option><option value="Transformation">Transformation</option><option value="Autre">Autre</option>
                       </select>
                     </div>
@@ -454,11 +454,11 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
                 <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-main)' }}>
                     <input type="checkbox" checked={!!form.possede_transport} onChange={e => setForm(prev => ({ ...prev, possede_transport: e.target.checked }))} style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary)' }} />
-                    <span>{locale === 'ar' ? 'أملك وسيلة نقل' : 'Possède un transport'}</span>
+                    <span>{locale === 'ar' ? 'أملك وسيلة نقل' : (locale === 'en' ? 'Has transport' : 'Possède un transport')}</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-main)' }}>
                     <input type="checkbox" checked={!!form.possede_chambre_froide} onChange={e => setForm(prev => ({ ...prev, possede_chambre_froide: e.target.checked }))} style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary)' }} />
-                    <span>{locale === 'ar' ? 'أملك غرفة تبريد' : 'Possède une chambre froide'}</span>
+                    <span>{locale === 'ar' ? 'أملك غرفة تبريد' : (locale === 'en' ? 'Has cold storage' : 'Possède une chambre froide')}</span>
                   </label>
                 </div>
               </div>

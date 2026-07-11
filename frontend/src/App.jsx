@@ -444,7 +444,7 @@ export default function App() {
                         setNotifOpen(o => !o);
                         if (!notifOpen && unreadCount > 0) handleMarkAllRead();
                       }}
-                      title="Notifications"
+                      title={t('notifications')}
                       aria-label={t('unreadNotifications', { count: unreadCount })}
                     >
                       <Bell size={18} />
@@ -480,10 +480,10 @@ export default function App() {
                                     {getNotificationTitle(n, t)}
                                   </div>
                                   <div className="notif-body">
-                                    {getNotificationBody(n, t)}
+                                    {getNotificationBody(n, t, locale)}
                                   </div>
                                   <div className="notif-time">
-                                    {new Date(n.createdAt).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(n.createdAt).toLocaleTimeString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { hour: '2-digit', minute: '2-digit' })}
                                   </div>
                                 </div>
                               </div>
@@ -694,7 +694,7 @@ export default function App() {
           <Route path="/dashboard/help" element={
             user && token ? (
               <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
-                <HelpPage />
+                <HelpPage user={user} token={token} />
               </DashboardLayout>
             ) : <Navigate to="/login" replace />
           } />

@@ -5,7 +5,7 @@ import { BACKEND_URL } from '../utils/config.js';
 import { useTranslation } from '../context/LanguageContext';
 
 export default function ForgotPasswordPage() {
-  const { locale } = useTranslation();
+  const { t, dir, locale } = useTranslation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim()) {
-      setError('Veuillez entrer votre adresse e-mail.');
+      setError(t('forgotEmailRequired'));
       return;
     }
 
@@ -32,20 +32,20 @@ export default function ForgotPasswordPage() {
       const data = await res.json();
       
       if (!res.ok) {
-        setError(data.error || 'Une erreur est survenue.');
+        setError(data.error || t('resetGenericError'));
       } else {
-        setMessage(data.message || 'Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé.');
+        setMessage(data.message || t('forgotSuccessMessage'));
         setEmail('');
       }
     } catch {
-      setError('Erreur de connexion au serveur.');
+      setError(t('serverError'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page animate-fade-in">
+    <div className="auth-page animate-fade-in" dir={dir}>
       <div className="auth-right" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <div style={{ maxWidth: 400, width: '100%', padding: '20px' }}>
           <div className="auth-logo-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
@@ -57,9 +57,9 @@ export default function ForgotPasswordPage() {
             </span>
           </div>
 
-          <h1 className="auth-form-title">Mot de passe oublié ?</h1>
+          <h1 className="auth-form-title">{t('forgotPageTitle')}</h1>
           <p className="auth-form-sub" style={{ marginBottom: 25 }}>
-            Entrez l'adresse e-mail associée à votre compte et nous vous enverrons un lien pour réinitialiser votre mot de passe.
+            {t('forgotPageSub')}
           </p>
 
           {message ? (
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
           ) : (
             <form onSubmit={handleSubmit}>
               <div className="form-group" style={{ marginBottom: 20 }}>
-                <label htmlFor="reset-email">Adresse e-mail</label>
+                <label htmlFor="reset-email">{t('emailLabel')}</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     id="reset-email" type="email" placeholder="votre@email.com"
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
                 style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
                 disabled={loading}
               >
-                {loading ? 'Envoi en cours...' : 'Envoyer le lien'}
+                {loading ? t('forgotSending') : t('forgotSendBtn')}
               </button>
             </form>
           )}
@@ -113,7 +113,7 @@ export default function ForgotPasswordPage() {
               onClick={() => navigate('/login')}
               style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, width: '100%' }}
             >
-              <ArrowLeft size={14} /> Retour à la connexion
+              <ArrowLeft size={14} /> {t('verifErrorBtn')}
             </button>
           </div>
         </div>

@@ -5,7 +5,8 @@ import { resolveAcceptedLine } from '../utils/auctionHelpers.js';
 import HorizontalBarChart from './HorizontalBarChart';
 
 export default function ProducerStatsPage({ auctions }) {
-  const { t, dir } = useTranslation();
+  const { t, dir, locale } = useTranslation();
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
 
   const stats = useMemo(() => {
     const withMyBid = auctions.filter(a => a.myBidId);
@@ -32,7 +33,7 @@ export default function ProducerStatsPage({ auctions }) {
     return { wonCount: won.length, winRate, activeBids, totalRevenue, revenueRows };
   }, [auctions]);
 
-  const formatDA = (v) => `${Math.round(v).toLocaleString('fr-DZ')} ${t('currencyDA')}`;
+  const formatDA = (v) => `${Math.round(v).toLocaleString(localeTag)} ${t('currencyDA')}`;
 
   const tiles = [
     { icon: Trophy, label: t('statWonAuctions'), value: stats.wonCount, color: 'var(--primary)' },

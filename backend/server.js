@@ -14,6 +14,7 @@ import profileRoutes from './routes/profile.js';
 import notificationsRoutes from './routes/notifications.js';
 import parcellesRoutes from './routes/parcelles.js';
 import captchaRoutes from './routes/captcha.js';
+import supportRoutes from './routes/support.js';
 import { CAPTCHA_CATEGORIES } from './services/captchaCategories.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -113,6 +114,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/parcelles', parcellesRoutes);
 app.use('/api/captcha', captchaRoutes);
+app.use('/api/support', supportRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

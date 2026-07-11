@@ -4,7 +4,8 @@ import { useTranslation } from '../context/LanguageContext';
 import { getNotificationTitle, getNotificationBody } from '../utils/notificationText.js';
 
 export default function NotificationsPage({ notifications, onMarkAllRead, onMarkOneRead, onNotificationClick }) {
-  const { t, dir } = useTranslation();
+  const { t, dir, locale } = useTranslation();
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
   const [filter, setFilter] = useState('all');
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -79,10 +80,10 @@ export default function NotificationsPage({ notifications, onMarkAllRead, onMark
                   {getNotificationTitle(n, t)}
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 6 }}>
-                  {getNotificationBody(n, t)}
+                  {getNotificationBody(n, t, locale)}
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
-                  {new Date(n.createdAt).toLocaleString('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' })}
+                  {new Date(n.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })}
                 </div>
               </div>
             </div>

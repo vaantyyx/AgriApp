@@ -7,14 +7,14 @@ import { computeBuyerCompletion } from './BuyerProfilePage';
 function getMissingFieldsList(user, locale) {
   const missing = [];
   const labels = {
-    wilaya: { fr: 'Wilaya', ar: 'الولاية' },
-    commune: { fr: 'Commune', ar: 'البلدية' },
-    phone: { fr: 'Téléphone', ar: 'الهاتف' },
-    forme_juridique: { fr: 'Forme juridique', ar: 'الشكل القانوني' },
-    rc: { fr: 'Registre de commerce (RC)', ar: 'السجل التجاري (RC)' },
-    nif: { fr: 'NIF', ar: 'الرقم الضريبي (NIF)' },
-    secteur_activite: { fr: "Secteur d'activité", ar: 'قطاع النشاط' },
-    nom_commercial: { fr: 'Nom commercial', ar: 'الاسم التجاري' },
+    wilaya: { fr: 'Wilaya', ar: 'الولاية', en: 'Wilaya' },
+    commune: { fr: 'Commune', ar: 'البلدية', en: 'Commune' },
+    phone: { fr: 'Téléphone', ar: 'الهاتف', en: 'Phone' },
+    forme_juridique: { fr: 'Forme juridique', ar: 'الشكل القانوني', en: 'Legal form' },
+    rc: { fr: 'Registre de commerce (RC)', ar: 'السجل التجاري (RC)', en: 'Business registration (RC)' },
+    nif: { fr: 'NIF', ar: 'الرقم الضريبي (NIF)', en: 'Tax ID (NIF)' },
+    secteur_activite: { fr: "Secteur d'activité", ar: 'قطاع النشاط', en: 'Business sector' },
+    nom_commercial: { fr: 'Nom commercial', ar: 'الاسم التجاري', en: 'Trade name' },
   };
   if (!user) return [];
   if (!user.wilaya || !user.wilaya.trim()) missing.push(labels.wilaya[locale] || labels.wilaya.fr);

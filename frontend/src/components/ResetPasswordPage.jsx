@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Leaf, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
+import { useTranslation } from '../context/LanguageContext';
 
 export default function ResetPasswordPage() {
+  const { t, dir } = useTranslation();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,21 +19,21 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     if (!token) {
-      setError('Jeton de réinitialisation manquant. Veuillez utiliser le lien fourni dans votre e-mail.');
+      setError(t('resetTokenMissing'));
     }
-  }, [token]);
+  }, [token, t]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!token) return;
 
     if (password.length < 8) {
-      setError('Le mot de passe doit contenir au moins 8 caractères.');
+      setError(t('passwordMinChar'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas.');
+      setError(t('passwordMismatch'));
       return;
     }
 
@@ -46,23 +48,23 @@ export default function ResetPasswordPage() {
         body: JSON.stringify({ token, password }),
       });
       const data = await res.json();
-      
+
       if (!res.ok) {
-        setError(data.error || 'Une erreur est survenue.');
+        setError(data.error || t('resetGenericError'));
       } else {
-        setMessage(data.message || 'Votre mot de passe a été réinitialisé avec succès.');
+        setMessage(data.message || t('resetSuccessMessage'));
         setPassword('');
         setConfirmPassword('');
       }
     } catch {
-      setError('Erreur de connexion au serveur.');
+      setError(t('serverError'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-page animate-fade-in">
+    <div className="auth-page animate-fade-in" dir={dir}>
       <div className="auth-right" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <div style={{ maxWidth: 400, width: '100%', padding: '20px' }}>
           <div className="auth-logo-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
@@ -74,9 +76,9 @@ export default function ResetPasswordPage() {
             </span>
           </div>
 
-          <h1 className="auth-form-title">Nouveau mot de passe</h1>
+          <h1 className="auth-form-title">{t('resetPageTitle')}</h1>
           <p className="auth-form-sub" style={{ marginBottom: 25 }}>
-            Créez un nouveau mot de passe sécurisé pour votre compte.
+            {t('resetPageSub')}
           </p>
 
           {message ? (
@@ -92,18 +94,18 @@ export default function ResetPasswordPage() {
                   onClick={() => navigate('/login')}
                   className="btn btn-primary btn-sm"
                 >
-                  Se connecter
+                  {t('loginBtn')}
                 </button>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
               <div className="form-group" style={{ marginBottom: 20 }}>
-                <label>Nouveau mot de passe</label>
+                <label>{t('newPasswordLabel')}</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Au moins 8 caractères"
+                    placeholder={t('newPasswordPlaceholder')}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setError(''); }}
                     style={{ paddingLeft: '42px', paddingRight: '42px', width: '100%' }}
@@ -122,11 +124,11 @@ export default function ResetPasswordPage() {
               </div>
 
               <div className="form-group" style={{ marginBottom: 25 }}>
-                <label>Confirmer le mot de passe</label>
+                <label>{t('confirmPasswordLabel')}</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Répétez le mot de passe"
+                    placeholder={t('confirmPasswordPlaceholder')}
                     value={confirmPassword}
                     onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
                     style={{ paddingLeft: '42px', paddingRight: '42px', width: '100%' }}
@@ -153,7 +155,7 @@ export default function ResetPasswordPage() {
                 style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
                 disabled={loading || !token}
               >
-                {loading ? 'Réinitialisation...' : 'Réinitialiser le mot de passe'}
+                {loading ? t('resetSubmitting') : t('resetSubmitBtn')}
               </button>
             </form>
           )}

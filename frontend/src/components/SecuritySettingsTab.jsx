@@ -28,6 +28,14 @@ const secTrans = {
     passwordTooShort: "Le nouveau mot de passe doit contenir au moins 8 caractères.",
     updateError: "Erreur lors de la mise à jour.",
     serverError: "Erreur serveur. Veuillez réessayer.",
+    dangerZoneTitle: "Zone de danger",
+    dangerZoneDesc: "La désactivation de votre compte le désactivera. Vous ne pourrez plus vous connecter ni utiliser la plateforme jusqu'à sa réactivation.",
+    deactivateBtn: "Désactiver le compte",
+    deactivateConfirmTitle: "Confirmer la désactivation",
+    deactivateConfirmDesc: "Êtes-vous sûr de vouloir désactiver votre compte ? Cette action n'est pas facilement réversible.",
+    cancelBtn: "Annuler",
+    deactivatingBtn: "Désactivation...",
+    deactivateSuccess: "Compte désactivé avec succès.",
   },
   ar: {
     twoFactorTitle: "التحقق المزدوج (2FA)",
@@ -53,6 +61,14 @@ const secTrans = {
     passwordTooShort: "يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل.",
     updateError: "خطأ أثناء التحديث.",
     serverError: "خطأ في الخادم. يرجى المحاولة مرة أخرى.",
+    dangerZoneTitle: "منطقة الخطر",
+    dangerZoneDesc: "سيؤدي إلغاء تنشيط حسابك إلى تعطيله. لن تتمكن من تسجيل الدخول أو استخدام المنصة حتى يتم إعادة تنشيطه.",
+    deactivateBtn: "إلغاء تنشيط الحساب",
+    deactivateConfirmTitle: "تأكيد إلغاء التنشيط",
+    deactivateConfirmDesc: "هل أنت متأكد أنك تريد إلغاء تنشيط حسابك؟ هذا الإجراء لا يمكن التراجع عنه بسهولة.",
+    cancelBtn: "إلغاء",
+    deactivatingBtn: "جاري...",
+    deactivateSuccess: "تم إلغاء تنشيط الحساب بنجاح.",
   },
   en: {
     twoFactorTitle: "Two-Factor Authentication (2FA)",
@@ -78,6 +94,14 @@ const secTrans = {
     passwordTooShort: "The new password must be at least 8 characters long.",
     updateError: "Update error.",
     serverError: "Server error. Please try again.",
+    dangerZoneTitle: "Danger Zone",
+    dangerZoneDesc: "Deactivating your account will disable it. You will not be able to log in or use the platform until it is reactivated.",
+    deactivateBtn: "Deactivate account",
+    deactivateConfirmTitle: "Confirm deactivation",
+    deactivateConfirmDesc: "Are you sure you want to deactivate your account? This action is not easily reversible.",
+    cancelBtn: "Cancel",
+    deactivatingBtn: "Deactivating...",
+    deactivateSuccess: "Account deactivated successfully.",
   }
 };
 
@@ -188,7 +212,7 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(locale === 'ar' ? 'تم إلغاء تنشيط الحساب بنجاح.' : 'Compte désactivé avec succès.');
+        showToast(secT.deactivateSuccess);
         setShowDeactivateModal(false);
         onLogout();
       } else {
@@ -297,13 +321,13 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
       <div className="glass-panel" style={{ padding: '24px', textAlign: 'start', border: '1px solid rgba(239,68,68,0.3)' }}>
         <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
           <AlertCircle size={20} />
-          <span>{locale === 'ar' ? 'منطقة الخطر' : 'Zone de danger'}</span>
+          <span>{secT.dangerZoneTitle}</span>
         </h3>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', lineHeight: '1.5' }}>
-          {locale === 'ar' ? 'سيؤدي إلغاء تنشيط حسابك إلى تعطيله. لن تتمكن من تسجيل الدخول أو استخدام المنصة حتى يتم إعادة تنشيطه.' : "La désactivation de votre compte le désactivera. Vous ne pourrez plus vous connecter ni utiliser la plateforme jusqu'à sa réactivation."}
+          {secT.dangerZoneDesc}
         </p>
         <button onClick={() => setShowDeactivateModal(true)} className="btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.875rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease' }}>
-          {locale === 'ar' ? 'إلغاء تنشيط الحساب' : 'Désactiver le compte'}
+          {secT.deactivateBtn}
         </button>
       </div>
 
@@ -314,17 +338,17 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
             <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', marginBottom: '16px' }}>
               <AlertCircle size={28} style={{ color: '#ef4444' }} />
             </div>
-            <h3 style={{ color: '#ef4444', margin: '0 0 8px', fontSize: '1.2rem' }}>{locale === 'ar' ? 'تأكيد إلغاء التنشيط' : 'Confirmer la désactivation'}</h3>
+            <h3 style={{ color: '#ef4444', margin: '0 0 8px', fontSize: '1.2rem' }}>{secT.deactivateConfirmTitle}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', lineHeight: '1.5' }}>
-              {locale === 'ar' ? 'هل أنت متأكد أنك تريد إلغاء تنشيط حسابك؟ هذا الإجراء لا يمكن التراجع عنه بسهولة.' : "Êtes-vous sûr de vouloir désactiver votre compte ? Cette action n'est pas facilement réversible."}
+              {secT.deactivateConfirmDesc}
             </p>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
               <button onClick={() => setShowDeactivateModal(false)} className="btn" style={{ padding: '10px 24px', fontSize: '0.875rem', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-main)', fontWeight: 600, cursor: 'pointer' }}>
-                {locale === 'ar' ? 'إلغاء' : 'Annuler'}
+                {secT.cancelBtn}
               </button>
               <button onClick={handleDeactivateConfirm} disabled={deactivating} style={{ padding: '10px 24px', fontSize: '0.875rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: deactivating ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                 {deactivating ? spinner : null}
-                {deactivating ? (locale === 'ar' ? 'جاري...' : 'Désactivation...') : (locale === 'ar' ? 'تأكيد إلغاء التنشيط' : 'Confirmer la désactivation')}
+                {deactivating ? secT.deactivatingBtn : secT.deactivateConfirmTitle}
               </button>
             </div>
           </div>

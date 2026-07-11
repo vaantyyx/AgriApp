@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { HelpCircle, ChevronDown, Mail } from 'lucide-react';
+import { HelpCircle, ChevronDown, Mail, X, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import { BACKEND_URL } from '../utils/config.js';
 
 const FAQ_KEYS = [
   ['helpFaqQ1', 'helpFaqA1'],
@@ -8,11 +9,161 @@ const FAQ_KEYS = [
   ['helpFaqQ3', 'helpFaqA3'],
   ['helpFaqQ4', 'helpFaqA4'],
   ['helpFaqQ5', 'helpFaqA5'],
+  ['helpFaqQ6', 'helpFaqA6'],
+  ['helpFaqQ7', 'helpFaqA7'],
+  ['helpFaqQ8', 'helpFaqA8'],
+  ['helpFaqQ9', 'helpFaqA9'],
+  ['helpFaqQ10', 'helpFaqA10'],
+  ['helpFaqQ11', 'helpFaqA11'],
+  ['helpFaqQ12', 'helpFaqA12'],
+  ['helpFaqQ13', 'helpFaqA13'],
+  ['helpFaqQ14', 'helpFaqA14'],
+  ['helpFaqQ15', 'helpFaqA15'],
 ];
 
-export default function HelpPage() {
-  const { t, dir } = useTranslation();
+function ContactSupportModal({ user, token, locale, dir, t, onClose }) {
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const handleSend = async () => {
+    if (!subject.trim()) { setError(t('helpContactSubjectRequired')); return; }
+    if (!message.trim()) { setError(t('helpContactMessageRequired')); return; }
+
+    setSending(true);
+    setError('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/support/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: user?.name || '', subject: subject.trim(), message: message.trim(), locale }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSent(true);
+      } else {
+        setError(data.error || t('helpContactErrorGeneric'));
+      }
+    } catch {
+      setError(t('helpContactErrorGeneric'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel animate-fade-in"
+        dir={dir}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 460, width: '100%', padding: 32, position: 'relative', textAlign: dir === 'rtl' ? 'right' : 'left' }}
+      >
+        <button
+          onClick={onClose}
+          style={{ position: 'absolute', top: 16, [dir === 'rtl' ? 'left' : 'right']: 16, background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}
+        >
+          <X size={16} />
+        </button>
+
+        {sent ? (
+          <div style={{ textAlign: 'center', padding: '12px 0' }}>
+            <div style={{ display: 'inline-flex', padding: 14, borderRadius: '50%', background: 'rgba(16,185,129,0.12)', color: 'var(--primary)', marginBottom: 18 }}>
+              <CheckCircle2 size={32} />
+            </div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 8 }}>{t('helpContactSuccessTitle')}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: 24 }}>{t('helpContactSuccessDesc')}</p>
+            <button onClick={onClose} className="btn btn-primary" style={{ padding: '10px 28px' }}>
+              {t('helpContactCloseBtn')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'inline-flex', padding: 12, borderRadius: '50%', background: 'var(--primary-glow)', color: 'var(--primary)', marginBottom: 16 }}>
+              <Mail size={22} />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>{t('helpContactModalTitle')}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: 22 }}>{t('helpContactModalDesc')}</p>
+
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label>{t('helpContactSubjectLabel')}</label>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => { setSubject(e.target.value); setError(''); }}
+                placeholder={t('helpContactSubjectPlaceholder')}
+                maxLength={200}
+                style={{ width: '100%', textAlign: dir === 'rtl' ? 'right' : 'left' }}
+                autoFocus
+              />
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 10 }}>
+              <label>{t('helpContactMessageLabel')}</label>
+              <textarea
+                value={message}
+                onChange={(e) => { setMessage(e.target.value); setError(''); }}
+                placeholder={t('helpContactMessagePlaceholder')}
+                maxLength={5000}
+                rows={5}
+                style={{ width: '100%', resize: 'vertical', textAlign: dir === 'rtl' ? 'right' : 'left', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            {user?.email && (
+              <p style={{ color: 'var(--text-faint)', fontSize: '0.75rem', marginBottom: 18 }}>
+                {t('helpContactReplyNote', { email: user.email })}
+              </p>
+            )}
+
+            {error && (
+              <div style={{
+                borderRadius: 8, padding: '10px 14px', fontSize: '0.85rem', marginBottom: 16,
+                display: 'flex', alignItems: 'center', gap: 8,
+                color: '#9b1c1c', background: 'var(--danger-soft)', border: '1px solid rgba(229,62,62,0.25)',
+              }}>
+                <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+              <button onClick={onClose} className="btn btn-secondary" style={{ padding: '10px 20px' }} disabled={sending}>
+                {t('helpContactCancelBtn')}
+              </button>
+              <button
+                onClick={handleSend}
+                className="btn btn-primary"
+                disabled={sending}
+                style={{ padding: '10px 22px', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                {sending ? (
+                  <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <Send size={15} />
+                )}
+                {sending ? t('helpContactSending') : t('helpContactSendBtn')}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function HelpPage({ user, token }) {
+  const { t, dir, locale } = useTranslation();
   const [openIndex, setOpenIndex] = useState(0);
+  const [showContactModal, setShowContactModal] = useState(false);
 
   return (
     <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
@@ -52,10 +203,21 @@ export default function HelpPage() {
           <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 6 }}>{t('helpContactTitle')}</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{t('helpContactDesc')}</p>
         </div>
-        <a href="mailto:contact@sougra.dz" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+        <button onClick={() => setShowContactModal(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
           <Mail size={16} /> {t('helpContactEmailLabel')}
-        </a>
+        </button>
       </div>
+
+      {showContactModal && (
+        <ContactSupportModal
+          user={user}
+          token={token}
+          locale={locale}
+          dir={dir}
+          t={t}
+          onClose={() => setShowContactModal(false)}
+        />
+      )}
     </div>
   );
 }
