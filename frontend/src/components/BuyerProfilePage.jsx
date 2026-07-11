@@ -115,7 +115,7 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
   const fileInputRef = useRef(null);
   const rcFileInputRef = useRef(null);
 
-  const photoUrl = profile?.profilePhoto ? `${BACKEND_URL}/uploads/${profile.profilePhoto}` : null;
+  const photoUrl = profile?.profilePhoto ? `${BACKEND_URL}/uploads/${profile.profilePhoto}?token=${token}` : null;
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3500); };
 
   useEffect(() => {
@@ -434,7 +434,7 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
                           {uploadingRc ? <div style={{ width: '14px', height: '14px', border: '2px solid rgba(217,119,6,0.3)', borderTopColor: '#d97706', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <FileText size={15} />}
                           {profile?.rcDocument ? (locale === 'ar' ? 'تغيير الملف' : 'Changer le fichier') : (locale === 'ar' ? 'اختيار ملف' : 'Choisir un fichier')}
                         </button>
-                        {profile?.rcDocument && <a href={`${BACKEND_URL}/uploads/${profile.rcDocument}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}><FileText size={15} />{locale === 'ar' ? 'عرض الوثيقة' : 'Voir le document'}</a>}
+                        {profile?.rcDocument && <a href={`${BACKEND_URL}/uploads/${profile.rcDocument}?token=${token}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}><FileText size={15} />{locale === 'ar' ? 'عرض الوثيقة' : 'Voir le document'}</a>}
                       </div>
                       <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'ar' ? 'JPEG, PNG, WebP أو PDF. الحد الأقصى 20 ميغابايت.' : 'JPEG, PNG, WebP ou PDF. Max 20 Mo.'}</p>
                     </div>

@@ -85,7 +85,7 @@ function StatItem({ value, label, color, isText, dir }) {
 }
 
 // ─── Upload Document Button ────────────────────────────────────────────────────
-function DocUploadField({ label, docKey, profile, inputRef, uploading, onChange, locale, BACKEND_URL }) {
+function DocUploadField({ label, docKey, profile, inputRef, uploading, onChange, locale, BACKEND_URL, token }) {
   return (
     <div className="form-group" style={{ marginBottom: 0 }}>
       <label>{label}</label>
@@ -96,7 +96,7 @@ function DocUploadField({ label, docKey, profile, inputRef, uploading, onChange,
           {profile?.[docKey] ? (locale === 'ar' ? 'تغيير الملف' : 'Changer le fichier') : (locale === 'ar' ? 'اختيار ملف' : 'Choisir un fichier')}
         </button>
         {profile?.[docKey] && (
-          <a href={`${BACKEND_URL}/uploads/${profile[docKey]}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+          <a href={`${BACKEND_URL}/uploads/${profile[docKey]}?token=${token}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '0.85rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
             <FileText size={15} />{locale === 'ar' ? 'عرض الوثيقة' : 'Voir le document'}
           </a>
         )}
@@ -128,7 +128,7 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
   const ficheFileInputRef = useRef(null);
   const carteFileInputRef = useRef(null);
 
-  const photoUrl = profile?.profilePhoto ? `${BACKEND_URL}/uploads/${profile.profilePhoto}` : null;
+  const photoUrl = profile?.profilePhoto ? `${BACKEND_URL}/uploads/${profile.profilePhoto}?token=${token}` : null;
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3500); };
 
   useEffect(() => {
@@ -434,8 +434,8 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
                   <h4 style={{ gridColumn: '1 / -1', margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-main)' }}>
                     {locale === 'ar' ? 'الوثائق المهنية' : 'Documents professionnels'}
                   </h4>
-                  <DocUploadField label={locale === 'ar' ? 'البطاقة الفنية (Fiche Signalétique)' : 'Fiche Signalétique'} docKey="ficheSignaletiqueDocument" profile={profile} inputRef={ficheFileInputRef} uploading={uploadingFiche} onChange={handleFicheDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} />
-                  <DocUploadField label={locale === 'ar' ? 'بطاقة الفلاح' : "Carte d'Agriculteur"} docKey="carteAgriculteurDocument" profile={profile} inputRef={carteFileInputRef} uploading={uploadingCarte} onChange={handleCarteDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} />
+                  <DocUploadField label={locale === 'ar' ? 'البطاقة الفنية (Fiche Signalétique)' : 'Fiche Signalétique'} docKey="ficheSignaletiqueDocument" profile={profile} inputRef={ficheFileInputRef} uploading={uploadingFiche} onChange={handleFicheDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} token={token} />
+                  <DocUploadField label={locale === 'ar' ? 'بطاقة الفلاح' : "Carte d'Agriculteur"} docKey="carteAgriculteurDocument" profile={profile} inputRef={carteFileInputRef} uploading={uploadingCarte} onChange={handleCarteDocumentChange} locale={locale} BACKEND_URL={BACKEND_URL} token={token} />
                 </div>
               </div>
             )}

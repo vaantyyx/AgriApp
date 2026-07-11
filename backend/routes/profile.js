@@ -11,6 +11,9 @@ import { createOtp, verifyOtp } from '../services/otpService.js';
 
 const router = express.Router();
 
+// OTP codes must never be persisted to logs/console outside of local development.
+const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+
 // All profile routes require authentication
 router.use(authMiddleware);
 
@@ -292,7 +295,7 @@ router.post('/password/otp', async (req, res) => {
     const otp = await createOtp(user._id.toString(), 'password_change');
     const method = user.two_factor_method || 'email';
 
-    if (method === 'phone' && user.phone) {
+    if (isDev && method === 'phone' && user.phone) {
       console.log(`\n==================================================`);
       console.log(`[SMS DEV] SMS sent to ${user.phone}:`);
       console.log(`👉 SOUGRA Code de changement de mot de passe: ${otp}. Valide 10 min.`);

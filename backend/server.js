@@ -58,10 +58,23 @@ app.use((req, res, next) => {
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   // TODO(security): geolocation is used client-side for map; if removed, re-enable this restriction
   res.setHeader('Permissions-Policy', 'camera=(), microphone=()');
+  // Ignored by browsers over plain HTTP, so safe to always send even in local dev.
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
   next();
 });
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────
+// Baseline limiter for all API routes — the stricter authLimiter below layers
+// on top of this for the auth endpoints specifically.
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes. Veuillez réessayer plus tard.' },
+});
+app.use('/api', generalLimiter);
+
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
@@ -72,10 +85,25 @@ const authLimiter = rateLimit({
 app.use('/api/auth', authLimiter);
 
 // ─── Static File Serving (uploads) ────────────────────────────────────────
+// Profile photos and identity/legal documents (RC, fiche signalétique, carte
+// agriculteur) live here — UUID filenames alone aren't access control, so require
+// a valid session. <img>/<a> tags can't set an Authorization header, so a token
+// query param is accepted as a fallback.
 app.use('/uploads', (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const token = headerToken || req.query.token;
+  if (!token) {
+    return res.status(401).json({ error: 'Authentification requise.' });
+  }
+  try {
+    jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  } catch {
+    return res.status(401).json({ error: 'Token invalide.' });
+  }
   res.setHeader('Content-Disposition', 'inline');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
@@ -1207,6 +1235,9 @@ async function checkPendingAuctions() {
 
 // ─── Start Server ─────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
+// Default to all interfaces so the app is reachable once deployed behind a reverse
+// proxy or directly exposed; set HOST=127.0.0.1 to restrict to local-only access.
+const HOST = process.env.HOST || '0.0.0.0';
 
 async function startServer() {
   try {
@@ -1233,8 +1264,8 @@ async function startServer() {
     // Run once immediately on startup
     checkPendingAuctions().catch(err => console.error('[Scheduler Start Error]', err));
 
-    httpServer.listen(PORT, '127.0.0.1', () => {
-      console.log(`✅ Server running on http://127.0.0.1:${PORT}`);
+    httpServer.listen(PORT, HOST, () => {
+      console.log(`✅ Server running on http://${HOST}:${PORT}`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

@@ -10,6 +10,9 @@ import { consumeVerifiedChallenge } from '../services/captchaService.js';
 
 const router = express.Router();
 
+// OTP codes must never be persisted to logs/console outside of local development.
+const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+
 // ─── POST /api/auth/register ───────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
@@ -234,13 +237,13 @@ router.post('/login', async (req, res) => {
       const otp = await createOtp(user._id.toString(), 'login');
       const method = user.two_factor_method || 'email';
       
-      if (method === 'phone' && user.phone) {
+      if (isDev && method === 'phone' && user.phone) {
         console.log(`\n==================================================`);
         console.log(`[SMS DEV] SMS sent to ${user.phone}:`);
         console.log(`👉 SOUGRA Code de connexion: ${otp}. Valide 5 min.`);
         console.log(`==================================================\n`);
       }
-      
+
       // Send code via email
       await sendOtpEmail(
         user.email,
@@ -363,13 +366,13 @@ router.post('/resend-otp', async (req, res) => {
     const otp = await createOtp(user._id.toString(), 'login');
     const method = user.two_factor_method || 'email';
     
-    if (method === 'phone' && user.phone) {
+    if (isDev && method === 'phone' && user.phone) {
       console.log(`\n==================================================`);
       console.log(`[SMS DEV] SMS resent to ${user.phone}:`);
       console.log(`👉 SOUGRA Code de connexion: ${otp}. Valide 5 min.`);
       console.log(`==================================================\n`);
     }
-    
+
     await sendOtpEmail(
       user.email,
       user.name,

@@ -1,6 +1,10 @@
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 
+// OTP codes, verification links and reset links must never be persisted to disk or
+// stdout outside of local development — they're valid credentials until they expire.
+const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+
 function getFromAddress() {
   const address = process.env.MAIL_FROM_ADDRESS || process.env.MAIL_USERNAME || process.env.EMAIL_USER || 'support@sougra.com';
   const name = process.env.MAIL_FROM_NAME || 'Sougra';
@@ -24,7 +28,6 @@ async function createTransporter() {
       port,
       secure: isSecure,
       auth: { user, pass },
-      tls: { rejectUnauthorized: false },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 15000,
@@ -43,7 +46,6 @@ async function createTransporter() {
       port: account.smtp.port,
       secure: account.smtp.secure,
       auth: { user: account.user, pass: account.pass },
-      tls: { rejectUnauthorized: false },
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 15000,
@@ -119,16 +121,18 @@ export async function sendVerificationEmail(to, name, token) {
   const APP_URL = process.env.APP_URL || 'http://localhost:5173';
   const verifyUrl = `${APP_URL}/verify-email?token=${token}`;
 
-  // Always log the link to the console for easy developer/local verification
-  console.log(`\n==================================================`);
-  console.log(`[EMAIL DEV] Verification link for ${to}:`);
-  console.log(`👉 ${verifyUrl}`);
-  console.log(`==================================================\n`);
+  // Log the link to the console/dev log for easy local verification — dev only.
+  if (isDev) {
+    console.log(`\n==================================================`);
+    console.log(`[EMAIL DEV] Verification link for ${to}:`);
+    console.log(`👉 ${verifyUrl}`);
+    console.log(`==================================================\n`);
 
-  try {
-    fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] VERIFY for ${to}: ${verifyUrl}\n`);
-  } catch (err) {
-    console.error('Failed to write dev email log:', err.message);
+    try {
+      fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] VERIFY for ${to}: ${verifyUrl}\n`);
+    } catch (err) {
+      console.error('Failed to write dev email log:', err.message);
+    }
   }
 
   if (!transporter) {
@@ -221,15 +225,17 @@ export async function sendWelcomeEmail(to, name, role) {
 
 export async function sendOtpEmail(to, name, otp, minutes, title, subject, desc) {
   const transporter = await createTransporter();
-  console.log(`\n==================================================`);
-  console.log(`[EMAIL DEV] OTP Code for ${to} (${name}):`);
-  console.log(`👉 ${otp} (Expires in ${minutes} minutes)`);
-  console.log(`==================================================\n`);
+  if (isDev) {
+    console.log(`\n==================================================`);
+    console.log(`[EMAIL DEV] OTP Code for ${to} (${name}):`);
+    console.log(`👉 ${otp} (Expires in ${minutes} minutes)`);
+    console.log(`==================================================\n`);
 
-  try {
-    fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] OTP for ${to}: ${otp}\n`);
-  } catch (err) {
-    console.error('Failed to write dev OTP log:', err.message);
+    try {
+      fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] OTP for ${to}: ${otp}\n`);
+    } catch (err) {
+      console.error('Failed to write dev OTP log:', err.message);
+    }
   }
 
   if (!transporter) {
@@ -314,14 +320,16 @@ export async function sendPasswordResetEmail(to, name, token) {
   const APP_URL = process.env.APP_URL || 'http://localhost:5173';
   const resetUrl = `${APP_URL}/reset-password?token=${token}`;
 
-  console.log(`\n==================================================`);
-  console.log(`[EMAIL DEV] Password reset link for ${to}:`);
-  console.log(`👉 ${resetUrl}`);
-  console.log(`==================================================\n`);
+  if (isDev) {
+    console.log(`\n==================================================`);
+    console.log(`[EMAIL DEV] Password reset link for ${to}:`);
+    console.log(`👉 ${resetUrl}`);
+    console.log(`==================================================\n`);
 
-  try {
-    fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] RESET PASSWORD for ${to}: ${resetUrl}\n`);
-  } catch (err) {}
+    try {
+      fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] RESET PASSWORD for ${to}: ${resetUrl}\n`);
+    } catch (err) {}
+  }
 
   if (!transporter) return;
 
