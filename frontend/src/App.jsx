@@ -22,6 +22,16 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import { useTranslation } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 import { BACKEND_URL } from './utils/config.js';
+import { getNotificationTitle, getNotificationBody } from './utils/notificationText.js';
+import NotificationsPage from './components/NotificationsPage';
+import WeatherPage from './components/WeatherPage';
+import ParcellesMapPage from './components/ParcellesMapPage';
+import CropCalendarPage from './components/CropCalendarPage';
+import ProducerStatsPage from './components/ProducerStatsPage';
+import BuyerStatsPage from './components/BuyerStatsPage';
+import ProducerTransactionsPage from './components/ProducerTransactionsPage';
+import BuyerTransactionsPage from './components/BuyerTransactionsPage';
+import HelpPage from './components/HelpPage';
 
 // Helper: get token from sessionStorage
 // TODO(security): In production, migrate to HttpOnly cookies to prevent XSS token theft.
@@ -304,6 +314,16 @@ export default function App() {
     } catch { }
   };
 
+  const handleMarkOneRead = async (notifId) => {
+    try {
+      await fetch(`${BACKEND_URL}/api/notifications/${notifId}/read`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+    } catch { }
+  };
+
   const handleNotificationClick = (n) => {
     setNotifOpen(false);
     if (n.auctionId) {
@@ -313,45 +333,6 @@ export default function App() {
     } else {
       navigate('/dashboard');
     }
-  };
-
-  const getNotificationTitle = (n) => {
-    if (n.type === 'new_bid') return t('newBidNotificationTitle');
-    if (n.type === 'bid_accepted') return t('bidAcceptedNotificationTitle');
-    if (n.type === 'auction_scheduled') return t('auctionScheduledNotificationTitle');
-    if (n.type === 'auction_starting_soon') return t('auctionStartingSoonNotificationTitle');
-    if (n.type === 'auction_canceled') return t('auctionCanceledNotificationTitle');
-    return t('newDemandAtDistance', { distance: n.distanceKm || 0 });
-  };
-
-  const getNotificationBody = (n) => {
-    if (n.type === 'new_bid') return t('newBidNotificationBody', { product: n.product });
-    if (n.type === 'bid_accepted') {
-      if (n.price != null) {
-        return t('bidAcceptedNotificationBody', {
-          product: n.product,
-          price: n.price,
-          unit: t('unit_' + (n.unit || 'tonnes')),
-        });
-      }
-      return t('bidAcceptedNotificationBodyPackage', {
-        product: n.product,
-        count: n.optionCount || 0,
-      });
-    }
-    if (n.type === 'auction_scheduled') {
-      return t('auctionScheduledNotificationBody', {
-        product: n.product,
-        date: n.startAt ? new Date(n.startAt).toLocaleString('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '',
-      });
-    }
-    if (n.type === 'auction_starting_soon') {
-      return t('auctionStartingSoonNotificationBody', { product: n.product });
-    }
-    if (n.type === 'auction_canceled') {
-      return t('auctionCanceledNotificationBody', { product: n.product });
-    }
-    return `${n.product} — ${n.quantity} ${t('unit_' + n.unit)}`;
   };
 
   // Avatar
@@ -496,10 +477,10 @@ export default function App() {
                                 <div className="notif-dot" />
                                 <div className="notif-content">
                                   <div className="notif-title">
-                                    {getNotificationTitle(n)}
+                                    {getNotificationTitle(n, t)}
                                   </div>
                                   <div className="notif-body">
-                                    {getNotificationBody(n)}
+                                    {getNotificationBody(n, t)}
                                   </div>
                                   <div className="notif-time">
                                     {new Date(n.createdAt).toLocaleTimeString('fr-DZ', { hour: '2-digit', minute: '2-digit' })}
@@ -645,6 +626,75 @@ export default function App() {
                     token={token}
                   />
                 )}
+              </DashboardLayout>
+            ) : <Navigate to="/login" replace />
+          } />
+
+          <Route path="/dashboard/notifications" element={
+            user && token ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                <NotificationsPage
+                  notifications={notifications}
+                  onMarkAllRead={handleMarkAllRead}
+                  onMarkOneRead={handleMarkOneRead}
+                  onNotificationClick={handleNotificationClick}
+                />
+              </DashboardLayout>
+            ) : <Navigate to="/login" replace />
+          } />
+
+          <Route path="/dashboard/weather" element={
+            user && token && user.role === 'producer' ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                <WeatherPage parcelles={parcelles} loadingParcelles={loadingParcelles} />
+              </DashboardLayout>
+            ) : <Navigate to="/dashboard" replace />
+          } />
+
+          <Route path="/dashboard/map" element={
+            user && token && user.role === 'producer' ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                <ParcellesMapPage parcelles={parcelles} loadingParcelles={loadingParcelles} />
+              </DashboardLayout>
+            ) : <Navigate to="/dashboard" replace />
+          } />
+
+          <Route path="/dashboard/calendar" element={
+            user && token && user.role === 'producer' ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                <CropCalendarPage parcelles={parcelles} loadingParcelles={loadingParcelles} />
+              </DashboardLayout>
+            ) : <Navigate to="/dashboard" replace />
+          } />
+
+          <Route path="/dashboard/stats" element={
+            user && token ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                {user.role === 'buyer' ? (
+                  <BuyerStatsPage user={user} auctions={auctions} />
+                ) : (
+                  <ProducerStatsPage user={user} auctions={auctions} />
+                )}
+              </DashboardLayout>
+            ) : <Navigate to="/login" replace />
+          } />
+
+          <Route path="/dashboard/transactions" element={
+            user && token ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                {user.role === 'buyer' ? (
+                  <BuyerTransactionsPage user={user} auctions={auctions} />
+                ) : (
+                  <ProducerTransactionsPage user={user} auctions={auctions} />
+                )}
+              </DashboardLayout>
+            ) : <Navigate to="/login" replace />
+          } />
+
+          <Route path="/dashboard/help" element={
+            user && token ? (
+              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                <HelpPage />
               </DashboardLayout>
             ) : <Navigate to="/login" replace />
           } />

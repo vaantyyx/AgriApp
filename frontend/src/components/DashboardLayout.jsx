@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
-import { LayoutDashboard, Gavel, User, MapPin, ChevronRight, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Gavel, User, MapPin, ChevronRight, ChevronLeft, CloudSun, Map as MapIcon, Calendar, BarChart3, Receipt, Bell, HelpCircle } from 'lucide-react';
 
 export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, onCloseMobile, children }) {
   const { t, locale, dir } = useTranslation();
@@ -24,18 +24,36 @@ export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, on
   if (location.pathname.includes('/profile')) activeTab = 'profile';
   else if (location.pathname.includes('/dashboard/auctions')) activeTab = 'auctions';
   else if (location.pathname.includes('/dashboard/parcelles')) activeTab = 'parcelles';
+  else if (location.pathname.includes('/dashboard/map')) activeTab = 'map';
+  else if (location.pathname.includes('/dashboard/weather')) activeTab = 'weather';
+  else if (location.pathname.includes('/dashboard/calendar')) activeTab = 'calendar';
+  else if (location.pathname.includes('/dashboard/stats')) activeTab = 'stats';
+  else if (location.pathname.includes('/dashboard/transactions')) activeTab = 'transactions';
+  else if (location.pathname.includes('/dashboard/notifications')) activeTab = 'notifications';
+  else if (location.pathname.includes('/dashboard/help')) activeTab = 'help';
 
   const buyerItems = [
-    { id: 'dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
-    { id: 'auctions',  icon: Gavel,           labelKey: 'myAuctions' },
-    { id: 'profile',   icon: User,            labelKey: 'profile' },
+    { id: 'dashboard',      icon: LayoutDashboard, labelKey: 'dashboard' },
+    { id: 'auctions',       icon: Gavel,           labelKey: 'myAuctions' },
+    { id: 'stats',          icon: BarChart3,       labelKey: 'sidebarStats' },
+    { id: 'transactions',   icon: Receipt,         labelKey: 'sidebarTransactions' },
+    { id: 'notifications',  icon: Bell,            labelKey: 'notifications' },
+    { id: 'profile',        icon: User,            labelKey: 'profile' },
+    { id: 'help',           icon: HelpCircle,      labelKey: 'sidebarHelp' },
   ];
 
   const producerItems = [
-    { id: 'dashboard', icon: LayoutDashboard, labelKey: 'dashboard' },
-    { id: 'parcelles', icon: MapPin,          labelKey: 'myParcelles' },
-    { id: 'auctions',  icon: Gavel,           labelKey: 'auctions' },
-    { id: 'profile',   icon: User,            labelKey: 'profile' },
+    { id: 'dashboard',      icon: LayoutDashboard, labelKey: 'dashboard' },
+    { id: 'parcelles',      icon: MapPin,          labelKey: 'myParcelles' },
+    { id: 'map',            icon: MapIcon,         labelKey: 'sidebarMap' },
+    { id: 'weather',        icon: CloudSun,        labelKey: 'sidebarWeather' },
+    { id: 'calendar',       icon: Calendar,        labelKey: 'sidebarCalendar' },
+    { id: 'auctions',       icon: Gavel,           labelKey: 'auctions' },
+    { id: 'stats',          icon: BarChart3,       labelKey: 'sidebarStats' },
+    { id: 'transactions',   icon: Receipt,         labelKey: 'sidebarTransactions' },
+    { id: 'notifications',  icon: Bell,            labelKey: 'notifications' },
+    { id: 'profile',        icon: User,            labelKey: 'profile' },
+    { id: 'help',           icon: HelpCircle,      labelKey: 'sidebarHelp' },
   ];
 
   const items = user?.role === 'buyer' ? buyerItems : producerItems;
