@@ -118,12 +118,6 @@ function ContactSupportModal({ user, token, locale, dir, t, onClose }) {
               />
             </div>
 
-            {user?.email && (
-              <p style={{ color: 'var(--text-faint)', fontSize: '0.75rem', marginBottom: 18 }}>
-                {t('helpContactReplyNote', { email: user.email })}
-              </p>
-            )}
-
             {error && (
               <div style={{
                 borderRadius: 8, padding: '10px 14px', fontSize: '0.85rem', marginBottom: 16,

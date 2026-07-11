@@ -517,7 +517,6 @@ export const translations = {
     helpContactErrorGeneric: "حدث خطأ. يرجى المحاولة مرة أخرى.",
     helpContactSubjectRequired: "يرجى إدخال موضوع الرسالة.",
     helpContactMessageRequired: "يرجى كتابة رسالتك.",
-    helpContactReplyNote: "سنرد عليك على: {email}",
 
     // Landing Page v2
     landingNavAbout: "من نحن",
@@ -1130,7 +1129,6 @@ export const translations = {
     helpContactErrorGeneric: "Une erreur est survenue. Veuillez réessayer.",
     helpContactSubjectRequired: "Veuillez saisir un sujet.",
     helpContactMessageRequired: "Veuillez écrire votre message.",
-    helpContactReplyNote: "Nous vous répondrons à : {email}",
 
     // Landing Page v2
     landingNavAbout: "À propos",
@@ -1742,7 +1740,6 @@ export const translations = {
     helpContactErrorGeneric: "Something went wrong. Please try again.",
     helpContactSubjectRequired: "Please enter a subject.",
     helpContactMessageRequired: "Please write your message.",
-    helpContactReplyNote: "We'll reply to: {email}",
 
     // Landing Page v2
     landingNavAbout: "About",
