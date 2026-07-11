@@ -6,11 +6,8 @@ import { BACKEND_URL } from '../utils/config.js';
 const secTrans = {
   fr: {
     twoFactorTitle: "Double authentification (2FA)",
-    twoFactorDesc: "Ajoutez une couche de sécurité supplémentaire à votre compte. Lors de la connexion, vous devrez saisir un code envoyé par e-mail ou SMS.",
+    twoFactorDesc: "Ajoutez une couche de sécurité supplémentaire à votre compte. Lors de la connexion, vous devrez saisir un code envoyé par e-mail.",
     enable2FA: "Activer la double authentification",
-    twoFactorMethod: "Méthode de réception",
-    methodEmail: "E-mail",
-    methodPhone: "SMS / Téléphone",
     saveSecurityBtn: "Enregistrer les paramètres de sécurité",
     securitySaveSuccess: "Paramètres de sécurité mis à jour.",
     changePasswordTitle: "Changer le mot de passe",
@@ -34,11 +31,8 @@ const secTrans = {
   },
   ar: {
     twoFactorTitle: "التحقق المزدوج (2FA)",
-    twoFactorDesc: "أضف طبقة أمان إضافية لحسابك. عند تسجيل الدخول، ستحتاج إلى إدخال رمز مرسل عبر البريد الإلكتروني أو الرسائل النصية القصيرة.",
+    twoFactorDesc: "أضف طبقة أمان إضافية لحسابك. عند تسجيل الدخول، ستحتاج إلى إدخال رمز مرسل عبر البريد الإلكتروني.",
     enable2FA: "تفعيل التحقق المزدوج",
-    twoFactorMethod: "طريقة الاستلام",
-    methodEmail: "البريد الإلكتروني",
-    methodPhone: "رسالة نصية قصيرة (SMS)",
     saveSecurityBtn: "حفظ إعدادات الأمان",
     securitySaveSuccess: "تم تحديث إعدادات الأمان بنجاح.",
     changePasswordTitle: "تغيير كلمة المرور",
@@ -62,11 +56,8 @@ const secTrans = {
   },
   en: {
     twoFactorTitle: "Two-Factor Authentication (2FA)",
-    twoFactorDesc: "Add an extra layer of security to your account. Upon logging in, you will be required to enter a code sent via email or SMS.",
+    twoFactorDesc: "Add an extra layer of security to your account. Upon logging in, you will be required to enter a code sent via email.",
     enable2FA: "Enable Two-Factor Authentication",
-    twoFactorMethod: "Delivery Method",
-    methodEmail: "Email",
-    methodPhone: "SMS / Phone",
     saveSecurityBtn: "Save Security Settings",
     securitySaveSuccess: "Security settings updated successfully.",
     changePasswordTitle: "Change Password",
@@ -95,7 +86,6 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
   const secT = secTrans[locale] || secTrans.fr;
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [twoFactorMethod, setTwoFactorMethod] = useState('email');
   const [savingSecurity, setSavingSecurity] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -114,7 +104,6 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
   useEffect(() => {
     if (profile) {
       setTwoFactorEnabled(!!profile.two_factor_enabled);
-      setTwoFactorMethod(profile.two_factor_method || 'email');
     }
   }, [profile]);
 
@@ -124,12 +113,12 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
       const res = await fetch(`${BACKEND_URL}/api/profile/security`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ two_factor_enabled: twoFactorEnabled, two_factor_method: twoFactorMethod }),
+        body: JSON.stringify({ two_factor_enabled: twoFactorEnabled }),
       });
       const data = await res.json();
       if (res.ok) {
         showToast(secT.securitySaveSuccess);
-        setProfile(prev => ({ ...prev, two_factor_enabled: twoFactorEnabled, two_factor_method: twoFactorMethod }));
+        setProfile(prev => ({ ...prev, two_factor_enabled: twoFactorEnabled }));
         if (onUserUpdate && data.user) onUserUpdate({ ...initialUser, ...data.user });
       } else {
         showToast(data.error || secT.updateError, 'error');
@@ -148,7 +137,7 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
       const res = await fetch(`${BACKEND_URL}/api/profile/password/otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ current_password: currentPassword }),
+        body: JSON.stringify({ current_password: currentPassword, locale }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -195,6 +184,7 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
       const res = await fetch(`${BACKEND_URL}/api/profile/deactivate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ locale }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -229,21 +219,6 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
             </button>
             <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>{secT.enable2FA}</span>
           </div>
-          {twoFactorEnabled && (
-            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '300px' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{secT.twoFactorMethod}</label>
-              <select value={twoFactorMethod} onChange={(e) => setTwoFactorMethod(e.target.value)} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.9rem', outline: 'none' }}>
-                <option value="email">{secT.methodEmail}</option>
-                <option value="phone">{secT.methodPhone}</option>
-              </select>
-              {twoFactorMethod === 'phone' && !profile?.phone && (
-                <p style={{ fontSize: '0.75rem', color: '#ef4444', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <AlertCircle size={12} />
-                  {locale === 'fr' ? "Veuillez renseigner votre numéro de téléphone dans l'onglet profil pour recevoir les codes par SMS." : (locale === 'ar' ? "يرجى كتابة رقم هاتفك في تبويب الحساب لتلقي الرموز عبر رسائل SMS." : "Please add your phone number in the profile tab to receive codes via SMS.")}
-                </p>
-              )}
-            </div>
-          )}
           <div>
             <button onClick={handleSaveSecuritySettings} disabled={savingSecurity} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.875rem' }}>
               {savingSecurity ? spinner : <Save size={14} />}

@@ -6,17 +6,16 @@ import { getDb } from '../db.js';
 import { sendVerificationEmail, sendWelcomeEmail, sendOtpEmail, sendPasswordResetEmail } from '../services/emailService.js';
 import { createOtp, verifyOtp } from '../services/otpService.js';
 import { consumeVerifiedChallenge } from '../services/captchaService.js';
+import { resolveLocale } from '../utils/locale.js';
 
 
 const router = express.Router();
 
-// OTP codes must never be persisted to logs/console outside of local development.
-const isDev = (process.env.NODE_ENV || 'development') !== 'production';
-
 // ─── POST /api/auth/register ───────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, phone, wilaya, commune, entity_type, acceptedTerms } = req.body;
+    const { name, email, password, role, phone, wilaya, commune, entity_type, acceptedTerms, locale } = req.body;
+    const userLocale = resolveLocale(locale);
 
     // Input validation
     if (!name || !email || !password || !role) {
@@ -73,6 +72,7 @@ router.post('/register', async (req, res) => {
       commune: commune || '',
       entity_type: role === 'buyer' ? (entity_type || 'particulier') : 'particulier',
       bio: '',
+      preferredLocale: userLocale,
       termsAcceptedAt: new Date(),
       createdAt: new Date(),
     };
@@ -81,7 +81,7 @@ router.post('/register', async (req, res) => {
 
     // Send verification email (do not log credentials)
     try {
-      await sendVerificationEmail(newUser.email, newUser.name, verificationToken);
+      await sendVerificationEmail(newUser.email, newUser.name, verificationToken, userLocale);
     } catch (emailErr) {
       console.error('[EMAIL] Failed to send verification email:', emailErr.message);
       // Continue - user created, email failed is non-fatal
@@ -99,7 +99,7 @@ router.post('/register', async (req, res) => {
 // ─── POST /api/auth/resend-verification ────────────────────────────────────
 router.post('/resend-verification', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, locale } = req.body;
     if (!email) {
       return res.status(400).json({ error: 'Email requis.' });
     }
@@ -130,7 +130,7 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     try {
-      await sendVerificationEmail(user.email, user.name, verificationToken);
+      await sendVerificationEmail(user.email, user.name, verificationToken, resolveLocale(locale));
     } catch (emailErr) {
       console.error('[EMAIL] Failed to resend verification email:', emailErr.message);
       return res.status(500).json({ error: "Erreur lors de l'envoi de l'email. Réessayez plus tard." });
@@ -173,9 +173,9 @@ router.get('/verify-email', async (req, res) => {
       { $set: { isVerified: true } }
     );
 
-    // Send welcome email
+    // Send welcome email, in the language chosen at registration
     try {
-      await sendWelcomeEmail(user.email, user.name, user.role);
+      await sendWelcomeEmail(user.email, user.name, user.role, resolveLocale(user.preferredLocale));
     } catch (e) {
       // Non-fatal
     }
@@ -190,7 +190,7 @@ router.get('/verify-email', async (req, res) => {
 // ─── POST /api/auth/login ──────────────────────────────────────────────────
 router.post('/login', async (req, res) => {
   try {
-    const { email, password, captchaChallengeId } = req.body;
+    const { email, password, captchaChallengeId, locale } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email et mot de passe requis.' });
@@ -232,32 +232,15 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check if user has two-factor authentication enabled
+    // Check if user has two-factor authentication enabled (email is the only delivery method)
     if (user.two_factor_enabled) {
       const otp = await createOtp(user._id.toString(), 'login');
-      const method = user.two_factor_method || 'email';
-      
-      if (isDev && method === 'phone' && user.phone) {
-        console.log(`\n==================================================`);
-        console.log(`[SMS DEV] SMS sent to ${user.phone}:`);
-        console.log(`👉 SOUGRA Code de connexion: ${otp}. Valide 5 min.`);
-        console.log(`==================================================\n`);
-      }
 
-      // Send code via email
-      await sendOtpEmail(
-        user.email,
-        user.name,
-        otp,
-        5,
-        'Code de connexion',
-        'Double authentification - Sougra',
-        'Utilisez le code de connexion ci-dessous pour confirmer votre accès.'
-      );
+      await sendOtpEmail(user.email, user.name, otp, 5, 'login', resolveLocale(locale));
 
       return res.json({
         status: 'OTP_REQUIRED',
-        message: `Un code OTP de sécurité a été envoyé à ${method === 'phone' && user.phone ? 'votre téléphone' : 'votre adresse email'}.`,
+        message: 'Un code OTP de sécurité a été envoyé à votre adresse email.',
         identifier: user.email,
       });
     }
@@ -336,7 +319,6 @@ router.post('/verify-otp', async (req, res) => {
         wilaya: user.wilaya || '',
         commune: user.commune || '',
         two_factor_enabled: !!user.two_factor_enabled,
-        two_factor_method: user.two_factor_method || 'email',
       },
     });
   } catch (err) {
@@ -348,7 +330,7 @@ router.post('/verify-otp', async (req, res) => {
 // ─── POST /api/auth/resend-otp ─────────────────────────────────────────────
 router.post('/resend-otp', async (req, res) => {
   try {
-    const { identifier } = req.body;
+    const { identifier, locale } = req.body;
     if (!identifier) {
       return res.status(400).json({ error: 'Identifiant requis.' });
     }
@@ -364,24 +346,8 @@ router.post('/resend-otp', async (req, res) => {
     }
 
     const otp = await createOtp(user._id.toString(), 'login');
-    const method = user.two_factor_method || 'email';
-    
-    if (isDev && method === 'phone' && user.phone) {
-      console.log(`\n==================================================`);
-      console.log(`[SMS DEV] SMS resent to ${user.phone}:`);
-      console.log(`👉 SOUGRA Code de connexion: ${otp}. Valide 5 min.`);
-      console.log(`==================================================\n`);
-    }
 
-    await sendOtpEmail(
-      user.email,
-      user.name,
-      otp,
-      5,
-      'Code de connexion',
-      'Double authentification - Sougra (Renvoyé)',
-      'Utilisez le nouveau code de connexion ci-dessous pour confirmer votre accès.'
-    );
+    await sendOtpEmail(user.email, user.name, otp, 5, 'login_resend', resolveLocale(locale));
 
     res.json({ message: 'Nouveau code OTP envoyé.' });
   } catch (err) {
@@ -392,7 +358,7 @@ router.post('/resend-otp', async (req, res) => {
 // ─── POST /api/auth/forgot-password ──────────────────────────────────────────
 router.post('/forgot-password', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, locale } = req.body;
     if (!email) return res.status(400).json({ error: 'Email requis.' });
 
     const db = getDb();
@@ -411,7 +377,7 @@ router.post('/forgot-password', async (req, res) => {
       { $set: { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires } }
     );
 
-    await sendPasswordResetEmail(user.email, user.name, resetToken);
+    await sendPasswordResetEmail(user.email, user.name, resetToken, resolveLocale(locale));
 
     res.json({ message: 'Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé.' });
   } catch (err) {

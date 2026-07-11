@@ -247,6 +247,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
           commune: selectedCommune ? selectedCommune.commune_name_latin : '',
           entity_type,
           acceptedTerms,
+          locale,
         }),
       });
       const data = await res.json();

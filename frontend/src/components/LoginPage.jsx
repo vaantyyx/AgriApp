@@ -68,7 +68,6 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   const [resendingVerification, setResendingVerification] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
   const [otpRequired, setOtpRequired] = useState(false);
-  const [otpMethod, setOtpMethod] = useState(''); // 'email' | 'sms'
   const [otpValue, setOtpValue] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
@@ -76,7 +75,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   const cooldownRef = useRef(null);
   const captchaRef = useRef(null);
 
-  const { t, dir } = useTranslation();
+  const { t, dir, locale } = useTranslation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -91,7 +90,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password, captchaChallengeId }),
+        body: JSON.stringify({ email: email.trim(), password, captchaChallengeId, locale }),
       });
       // The token is single-use and gets consumed server-side on this call
       // regardless of outcome below, so the badge must go back to unverified.
@@ -103,7 +102,6 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       } else if (data.status === 'OTP_REQUIRED') {
         // 2FA required — show OTP step
         setOtpRequired(true);
-        setOtpMethod(data.method || 'email');
         startCooldown(60);
       } else {
         onLoginSuccess(data.token, data.user);
@@ -122,7 +120,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       const res = await fetch(`${BACKEND_URL}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), locale }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -154,7 +152,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
       await fetch(`${BACKEND_URL}/api/auth/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: email.trim() }),
+        body: JSON.stringify({ identifier: email.trim(), locale }),
       });
       startCooldown(60);
       setOtpError('');
@@ -226,9 +224,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
 
             <h1 className="auth-form-title">Code de vérification</h1>
             <p className="auth-form-sub">
-              {otpMethod === 'sms'
-                ? `Un SMS a été envoyé au numéro associé à ${email}.`
-                : `Un e-mail a été envoyé à ${email}.`}
+              {`Un e-mail a été envoyé à ${email}.`}
             </p>
 
             <div style={{ marginBottom: 28 }}>

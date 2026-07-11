@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Leaf, Mail, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
+import { useTranslation } from '../context/LanguageContext';
 
 export default function ForgotPasswordPage() {
+  const { locale } = useTranslation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
@@ -25,7 +27,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch(`${BACKEND_URL}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), locale }),
       });
       const data = await res.json();
       

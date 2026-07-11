@@ -6,13 +6,11 @@ import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import { getDb } from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
-import { sendOtpEmail } from '../services/emailService.js';
+import { sendOtpEmail, sendAccountDeactivationEmail } from '../services/emailService.js';
 import { createOtp, verifyOtp } from '../services/otpService.js';
+import { resolveLocale } from '../utils/locale.js';
 
 const router = express.Router();
-
-// OTP codes must never be persisted to logs/console outside of local development.
-const isDev = (process.env.NODE_ENV || 'development') !== 'production';
 
 // All profile routes require authentication
 router.use(authMiddleware);
@@ -274,7 +272,7 @@ router.post('/upload-carte-agriculteur', uploadDoc.single('carteAgriculteur'), a
 
 router.post('/password/otp', async (req, res) => {
   try {
-    const { current_password } = req.body;
+    const { current_password, locale } = req.body;
     if (!current_password) {
       return res.status(400).json({ error: 'Mot de passe actuel requis.' });
     }
@@ -291,27 +289,9 @@ router.post('/password/otp', async (req, res) => {
       return res.status(403).json({ error: 'Mot de passe actuel incorrect.' });
     }
 
-    // Generate OTP code
+    // Generate and email the OTP code (email is the only delivery method)
     const otp = await createOtp(user._id.toString(), 'password_change');
-    const method = user.two_factor_method || 'email';
-
-    if (isDev && method === 'phone' && user.phone) {
-      console.log(`\n==================================================`);
-      console.log(`[SMS DEV] SMS sent to ${user.phone}:`);
-      console.log(`👉 SOUGRA Code de changement de mot de passe: ${otp}. Valide 10 min.`);
-      console.log(`==================================================\n`);
-    }
-
-    // Send OTP email
-    await sendOtpEmail(
-      user.email,
-      user.name,
-      otp,
-      10,
-      'Changement de mot de passe',
-      'Code de confirmation - Changement de mot de passe',
-      'Utilisez le code ci-dessous pour confirmer votre demande de changement de mot de passe.'
-    );
+    await sendOtpEmail(user.email, user.name, otp, 10, 'password_change', resolveLocale(locale));
 
     res.json({ message: 'Code de vérification envoyé avec succès.' });
   } catch (err) {
@@ -366,22 +346,16 @@ router.post('/password/change', async (req, res) => {
 // ─── PUT /api/profile/security ──────────────────────────────────────────────
 router.put('/security', async (req, res) => {
   try {
-    const { two_factor_enabled, two_factor_method } = req.body;
-    
+    const { two_factor_enabled } = req.body;
+
     if (two_factor_enabled === undefined) {
       return res.status(400).json({ error: 'two_factor_enabled requis.' });
     }
-    
+
+    // Email is the only 2FA delivery method — no method choice to store.
     const updates = {
       two_factor_enabled: !!two_factor_enabled
     };
-    
-    if (two_factor_method !== undefined) {
-      if (!['email', 'phone'].includes(two_factor_method)) {
-        return res.status(400).json({ error: 'two_factor_method doit être email ou phone.' });
-      }
-      updates.two_factor_method = two_factor_method;
-    }
 
     const db = getDb();
     await db.collection('users').updateOne(
@@ -405,7 +379,6 @@ router.put('/security', async (req, res) => {
         wilaya: updatedUser.wilaya || '',
         commune: updatedUser.commune || '',
         two_factor_enabled: !!updatedUser.two_factor_enabled,
-        two_factor_method: updatedUser.two_factor_method || 'email',
         phone: updatedUser.phone || '',
         entity_type: updatedUser.entity_type || 'particulier',
         bio: updatedUser.bio || '',
@@ -429,6 +402,7 @@ router.put('/security', async (req, res) => {
 router.post('/deactivate', async (req, res) => {
   try {
     const userId = req.user.userId;
+    const locale = resolveLocale(req.body.locale);
     const db = getDb();
 
     const updatedUser = await db.collection('users').findOneAndUpdate(
@@ -444,11 +418,9 @@ router.post('/deactivate', async (req, res) => {
     res.json({ message: 'Compte désactivé avec succès.' });
 
     // Send deactivation confirmation email (fire & forget)
-    import('../services/emailService.js').then(({ sendAccountDeactivationEmail }) => {
-      sendAccountDeactivationEmail(updatedUser.email, updatedUser.name).catch(err => {
-        console.error('[DEACTIVATE] Failed to send deactivation email:', err.message);
-      });
-    }).catch(() => {});
+    sendAccountDeactivationEmail(updatedUser.email, updatedUser.name, locale).catch(err => {
+      console.error('[DEACTIVATE] Failed to send deactivation email:', err.message);
+    });
   } catch (err) {
     console.error('[DEACTIVATE ERROR]', err.message);
     res.status(500).json({ error: 'Erreur serveur lors de la désactivation du compte.' });
