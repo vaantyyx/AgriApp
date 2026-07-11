@@ -336,7 +336,7 @@ export default function App() {
   };
 
   // Avatar
-  const photoUrl = user?.profilePhoto ? `${BACKEND_URL}/uploads/${user.profilePhoto}` : null;
+  const photoUrl = user?.profilePhoto ? `${BACKEND_URL}/uploads/${user.profilePhoto}?token=${token}` : null;
   const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
   const avatarColors = ['#1a7a4a', '#059669', '#0e4f2f', '#22a362'];
   const colorIndex = user?.name ? user.name.charCodeAt(0) % avatarColors.length : 0;

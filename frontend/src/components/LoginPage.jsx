@@ -162,7 +162,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   };
 
   const handleVerifyOtp = async () => {
-    if (otpValue.replace(/\D/g, '').length < 6) { setOtpError('Entrez le code à 6 chiffres complet.'); return; }
+    if (otpValue.replace(/\D/g, '').length < 6) { setOtpError(t('otpEnterFullCode')); return; }
     setOtpLoading(true);
     setOtpError('');
     try {
@@ -198,14 +198,14 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
               </div>
               <span style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-heading)' }}>{t('appName')}</span>
             </div>
-            <h2>Vérification</h2>
-            <h2 style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginBottom: 16 }}>en deux étapes</h2>
-            <p>Votre compte est protégé par la double authentification. Un code unique a été envoyé.</p>
+            <h2>{t('otpStepTitleLine1')}</h2>
+            <h2 style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginBottom: 16 }}>{t('otpStepTitleLine2')}</h2>
+            <p>{t('otpStepIntro')}</p>
             <div className="auth-left-feature">
               <div className="auth-left-feature-icon"><ShieldCheck size={16} /></div>
               <div>
-                <h4>Double sécurité</h4>
-                <p>Même si votre mot de passe est compromis, votre compte reste protégé.</p>
+                <h4>{t('otpDoubleSecurityTitle')}</h4>
+                <p>{t('otpDoubleSecurityDesc')}</p>
               </div>
             </div>
           </div>
@@ -222,9 +222,9 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
               </span>
             </div>
 
-            <h1 className="auth-form-title">Code de vérification</h1>
+            <h1 className="auth-form-title">{t('otpCodeTitle')}</h1>
             <p className="auth-form-sub">
-              {`Un e-mail a été envoyé à ${email}.`}
+              {t('otpSentToEmail', { email })}
             </p>
 
             <div style={{ marginBottom: 28 }}>
@@ -252,18 +252,18 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
               {otpLoading ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <span style={{ width: 15, height: 15, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                  Vérification…
+                  {t('otpVerifying')}
                 </span>
-              ) : 'Vérifier le code'}
+              ) : t('otpVerifyBtn')}
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
               <RefreshCw size={13} />
               {resendCooldown > 0
-                ? `Renvoyer dans ${resendCooldown}s`
+                ? t('otpResendIn', { seconds: resendCooldown })
                 : (
                   <button onClick={handleResendOtp} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', padding: 0 }}>
-                    Renvoyer le code
+                    {t('otpResendBtn')}
                   </button>
                 )}
             </div>
@@ -273,7 +273,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
                 onClick={() => { setOtpRequired(false); setOtpValue(''); setOtpError(''); }}
                 style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}
               >
-                ← Retour à la connexion
+                {t('otpBackToLogin')}
               </button>
             </div>
           </div>

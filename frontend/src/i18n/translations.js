@@ -95,6 +95,21 @@ export const translations = {
     resendEmail: "إعادة إرسال بريد التفعيل",
     emailResent: "تم إرسال البريد! تحقق من صندوق الوارد الخاص بك.",
 
+    // OTP / 2FA step
+    otpStepTitleLine1: "التحقق",
+    otpStepTitleLine2: "بخطوتين",
+    otpStepIntro: "حسابك محمي بالتحقق الثنائي. تم إرسال رمز فريد.",
+    otpDoubleSecurityTitle: "أمان مضاعف",
+    otpDoubleSecurityDesc: "حتى لو تم اختراق كلمة مرورك، يبقى حسابك محميًا.",
+    otpCodeTitle: "رمز التحقق",
+    otpSentToEmail: "تم إرسال بريد إلكتروني إلى {email}.",
+    otpVerifying: "جارٍ التحقق…",
+    otpVerifyBtn: "تحقق من الرمز",
+    otpResendIn: "إعادة الإرسال خلال {seconds} ثانية",
+    otpResendBtn: "إعادة إرسال الرمز",
+    otpBackToLogin: "→ العودة لتسجيل الدخول",
+    otpEnterFullCode: "أدخل الرمز المكون من 6 أرقام كاملاً.",
+
     // Register Page
     registerTitle: "إنشاء حساب",
     joinSougra: "انضم إلى منصة سوقرة",
@@ -632,6 +647,21 @@ export const translations = {
     resendEmail: "Renvoyer l'email d'activation",
     emailResent: "Email renvoyé ! Vérifiez votre boîte de réception.",
 
+    // OTP / 2FA step
+    otpStepTitleLine1: "Vérification",
+    otpStepTitleLine2: "en deux étapes",
+    otpStepIntro: "Votre compte est protégé par la double authentification. Un code unique a été envoyé.",
+    otpDoubleSecurityTitle: "Double sécurité",
+    otpDoubleSecurityDesc: "Même si votre mot de passe est compromis, votre compte reste protégé.",
+    otpCodeTitle: "Code de vérification",
+    otpSentToEmail: "Un e-mail a été envoyé à {email}.",
+    otpVerifying: "Vérification…",
+    otpVerifyBtn: "Vérifier le code",
+    otpResendIn: "Renvoyer dans {seconds}s",
+    otpResendBtn: "Renvoyer le code",
+    otpBackToLogin: "← Retour à la connexion",
+    otpEnterFullCode: "Entrez le code à 6 chiffres complet.",
+
     // Register Page
     registerTitle: "Créer un compte",
     joinSougra: "Rejoignez la plateforme Sougra",
@@ -1167,6 +1197,21 @@ export const translations = {
     checkInboxSpam: "Check your email inbox (and spam folder).",
     resendEmail: "Resend activation email",
     emailResent: "Email resent! Check your inbox.",
+
+    // OTP / 2FA step
+    otpStepTitleLine1: "Verification",
+    otpStepTitleLine2: "in two steps",
+    otpStepIntro: "Your account is protected by two-factor authentication. A unique code has been sent.",
+    otpDoubleSecurityTitle: "Extra security",
+    otpDoubleSecurityDesc: "Even if your password is compromised, your account stays protected.",
+    otpCodeTitle: "Verification code",
+    otpSentToEmail: "An email has been sent to {email}.",
+    otpVerifying: "Verifying…",
+    otpVerifyBtn: "Verify code",
+    otpResendIn: "Resend in {seconds}s",
+    otpResendBtn: "Resend code",
+    otpBackToLogin: "← Back to login",
+    otpEnterFullCode: "Enter the complete 6-digit code.",
 
     // Register Page
     registerTitle: "Create an Account",
