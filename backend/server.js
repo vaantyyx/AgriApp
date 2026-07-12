@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 import jwt from 'jsonwebtoken';
 import pinoHttp from 'pino-http';
 import { createClient } from 'redis';
@@ -50,6 +51,10 @@ if (Object.keys(CAPTCHA_CATEGORIES).length < 4) {
 // ─── App Setup ────────────────────────────────────────────────────────────
 const app = express();
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
+// Gzip/brotli response compression — cuts bandwidth for JSON payloads (auction
+// lists, notifications) and static uploads, which matters most once traffic
+// grows beyond a handful of concurrent users.
+app.use(compression());
 
 // CORS — restrict to frontend origin only (comma-separated ALLOWED_ORIGINS env var, falls back to local dev origins)
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -1075,8 +1080,19 @@ async function startServer() {
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
     await db.collection('users').createIndex({ verificationToken: 1 }, { sparse: true });
     await db.collection('auctions').createIndex({ id: 1 }, { unique: true });
+    // Every auction listing query (initial Socket.IO snapshot, GET /api/auctions/older
+    // pagination) sorts by createdAt — without this, each one is a full collection
+    // scan + in-memory sort that gets slower as the auctions collection grows.
+    await db.collection('auctions').createIndex({ createdAt: -1 });
+    // Backs the checkPendingAuctions scheduler, which runs every 30s against the
+    // whole collection filtered by status+startAt for as long as the server is up.
+    await db.collection('auctions').createIndex({ status: 1, startAt: 1 });
     await db.collection('notifications').createIndex({ userId: 1, read: 1 });
     await db.collection('ratings').createIndex({ auctionId: 1, buyerId: 1 }, { unique: true });
+    // Looked up on every producer connection/auction broadcast for smart-auction
+    // product matching (canProducerParticipate -> hasProducerProduct) — one of the
+    // hottest queries in the app under real traffic.
+    await db.collection('parcelles').createIndex({ userId: 1 });
     // TTL index: auto-reaps abandoned/never-submitted CAPTCHA challenges.
     // Not relied on for security — every read already filters expiresAt itself.
     await db.collection('captcha_challenges').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });

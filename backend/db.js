@@ -14,7 +14,12 @@ export async function connectToDatabase() {
 
   try {
     console.log(`Connecting to MongoDB at: ${MONGODB_URI}`);
-    client = new MongoClient(MONGODB_URI);
+    // Configurable so ops can raise it under real concurrent load without a
+    // code change; the driver default (100) is a reasonable ceiling for a
+    // single small instance but too low once this scales to multiple app
+    // server processes sharing the same MongoDB deployment.
+    const maxPoolSize = parseInt(process.env.MONGODB_MAX_POOL_SIZE || '', 10) || 100;
+    client = new MongoClient(MONGODB_URI, { maxPoolSize });
     await client.connect();
     db = client.db();
     console.log('Successfully connected to MongoDB.');
