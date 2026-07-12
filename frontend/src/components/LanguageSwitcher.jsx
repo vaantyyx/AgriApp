@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from '../context/LanguageContext';
-import { UKFlag, LANGS } from './landingShared';
+import { UKFlag } from './landingShared';
+import { LANGS } from '../utils/languages.js';
 
 /* Flag-icon language switcher used in the app header (dashboard/profile
    routes) — same trigger+dropdown pattern as the landing navbar's language

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
@@ -28,14 +28,14 @@ export default function AdminDashboardPage({ token }) {
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
 
-  const authHeaders = { Authorization: `Bearer ${token}` };
+  const authHeaders = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token]);
 
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/admin/stats`, { headers: authHeaders });
       if (res.ok) setStats(await res.json());
     } catch { /* stats are non-critical */ }
-  }, [token]);
+  }, [authHeaders]);
 
   const fetchUsers = useCallback(async (targetPage, searchTerm) => {
     setLoading(true);
@@ -50,7 +50,7 @@ export default function AdminDashboardPage({ token }) {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [authHeaders]);
 
   const fetchAuctions = useCallback(async (targetPage) => {
     setLoading(true);
@@ -65,11 +65,15 @@ export default function AdminDashboardPage({ token }) {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [authHeaders]);
 
+  // Data-fetching-on-dependency-change effects: each callback sets a loading
+  // flag / result state after its own fetch, not derived-state-from-props.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
     if (tab === 'users') fetchUsers(1, search);
     else fetchAuctions(1);
@@ -77,6 +81,7 @@ export default function AdminDashboardPage({ token }) {
   }, [tab]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (tab === 'users') fetchUsers(page, search);
     else fetchAuctions(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps

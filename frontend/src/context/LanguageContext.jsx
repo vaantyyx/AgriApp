@@ -1,5 +1,5 @@
 // @ts-check
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 import { translations } from '../i18n/translations';
 
 /**
@@ -59,6 +59,7 @@ export function LanguageProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- context + its hook are colocated by design
 export function useTranslation() {
   const context = useContext(LanguageContext);
   if (!context) {

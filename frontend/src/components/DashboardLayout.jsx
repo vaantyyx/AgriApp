@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { LayoutDashboard, Gavel, User, MapPin, ChevronRight, ChevronLeft, CloudSun, Map as MapIcon, Calendar, BarChart3, Receipt, Bell, HelpCircle } from 'lucide-react';
 
 export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, onCloseMobile, children }) {
-  const { t, locale, dir } = useTranslation();
+  const { t, dir } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Bell, CheckCheck } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { getNotificationTitle, getNotificationBody } from '../utils/notificationText.js';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sprout, Plus, Layers, MapPin, Calendar, Edit3, Trash2, X, Check } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -58,7 +58,7 @@ const getPrimaryCultureType = (parcelle) => {
   return 'Grandes Cultures';
 };
 
-export default function ProducerParcellesPage({ user, parcelles, token, fetchParcelles, loadingParcelles }) {
+export default function ProducerParcellesPage({ parcelles, token, fetchParcelles, loadingParcelles }) {
   const { locale } = useTranslation();
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
 
@@ -131,6 +131,10 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
       map.invalidateSize();
     }, 300);
     return () => clearTimeout(timer);
+    // formLatitude/formLongitude/mapLayer are read only to set the map's
+    // initial state when it (re)opens — including them would recreate the
+    // map on every marker drag or layer switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formOpen]);
 
   const handleSwitchLayer = (layerType) => {

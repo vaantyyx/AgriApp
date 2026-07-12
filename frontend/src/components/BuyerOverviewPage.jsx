@@ -1,8 +1,7 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gavel, Check, ListOrdered, Plus, ArrowRight } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
-import { computeBuyerCompletion } from './BuyerProfilePage';
+import { computeBuyerCompletion } from '../utils/profileCompletion.js';
 
 function getMissingFieldsList(user, locale) {
   const missing = [];

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Cookie } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
@@ -8,12 +8,7 @@ const STORAGE_KEY = 'sougra_cookie_consent'; // 'accepted' | 'rejected'
 export default function CookieConsent() {
   const { t, dir } = useTranslation();
   const navigate = useNavigate();
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) setVisible(true);
-  }, []);
+  const [visible, setVisible] = useState(() => !localStorage.getItem(STORAGE_KEY));
 
   const decide = (choice) => {
     localStorage.setItem(STORAGE_KEY, choice);

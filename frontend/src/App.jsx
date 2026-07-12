@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import io from 'socket.io-client';
-import { Sprout, LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Leaf, Sun, Moon, Menu } from 'lucide-react';
+import { LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Sun, Moon, Menu } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import CookieConsent from './components/CookieConsent';
@@ -99,7 +99,13 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Fetches from the API and sets a loading flag before the first await —
+    // the standard data-fetching-on-dependency-change pattern. fetchParcelles
+    // is intentionally omitted from deps: it's redefined every render and
+    // this should only re-run when token/user change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchParcelles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, user]);
 
   // Notifications state
@@ -108,6 +114,16 @@ export default function App() {
   const notifPanelRef = useRef(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleLogout = () => {
+    setToken(null);
+    setUser(null);
+    setNotifications([]);
+    setNotifOpen(false);
+    sessionStorage.removeItem('agri_token');
+    sessionStorage.removeItem('agri_user');
+    navigate('/login');
+  };
 
   // Sidebar open/close state — lifted here so header & main can adapt
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -127,7 +143,9 @@ export default function App() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-  // Close the drawer automatically on route changes (e.g. back/forward nav)
+  // Close the drawer automatically on route changes (e.g. back/forward nav) —
+  // syncing local UI state to the router, an external system.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setIsMobileDrawerOpen(false); }, [location.pathname]);
 
   // Only show sidebar on authenticated dashboard/profile routes
@@ -165,6 +183,9 @@ export default function App() {
       })
       .then(data => setNotifications(Array.isArray(data) ? data : []))
       .catch(() => { });
+    // handleLogout is intentionally omitted: it's redefined every render and
+    // this should only re-run when token/user change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, user]);
 
   // Refresh the session user from the authoritative profile data on load/login.
@@ -216,6 +237,9 @@ export default function App() {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      // Tearing down the socket (an external system) and resetting the
+      // React state that mirrored its connection — not a derived-state effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConnected(false);
       setAuctions([]);
       setHasMoreAuctions(false);
@@ -290,6 +314,11 @@ export default function App() {
     });
 
     return () => { socket.disconnect(); };
+    // handleLogout and t are intentionally omitted: the socket should only
+    // reconnect when the auth token changes, not on every render or locale
+    // switch — localeRef/userRef above exist precisely to read their latest
+    // values from inside long-lived socket callbacks without that dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleLoginSuccess = (newToken, userInfo) => {
@@ -298,16 +327,6 @@ export default function App() {
     sessionStorage.setItem('agri_token', newToken);
     sessionStorage.setItem('agri_user', JSON.stringify(userInfo));
     navigate(userInfo.role === 'admin' ? '/admin' : '/dashboard');
-  };
-
-  const handleLogout = () => {
-    setToken(null);
-    setUser(null);
-    setNotifications([]);
-    setNotifOpen(false);
-    sessionStorage.removeItem('agri_token');
-    sessionStorage.removeItem('agri_user');
-    navigate('/login');
   };
 
   const handleUserUpdate = (updatedUser) => {
@@ -353,7 +372,7 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch { }
+    } catch { /* non-critical: local state already reflects read status */ }
   };
 
   const handleMarkOneRead = async (notifId) => {
@@ -363,7 +382,7 @@ export default function App() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
-    } catch { }
+    } catch { /* non-critical: local state already reflects read status */ }
   };
 
   const handleNotificationClick = (n) => {

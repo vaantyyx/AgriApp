@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, Key, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Save } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
@@ -127,6 +127,8 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
 
   useEffect(() => {
     if (profile) {
+      // Syncs local toggle state from the profile prop once it loads from the API.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTwoFactorEnabled(!!profile.two_factor_enabled);
     }
   }, [profile]);

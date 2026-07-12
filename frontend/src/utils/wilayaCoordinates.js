@@ -103,13 +103,10 @@ function toRad(deg) {
 export function getCommuneCoords(wilayaId, communeId) {
   if (!wilayaId) return { lat: 36.73, lng: 3.09 };
 
-  let base = null;
   const wId = parseInt(wilayaId);
-  if (!isNaN(wId) && WILAYA_COORDS[wId]) {
-    base = WILAYA_COORDS[wId];
-  } else {
-    base = getCoordsForWilayaName(String(wilayaId));
-  }
+  const base = (!isNaN(wId) && WILAYA_COORDS[wId])
+    ? WILAYA_COORDS[wId]
+    : getCoordsForWilayaName(String(wilayaId));
 
   if (!base) return { lat: 36.73, lng: 3.09 }; // fallback to Algiers
   if (!communeId) return { lat: base.lat, lng: base.lng };

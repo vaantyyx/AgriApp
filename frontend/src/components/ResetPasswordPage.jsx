@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Leaf, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
@@ -11,17 +11,11 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
-  const [error, setError] = useState('');
-  
+
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-
-  useEffect(() => {
-    if (!token) {
-      setError(t('resetTokenMissing'));
-    }
-  }, [token, t]);
+  const [error, setError] = useState(() => token ? '' : t('resetTokenMissing'));
 
   const handleSubmit = async (e) => {
     e.preventDefault();

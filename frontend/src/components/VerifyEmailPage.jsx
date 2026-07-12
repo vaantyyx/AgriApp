@@ -1,25 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { CheckCircle2, XCircle, Loader, Leaf, Mail, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CheckCircle2, XCircle, Loader, Leaf, RefreshCw } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 
 export default function VerifyEmailPage({ onNavigateToLogin }) {
   const { t, dir, locale } = useTranslation();
-  const [status, setStatus] = useState('loading');
-  const [message, setMessage] = useState('');
+  const token = new URLSearchParams(window.location.search).get('token');
+  const [status, setStatus] = useState(token ? 'loading' : 'error');
+  const [message, setMessage] = useState(token ? '' : t('verifErrorTitle'));
   const [resendEmail, setResendEmail] = useState('');
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-
-    if (!token) {
-      setStatus('error');
-      setMessage(t('verifErrorTitle'));
-      return;
-    }
+    if (!token) return;
 
     fetch(`${BACKEND_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}`)
       .then(res => res.json())
@@ -36,7 +30,7 @@ export default function VerifyEmailPage({ onNavigateToLogin }) {
         setStatus('error');
         setMessage(t('serverError'));
       });
-  }, [t]);
+  }, [token, t]);
 
   const handleResend = async () => {
     if (!resendEmail.trim()) return;

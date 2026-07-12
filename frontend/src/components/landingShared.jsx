@@ -1,4 +1,3 @@
-import React from 'react';
 
 /* Simplified Union Jack — no external asset needed for the English option */
 export function UKFlag({ size = 18 }) {
@@ -12,9 +11,3 @@ export function UKFlag({ size = 18 }) {
     </svg>
   );
 }
-
-export const LANGS = [
-  { code: 'fr', label: 'Français', flag: '/img/flags/fr.png' },
-  { code: 'ar', label: 'العربية', flag: '/img/flags/dz.png' },
-  { code: 'en', label: 'English', flag: null },
-];

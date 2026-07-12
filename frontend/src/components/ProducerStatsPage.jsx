@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Trophy, Percent, Wallet, Activity } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { resolveAcceptedLine } from '../utils/auctionHelpers.js';

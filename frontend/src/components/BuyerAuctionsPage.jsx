@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Tag, MessageSquare, Check, Package, X, Star, MapPin,
-  ChevronDown, ChevronUp, Image as ImageIcon,
+  Plus, MessageSquare, Check, Package, X, Star, MapPin,
+  Image as ImageIcon,
   ClipboardList, Layers, CalendarClock, FileSearch,
   ChevronRight, ChevronLeft, AlertTriangle,
   Gavel, Clock, Repeat2, TrendingDown, TrendingUp, Hash,
-  MoreVertical, Eye, Pencil, Trash2,
+  Eye, Pencil, Trash2,
 } from 'lucide-react';
 import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName } from '../utils/wilayaCoordinates.js';
 import { cultureTypes, products } from '../utils/referenceData.js';
@@ -14,7 +14,7 @@ import { BACKEND_URL } from '../utils/config.js';
 import { useTranslation } from '../context/LanguageContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { computeBuyerCompletion } from './BuyerProfilePage';
+import { computeBuyerCompletion } from '../utils/profileCompletion.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -116,7 +116,7 @@ function StarPicker({ value, onChange }) {
 
 function RatingModal({ auctionId, onSubmit, onClose }) {
   const [rating, setRating] = useState(0);
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const cardRef = useRef(null);
   useEscapeKey(true, onClose);
   useFocusTrap(cardRef, true);
@@ -162,7 +162,7 @@ function AuctionMap({ centerLat, centerLng, radiusKm, onRadiusChange, producerCo
     markerRef.current = L.marker([lat, lng], { icon: buyerIcon }).addTo(map);
     circleRef.current = L.circle([lat, lng], { radius: radiusKm * 1000, color: '#10b981', fillColor: '#10b981', fillOpacity: 0.12, weight: 2.5 }).addTo(map);
     leafletMapRef.current = map;
-    const t = setTimeout(() => { try { map.invalidateSize(); if (circleRef.current) map.fitBounds(circleRef.current.getBounds(), { padding: [30, 30], animate: false }); } catch (_) {} }, 400);
+    const t = setTimeout(() => { try { map.invalidateSize(); if (circleRef.current) map.fitBounds(circleRef.current.getBounds(), { padding: [30, 30], animate: false }); } catch { /* map may already be torn down */ } }, 400);
     return () => { clearTimeout(t); map.remove(); leafletMapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -195,60 +195,6 @@ function AuctionMap({ centerLat, centerLng, radiusKm, onRadiusChange, producerCo
   );
 }
 
-function AuctionActionsMenu({ auction, onViewDetails, onEdit, onDelete }) {
-  const { t, locale } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef(null);
-  const canManage = auction.status === 'pending';
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e) { if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false); }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  return (
-    <div ref={menuRef} style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        title={t('actionsBtn')}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, borderRadius: 6, display: 'flex' }}
-      >
-        <MoreVertical size={16} />
-      </button>
-      {open && (
-        <div
-          className="animate-fade-in"
-          style={{
-            position: 'absolute', [locale === 'ar' ? 'left' : 'right']: 0, top: '110%', zIndex: 20,
-            minWidth: 180, background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 10,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.25)', overflow: 'hidden', textAlign: locale === 'ar' ? 'right' : 'left',
-          }}
-        >
-          <button type="button" onClick={() => { setOpen(false); onViewDetails(); }}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-            <Eye size={14} /> {t('viewDetailsBtn')}
-          </button>
-          {canManage && (
-            <button type="button" onClick={() => { setOpen(false); onEdit(); }}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-              <Pencil size={14} /> {t('editAuctionBtn')}
-            </button>
-          )}
-          {canManage && (
-            <button type="button" onClick={() => { setOpen(false); onDelete(); }}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--border)', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)' }}>
-              <Trash2 size={14} /> {t('deleteAuctionBtn')}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function DeleteAuctionModal({ onConfirm, onClose }) {
   const { t } = useTranslation();
   const cardRef = useRef(null);
@@ -274,17 +220,8 @@ function DeleteAuctionModal({ onConfirm, onClose }) {
   );
 }
 
-function getMissingFieldsList(user, locale) {
-  const missing = [];
-  if (!user) return [];
-  if (!user.wilaya?.trim()) missing.push(locale === 'ar' ? 'الولاية' : 'Wilaya');
-  if (!user.commune?.trim()) missing.push(locale === 'ar' ? 'البلدية' : 'Commune');
-  if (!user.phone?.trim()) missing.push(locale === 'ar' ? 'الهاتف' : (locale === 'en' ? 'Phone' : 'Téléphone'));
-  return missing;
-}
-
 export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onUpdateAuction, onDeleteAuction, onAcceptBid, onRateProducer, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
-  const { t, locale, dir } = useTranslation();
+  const { t, locale } = useTranslation();
   const navigate = useNavigate();
 
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -335,16 +272,6 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
       .catch(() => { if (active) setProducerCount(0); });
     return () => { active = false; };
   }, [userCoords, radiusKm, auctionType, productIdsJoined]);
-
-  useEffect(() => {
-    if (highlightAuctionId) {
-      const found = auctions.find(a => a.id === highlightAuctionId);
-      if (found) {
-        openViewWizard(found);
-        setWizardStep(5);
-      }
-    }
-  }, [highlightAuctionId, auctions]);
 
   const updateLot = (idx, field, value) => {
     setLots(prev => prev.map((l, i) => {
@@ -442,6 +369,19 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
     setWizardOpen(true);
   };
 
+  useEffect(() => {
+    if (highlightAuctionId) {
+      const found = auctions.find(a => a.id === highlightAuctionId);
+      if (found) {
+        // React to an external navigation event (notification click), not
+        // deriving state from a prop.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        openViewWizard(found);
+        setWizardStep(5);
+      }
+    }
+  }, [highlightAuctionId, auctions]);
+
   const handleSubmit = () => {
     if (!validateStep(4)) return;
     const payload = {
@@ -475,9 +415,6 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
     closed: { cls: 'status-pill-closed', label: (l) => l === 'ar' ? 'مغلق' : (l === 'en' ? 'Closed' : 'Clôturé') },
     pending: { cls: 'status-pill-pending', label: (l) => l === 'ar' ? 'معلق' : (l === 'en' ? 'Pending' : 'En attente') },
   };
-
-  const [expandedId, setExpandedId] = useState(highlightAuctionId || null);
-  useEffect(() => { if (highlightAuctionId) setExpandedId(highlightAuctionId); }, [highlightAuctionId]);
 
   return (
     <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
@@ -921,7 +858,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
               <span style={{ textAlign: 'center' }}>{locale === 'ar' ? 'الحالة' : (locale === 'en' ? 'Status' : 'Statut')}</span>
               <span style={{ textAlign: 'center' }}>{locale === 'ar' ? 'إجراء' : 'Actions'}</span>
             </div>
-            {myAuctions.map((auction, idx) => {
+            {myAuctions.map((auction) => {
               const isNew = newBidFlashIds.some(id => auction.bids.some(b => b.id === id));
               const status = statusColors[auction.status] || statusColors.closed;
               const dateStr = new Date(auction.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { day: '2-digit', month: '2-digit', year: '2-digit' });

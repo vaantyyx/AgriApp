@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sun, Moon, Home } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { UKFlag, LANGS } from './landingShared';
+import { UKFlag } from './landingShared';
+import { LANGS } from '../utils/languages.js';
 import '../landing.css';
 
 /* Same slp-navbar used on the landing page (logo, language switcher, theme

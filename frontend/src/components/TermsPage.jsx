@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, ArrowLeft } from 'lucide-react';
 import SiteNavbar from './SiteNavbar';

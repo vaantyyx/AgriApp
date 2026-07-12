@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../context/LanguageContext';
-import { Inbox, MessageSquare, Check, Trophy, X, Image as ImageIcon, Send, Star, Eye, ChevronLeft, ChevronRight, ClipboardList, Layers, CalendarClock, Hash, FileSearch } from 'lucide-react';
+import { Inbox, MessageSquare, Check, Trophy, X, Image as ImageIcon, Send, Eye, ChevronLeft, ChevronRight, ClipboardList, Layers, CalendarClock, Hash, FileSearch } from 'lucide-react';
 import { getWinnerCongratsMessage, getBidClosedWinnerMessage, isBidLineAccepted } from '../utils/auctionHelpers';
 import { cultureTypes, products } from '../utils/referenceData.js';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
@@ -42,23 +42,9 @@ function compressImage(file) {
   });
 }
 
-function StarDisplay({ rating, count }) {
-  const { t } = useTranslation();
-  if (rating === null || rating === undefined) return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('noReviews')}</span>;
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.25 && rating - full < 0.75;
-  const stars = Array.from({ length: 5 }, (_, i) => i < full ? 'full' : (i === full && half ? 'half' : 'empty'));
-  return (
-    <span className="star-display">
-      {stars.map((s, i) => <span key={i} className={`star star-${s}`}>★</span>)}
-      <span className="star-label">{rating.toFixed(1)}<span style={{ opacity: 0.6 }}>/5</span> ({count})</span>
-    </span>
-  );
-}
-
 const emptyLine = () => ({ quality: '', price: '', quantity: '', unit: '', comments: '', images: [], isUploading: false });
 
-export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, token, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
+export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
   const { locale, t } = useTranslation();
   
   const [inputs, setInputs] = useState({});
@@ -91,6 +77,9 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
 
   useEffect(() => {
     if (highlightAuctionId) {
+      // React to an external navigation event (notification click), not
+      // deriving state from a prop.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedAuctionId(highlightAuctionId);
       setTimeout(() => {
         const el = auctionRefs.current[highlightAuctionId];
@@ -359,7 +348,6 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
             const isWinner = isClosed && auction.myBidId && auction.acceptedBidId === auction.myBidId;
             const winningBid = isClosed ? auction.bids.find(b => b.id === auction.acceptedBidId) : null;
             const lines = getLines(auction.id);
-            const isHighlighted = highlightAuctionId === auction.id;
             const isNew = newBidFlashIds.includes(auction.id) || (myBid && newBidFlashIds.includes(myBid.id));
 
             return (

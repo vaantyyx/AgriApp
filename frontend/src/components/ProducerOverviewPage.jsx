@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Trophy, Sprout, ArrowRight } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';

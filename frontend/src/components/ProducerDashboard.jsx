@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  Send, Tag, MessageSquare, Check, Tractor, Inbox, Trophy, X,
-  Image as ImageIcon, Plus, Trash2, Edit3, LayoutDashboard, MapPin, Gavel, User,
-  Calendar, Layers, Map, Eye, Landmark, Info, ArrowRight, Activity, Sprout
+  Send, MessageSquare, Check, Inbox, Trophy, X,
+  Image as ImageIcon, Plus, Trash2, Edit3, MapPin,
+  Calendar, Layers, ArrowRight, Activity, Sprout
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
@@ -62,27 +62,6 @@ const WILAYA_LIST = Object.entries(WILAYA_COORDS)
   .map(([id, w]) => ({ id: parseInt(id), name: w.name }))
   .sort((a, b) => a.id - b.id);
 
-// ─── Star Display (read-only) ───────────────────────────────────────────────
-function StarDisplay({ rating, count }) {
-  const { t } = useTranslation();
-  if (rating === null || rating === undefined) {
-    return <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('noReviews')}</span>;
-  }
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.25 && rating - full < 0.75;
-  const stars = Array.from({ length: 5 }, (_, i) => {
-    if (i < full) return 'full';
-    if (i === full && half) return 'half';
-    return 'empty';
-  });
-  return (
-    <span className="star-display" title={t('reviewsCountTitle', { rating: rating.toFixed(1), count })}>
-      {stars.map((s, i) => <span key={i} className={`star star-${s}`}>★</span>)}
-      <span className="star-label">{rating.toFixed(1)}<span style={{ opacity: 0.6 }}>/5</span> ({count})</span>
-    </span>
-  );
-}
-
 // ─── Image Compressor ───────────────────────────────────────────────────────
 function compressImage(file) {
   return new Promise((resolve, reject) => {
@@ -133,7 +112,7 @@ const getPrimaryCultureType = (parcelle) => {
 };
 
 // Sidebar moved to DashboardLayout.jsx
-export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, onNavigateToProfile, token }) {
+export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, token }) {
   const { locale, t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -143,6 +122,9 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
   const [activeSection, setActiveSection] = useState(urlTab);
 
   useEffect(() => {
+    // Syncing local UI state to the URL (an external system), not derived
+    // render-time state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveSection(urlTab);
   }, [urlTab]);
 
@@ -199,7 +181,13 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
   };
 
   useEffect(() => {
+    // Fetches from the API and sets a loading flag before the first await —
+    // the standard data-fetching-on-dependency-change pattern. fetchParcelles
+    // is intentionally omitted from deps: it's redefined every render and
+    // this should only re-run when the token changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchParcelles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Scroll to highlighted auction
@@ -302,6 +290,10 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
     return () => {
       clearTimeout(timer);
     };
+    // formLatitude/formLongitude/mapLayer are read only to set the map's
+    // initial state when it (re)opens — including them would recreate the
+    // map on every marker drag or layer switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formOpen]);
 
   // Switch base layers

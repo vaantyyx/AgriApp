@@ -1,5 +1,5 @@
 // @ts-check
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import { createContext, useState, useEffect, useContext } from 'react';
 
 /** @typedef {{ theme: string, toggleTheme: () => void }} ThemeContextValue */
 
@@ -40,6 +40,7 @@ export function ThemeProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- context + its hook are colocated by design
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {

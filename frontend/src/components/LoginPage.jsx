@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Leaf, Mail, Lock, Eye, EyeOff, ShieldAlert, AlertCircle, Zap, Users, TrendingUp, ShieldCheck, RefreshCw, KeyRound } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';

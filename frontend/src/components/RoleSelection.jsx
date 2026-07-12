@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Sprout, User, Tractor, ShoppingBag } from 'lucide-react';
 
 export default function RoleSelection({ onSelect }) {

@@ -43,10 +43,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run typecheck
-      # `npm run lint` is intentionally not run here yet: the codebase currently
-      # has ~130 pre-existing ESLint errors (mostly unused `React` imports from
-      # before the new JSX transform, plus some react-hooks rules) unrelated to
-      # this CI setup. Wiring it in now would make every run fail regardless of
-      # what a PR actually changes. Fix that backlog, then add the step back.
+      - run: npm run lint
       - run: npm test
       - run: npm run build

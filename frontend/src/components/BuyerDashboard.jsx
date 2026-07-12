@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Routes, Route, Navigate } from 'react-router-dom';
 import {
-  Plus, Tag, MessageSquare, Check, Package, X, Star, MapPin,
+  Plus, MessageSquare, Check, Package, X, Star, MapPin,
   ChevronDown, ChevronUp, Image as ImageIcon,
   ClipboardList, Layers, CalendarClock, FileSearch,
-  ChevronRight, ChevronLeft, AlertTriangle, Info,
+  ChevronRight, ChevronLeft, AlertTriangle,
   Gavel, Clock, Repeat2, TrendingDown, TrendingUp, Hash,
-  ArrowRight, LayoutDashboard, ListOrdered, BarChart2, User,
+  ArrowRight, ListOrdered,
 } from 'lucide-react';
-import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName, haversineKm } from '../utils/wilayaCoordinates.js';
+import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName } from '../utils/wilayaCoordinates.js';
 import { cultureTypes, products } from '../utils/referenceData.js';
 import { useTranslation } from '../context/LanguageContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import { computeBuyerCompletion as computeProfileCompletion } from './BuyerProfilePage';
+import { computeBuyerCompletion as computeProfileCompletion } from '../utils/profileCompletion.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -146,7 +145,7 @@ function AuctionMap({ centerLat, centerLng, radiusKm, onRadiusChange, producerCo
         if (circleRef.current && map.getContainer().clientHeight > 0) {
           map.fitBounds(circleRef.current.getBounds(), { padding: [30, 30], animate: false });
         }
-      } catch (_) {}
+      } catch { /* map may already be torn down */ }
     }, 400);
     return () => { clearTimeout(fitTimer); map.remove(); leafletMapRef.current = null; circleRef.current = null; markerRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -295,7 +294,11 @@ function getMissingFieldsList(user, locale) {
 
 // ─── Main BuyerDashboard ───────────────────────────────────────────────────
 export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcceptBid, onRateProducer, newBidFlashIds, onNavigateToProfile, highlightAuctionId }) {
-  const { t, dir, locale } = useTranslation();
+  const { t, locale } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const urlTab = searchParams.get('tab') || 'dashboard';
 
   // 5-step wizard state
   const [wizardStep, setWizardStep] = useState(1);
@@ -303,21 +306,22 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
 
   useEffect(() => {
     if (highlightAuctionId) {
+      // React to an external navigation event (notification click), not
+      // deriving state from a prop.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWizardOpen(false);
       navigate('?tab=auctions', { replace: true });
     }
-  }, [highlightAuctionId]);
-
-  const location = useLocation();
-  const navigate = useNavigate();
-  const searchParams = new URLSearchParams(location.search);
-  const urlTab = searchParams.get('tab') || 'dashboard';
+  }, [highlightAuctionId, navigate]);
 
   // Sidebar active section
   const [activeSection, setActiveSection] = useState(urlTab);
-  
+
   useEffect(() => {
     if (!wizardOpen) {
+      // Syncing local UI state to the URL (an external system), not derived
+      // render-time state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveSection(urlTab);
     }
   }, [urlTab, wizardOpen]);
@@ -443,6 +447,15 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
     setStepError('');
     setActiveSection('create');
   };
+  const resetWizard = () => {
+    setTitle(''); setAuctionType('open'); setDeliveryLocation(''); setGeneralDescription('');
+    setLots([newLot(1)]);
+    setRadiusKm(100); setIsSearchZoneChanged(false);
+    setStartDatetime(''); setEndDatetime('');
+    setAutoProlongate(false); setProlongationMinutes(10); setMaxProlongations(3);
+    setStepError('');
+  };
+
   const closeWizard = () => {
     setWizardOpen(false);
     setWizardStep(1);
@@ -454,15 +467,6 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
   useEscapeKey(!!activeZoomImage, () => setActiveZoomImage(null));
   const blockModalRef = useRef(null);
   useFocusTrap(blockModalRef, showBlockWarningModal);
-
-  const resetWizard = () => {
-    setTitle(''); setAuctionType('open'); setDeliveryLocation(''); setGeneralDescription('');
-    setLots([newLot(1)]);
-    setRadiusKm(100); setIsSearchZoneChanged(false);
-    setStartDatetime(''); setEndDatetime('');
-    setAutoProlongate(false); setProlongationMinutes(10); setMaxProlongations(3);
-    setStepError('');
-  };
 
   const handleSubmit = () => {
     if (!validateStep(4)) return;
@@ -500,9 +504,6 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
   };
 
   const myAuctions = auctions.filter(a => a.isOwner);
-
-  // ─── Sidebar layout ──────────────────────────────────────────────────────
-  const sidebarLabel = (item) => locale === 'ar' ? item.labelAr : (locale === 'en' ? item.labelEn : item.labelFr);
 
   // ─── Summary helpers ─────────────────────────────────────────────────────
   const getAuctionTypeLabel = (val) => {
@@ -1166,7 +1167,6 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                 onAcceptBid={onAcceptBid}
                 onRateProducer={(aId) => setRatingAuctionId(aId)}
                 onZoomImage={setActiveZoomImage}
-                onOpenWizard={openWizard}
                 getAuctionTypeLabel={getAuctionTypeLabel}
               />
             )}
@@ -1188,7 +1188,7 @@ function SummaryRow({ label, value }) {
 }
 
 // ─── Auctions Table ─────────────────────────────────────────────────────────
-function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRateProducer, onZoomImage, onOpenWizard, getAuctionTypeLabel, highlightAuctionId }) {
+function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRateProducer, onZoomImage, getAuctionTypeLabel, highlightAuctionId }) {
   const [expandedId, setExpandedId] = useState(null);
 
   const statusColors = {
@@ -1199,6 +1199,9 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
 
   useEffect(() => {
     if (highlightAuctionId) {
+      // React to an external navigation event (notification click), not
+      // deriving state from a prop.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedId(highlightAuctionId);
     }
   }, [highlightAuctionId]);
@@ -1215,7 +1218,7 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
         <span></span>
       </div>
 
-      {auctions.map((auction, idx) => {
+      {auctions.map((auction) => {
         const isExpanded = expandedId === auction.id;
         const isNew = newBidFlashIds.some(id => auction.bids.some(b => b.id === id));
         const status = statusColors[auction.status] || statusColors.closed;
@@ -1398,159 +1401,6 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// ─── Auction Card ────────────────────────────────────────────────────────────
-function AuctionCard({ auction, dir, locale, t, newBidFlashIds, onAcceptBid, onRateProducer, onZoomImage }) {
-  return (
-    <div className="auction-card animate-fade-in">
-      <div className="auction-header" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-        <div>
-          <h3 className="auction-title">
-            {auction.title || auction.product} — {auction.quantity} {t('unit_' + auction.unit)}
-          </h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {t('publishedAt', { time: new Date(auction.createdAt).toLocaleTimeString() })}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span className={`badge ${auction.status === 'open' ? 'badge-open' : 'badge-closed'}`}>
-            {auction.status === 'open' ? t('statusOpen') : t('statusClosed')}
-          </span>
-        </div>
-      </div>
-
-      {auction.description && (
-        <p style={{
-          background: 'rgba(255,255,255,0.02)', padding: '10px 14px', borderRadius: '8px',
-          fontSize: '0.9rem', marginBottom: '16px',
-          borderLeft: dir === 'ltr' ? '3px solid var(--primary)' : 'none',
-          borderRight: dir === 'rtl' ? '3px solid var(--primary)' : 'none',
-        }}>
-          <strong>{t('detailsLabel')}</strong> {auction.description}
-        </p>
-      )}
-
-      <div className="auction-details" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-        <div className="detail-item">
-          <span>{t('bidsReceivedCount', { count: auction.bids.length })}</span>
-        </div>
-        {auction.deliveryLocation && (
-          <div className="detail-item">
-            <MapPin size={12} /> <span>{auction.deliveryLocation}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Bids area */}
-      <div className="bids-container">
-        <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '12px', color: 'var(--text-main)', textAlign: 'start' }}>
-          {t('proposalsProducers')}
-        </h4>
-
-        {auction.bids.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', fontStyle: 'italic', padding: '8px 0', textAlign: 'start' }}>
-            {t('waitingProposals')}
-          </p>
-        ) : (
-          <div>
-            {[...auction.bids]
-              .sort((a, b) => {
-                const minA = Math.min(...(a.lines || []).map(l => l.price || Infinity));
-                const minB = Math.min(...(b.lines || []).map(l => l.price || Infinity));
-                return minA - minB;
-              })
-              .map((bid) => {
-                const isNew = newBidFlashIds.includes(bid.id);
-                const isAccepted = auction.acceptedBidId === bid.id;
-                return (
-                  <div
-                    key={bid.id}
-                    className={`bid-item ${isNew ? 'bid-flash-new' : ''}`}
-                    style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                      <div>
-                        <span className="bid-producer">{bid.producerAlias}</span>
-                        <div style={{ marginTop: '2px' }}><StarDisplay rating={bid.producerRating} count={bid.producerRatingCount} /></div>
-                      </div>
-                      {isAccepted && (
-                        <span className="badge badge-open" style={{ fontSize: '0.7rem', background: 'var(--primary)', color: 'var(--text-inverse)', border: 'none', padding: '3px 8px' }}>
-                          {t('bidSelected')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-                        {t('bidQualitiesTitle')}
-                      </div>
-                      {(bid.lines || []).map((line) => (
-                        <div key={line.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', flexWrap: 'wrap' }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              {line.optionName && <strong style={{ fontSize: '0.82rem', color: 'var(--text-main)', background: 'var(--primary-soft)', padding: '2px 8px', borderRadius: '4px' }}>{line.optionName}</strong>}
-                              {line.quantity && <span style={{ fontSize: '0.82rem', color: 'var(--text-body)' }}>{line.quantity} {t('unit_' + (line.unit || auction.unit))}</span>}
-                              <span className="bid-price" style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--secondary)' }}>
-                                {line.price} DA <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/ {t('unit_' + (line.unit || auction.unit))}</span>
-                              </span>
-                            </div>
-                            {line.comments && (
-                              <div className="bid-comment" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '0.78rem', color: 'var(--text-body)' }}>
-                                <MessageSquare size={10} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                                <span>{line.comments}</span>
-                              </div>
-                            )}
-                            {line.images && line.images.length > 0 && (
-                              <div style={{ marginTop: '6px' }}>
-                                <div className="bid-photos-grid">
-                                  {line.images.map((img, idx) => (
-                                    <div key={idx} className="bid-photo-thumb" onClick={() => onZoomImage(img)} role="button" tabIndex={0} onKeyDown={e => e.key === 'Enter' && onZoomImage(img)} aria-label={`Photo ${idx + 1}`}>
-                                      <img src={img} alt={`Photo produit ${idx + 1}`} />
-                                      <div className="bid-photo-overlay"><ImageIcon size={14} /></div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
-                      {auction.status === 'open' ? (
-                        <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.85rem', gap: '6px' }} onClick={() => onAcceptBid(auction.id, bid.id)}>
-                          <Check size={14} /> {t('validateBtn')}
-                        </button>
-                      ) : (
-                        isAccepted && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                              <Check size={16} /> {t('bidConfirmed')}
-                            </span>
-                            {!auction.alreadyRated && (
-                              <button type="button" className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '3px 8px', gap: '3px' }} onClick={() => onRateProducer(auction.id)}>
-                                <Star size={11} /> {locale === 'ar' ? 'تقييم' : (locale === 'en' ? 'Rate' : 'Noter')}
-                              </button>
-                            )}
-                            {auction.alreadyRated && (
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                <Star size={10} style={{ color: '#f59e0b' }} /> {locale === 'ar' ? 'تم التقييم ✓' : (locale === 'en' ? 'Rated ✓' : 'Noté ✓')}
-                              </span>
-                            )}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

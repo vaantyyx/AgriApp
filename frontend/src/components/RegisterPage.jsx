@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Sprout, Mail, Lock, User, Tractor, ShoppingBag, ShieldAlert, Eye, EyeOff, CheckCircle, Phone, MapPin, Zap, Users, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Sprout, Mail, Lock, User, Tractor, ShoppingBag, ShieldAlert, Eye, EyeOff, CheckCircle, Zap, Users, TrendingUp } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../utils/config.js';
@@ -10,7 +10,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
-  const { t, dir } = useTranslation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -22,7 +22,9 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Resets the search box when the dropdown closes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!isOpen) setSearch('');
   }, [isOpen]);
 
@@ -118,6 +120,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
   // Filter communes when wilaya changes
   useEffect(() => {
     if (!form.wilaya) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCommunes([]);
       setForm(prev => ({ ...prev, commune: '' }));
       return;

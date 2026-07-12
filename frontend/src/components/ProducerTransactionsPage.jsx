@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Receipt, Download, Printer } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { resolveAcceptedLine } from '../utils/auctionHelpers.js';

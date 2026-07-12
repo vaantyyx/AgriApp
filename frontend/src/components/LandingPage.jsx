@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Leaf, Info, Users, HelpCircle, ShieldCheck, LayoutGrid, Phone,
   ChevronDown, Search, Wheat, ShoppingBag, Droplet,
@@ -7,7 +7,8 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { UKFlag, LANGS } from './landingShared';
+import { UKFlag } from './landingShared';
+import { LANGS } from '../utils/languages.js';
 import '../landing.css';
 
 /* Official brand marks (Simple Icons paths) — rendered inline so no icon

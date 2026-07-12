@@ -1,39 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Mail, Phone, MapPin, FileText, Camera, Tractor, ShoppingBag, Edit3, Save, X, CheckCircle, AlertCircle, BarChart2, Shield } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import SecuritySettingsTab from './SecuritySettingsTab';
 import { BACKEND_URL } from '../utils/config.js';
-
-// ─── Profile completion for buyers ────────────────────────────────────────────
-export function computeBuyerCompletion(user) {
-  if (!user) return 0;
-  const isEntreprise = user.entity_type === 'entreprise';
-  if (!isEntreprise) {
-    let score = 0;
-    if (user.wilaya && user.wilaya.trim()) score += 34;
-    if (user.commune && user.commune.trim()) score += 33;
-    if (user.phone && user.phone.trim()) score += 33;
-    return score;
-  } else {
-    let score = 0;
-    if (user.wilaya && user.wilaya.trim()) score += 10;
-    if (user.commune && user.commune.trim()) score += 10;
-    if (user.phone && user.phone.trim()) score += 10;
-    if (user.forme_juridique && user.forme_juridique.trim()) score += 10;
-    if (user.rc && user.rc.trim()) score += 10;
-    if (user.nif && user.nif.trim()) score += 10;
-    if (user.secteur_activite && user.secteur_activite.trim()) score += 10;
-    if (user.nom_commercial && user.nom_commercial.trim()) score += 30;
-    return score;
-  }
-}
+import { computeBuyerCompletion } from '../utils/profileCompletion.js';
 
 // ─── Searchable Select ────────────────────────────────────────────────────────
 function SearchableSelect({ options, value, onChange, placeholder, disabled, labelKey = 'label', valueKey = 'value' }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
-  const { t, dir } = useTranslation();
+  const { t } = useTranslation();
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -43,6 +20,8 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Resets the search box when the dropdown closes.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!isOpen) setSearch(''); }, [isOpen]);
 
   const selectedOption = options.find(opt => String(opt[valueKey]) === String(value));
@@ -122,7 +101,9 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
     fetch('/cities.json').then(r => r.json()).then(data => { setWilayas(data.wilayas || []); setAllCommunes(data.communes || []); }).catch(() => {});
   }, []);
 
+  // Derives the commune dropdown's options from the selected wilaya.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!form.wilaya_id) { setCommunes([]); return; }
     const id = parseInt(form.wilaya_id);
     setCommunes(allCommunes.filter(c => c.wilaya_id === id).sort((a, b) => a.commune_name_latin.localeCompare(b.commune_name_latin)));
@@ -143,6 +124,9 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
     if (profile && wilayas.length > 0) {
       const matchedWilaya = wilayas.find(w => w.wilaya_name_latin.toLowerCase() === (profile.wilaya || '').toLowerCase());
       if (matchedWilaya) {
+        // Hydrates the form's wilaya/commune select once profile + reference
+        // data have both loaded from the API.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setForm(prev => {
           if (prev.wilaya_id) return prev;
           let matchedCommuneId = '';
@@ -156,6 +140,9 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
     }
   }, [profile, wilayas, allCommunes]);
 
+  // Fetches on mount; fetchProfile is intentionally omitted from deps since
+  // it's redefined every render and this should only run once.
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { fetchProfile(); }, []);
 
   const handleWilayaChange = (val) => {

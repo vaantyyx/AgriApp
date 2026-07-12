@@ -1,4 +1,4 @@
-import React, { useState, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle, useCallback } from 'react';
 import { RefreshCw, Check, X, ShieldCheck } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
