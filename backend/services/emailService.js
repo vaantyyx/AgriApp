@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import fs from 'fs';
+import { logger } from '../utils/logger.js';
 
 // OTP codes, verification links and reset links must never be persisted to disk or
 // stdout outside of local development — they're valid credentials until they expire.
@@ -290,7 +291,7 @@ export async function sendVerificationEmail(to, name, token, locale = 'fr') {
     try {
       fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] VERIFY for ${to}: ${verifyUrl}\n`);
     } catch (err) {
-      console.error('Failed to write dev email log:', err.message);
+      logger.error({ err }, 'Failed to write dev email log');
     }
   }
 
@@ -337,7 +338,7 @@ export async function sendVerificationEmail(to, name, token, locale = 'fr') {
     const previewUrl = nodemailer.getTestMessageUrl(info);
     if (previewUrl) console.log(`[EMAIL] Verification email preview: ${previewUrl}`);
   } catch (err) {
-    console.error('[EMAIL] Failed to send verification email via SMTP:', err.message);
+    logger.error({ err }, 'EMAIL: Failed to send verification email via SMTP');
   }
 }
 
@@ -380,7 +381,7 @@ export async function sendWelcomeEmail(to, name, role, locale = 'fr') {
       html,
     });
   } catch (err) {
-    console.error('[EMAIL] Failed to send welcome email via SMTP:', err.message);
+    logger.error({ err }, 'EMAIL: Failed to send welcome email via SMTP');
   }
 }
 
@@ -396,7 +397,7 @@ export async function sendOtpEmail(to, name, otp, minutes, type, locale = 'fr') 
     try {
       fs.appendFileSync('email_dev.log', `[${new Date().toISOString()}] OTP for ${to}: ${otp}\n`);
     } catch (err) {
-      console.error('Failed to write dev OTP log:', err.message);
+      logger.error({ err }, 'Failed to write dev OTP log');
     }
   }
 
@@ -438,7 +439,7 @@ export async function sendOtpEmail(to, name, otp, minutes, type, locale = 'fr') 
     const previewUrl = nodemailer.getTestMessageUrl(info);
     if (previewUrl) console.log(`[EMAIL] OTP email preview: ${previewUrl}`);
   } catch (err) {
-    console.error('[EMAIL] Failed to send OTP email via SMTP:', err.message);
+    logger.error({ err }, 'EMAIL: Failed to send OTP email via SMTP');
   }
 }
 
@@ -481,7 +482,7 @@ export async function sendAccountDeactivationEmail(to, name, locale = 'fr') {
       html,
     });
   } catch (err) {
-    console.error('[EMAIL] Failed to send deactivation email via SMTP:', err.message);
+    logger.error({ err }, 'EMAIL: Failed to send deactivation email via SMTP');
   }
 }
 
@@ -542,7 +543,7 @@ export async function sendPasswordResetEmail(to, name, token, locale = 'fr') {
       html,
     });
   } catch (err) {
-    console.error('[EMAIL] Failed to send password reset email via SMTP:', err.message);
+    logger.error({ err }, 'EMAIL: Failed to send password reset email via SMTP');
   }
 }
 

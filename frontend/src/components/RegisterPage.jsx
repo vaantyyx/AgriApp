@@ -624,6 +624,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
                 color: 'var(--text-muted)'
               }} />
               <button type="button" onClick={() => setShowPassword(p => !p)}
+                aria-label={showPassword ? t('hidePasswordLabel') : t('showPasswordLabel')}
                 style={{
                   position: 'absolute',
                   right: dir === 'ltr' ? '14px' : 'auto',

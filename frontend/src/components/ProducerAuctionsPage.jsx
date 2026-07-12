@@ -57,7 +57,7 @@ function StarDisplay({ rating, count }) {
 
 const emptyLine = () => ({ quality: '', price: '', quantity: '', unit: '', comments: '', images: [], isUploading: false });
 
-export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, token }) {
+export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, token, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
   const { locale, t } = useTranslation();
   
   const [inputs, setInputs] = useState({});
@@ -344,7 +344,8 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
           </div>
         </div>
       ) : (
-        [...auctions]
+        <>
+        {[...auctions]
           .sort((a, b) => {
             if (a.status === 'open' && b.status !== 'open') return -1;
             if (a.status !== 'open' && b.status === 'open') return 1;
@@ -680,7 +681,15 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
                 )}
               </div>
             );
-          })
+          })}
+        {hasMoreAuctions && (
+          <div style={{ textAlign: 'center', marginTop: 20 }}>
+            <button onClick={onLoadMoreAuctions} disabled={loadingMoreAuctions} className="btn btn-secondary" style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
+              {loadingMoreAuctions ? t('loadingMoreBtn') : t('loadMoreBtn')}
+            </button>
+          </div>
+        )}
+        </>
       )}</>)}
     </div>
   );

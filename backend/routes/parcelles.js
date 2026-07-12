@@ -2,6 +2,7 @@ import express from 'express';
 import { ObjectId } from 'mongodb';
 import { getDb } from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -16,7 +17,7 @@ router.get('/', async (req, res) => {
       .toArray();
     res.json(parcelles.map(p => ({ ...p, _id: p._id.toString() })));
   } catch (err) {
-    console.error('[GET PARCELLES ERROR]', err.message);
+    logger.error({ err }, 'GET PARCELLES ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -56,7 +57,7 @@ router.post('/', async (req, res) => {
     const result = await db.collection('parcelles').insertOne(parcelle);
     res.status(201).json({ ...parcelle, _id: result.insertedId.toString() });
   } catch (err) {
-    console.error('[CREATE PARCELLE ERROR]', err.message);
+    logger.error({ err }, 'CREATE PARCELLE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -96,7 +97,7 @@ router.put('/:id', async (req, res) => {
 
     res.json({ message: 'Parcelle mise à jour.', updates });
   } catch (err) {
-    console.error('[UPDATE PARCELLE ERROR]', err.message);
+    logger.error({ err }, 'UPDATE PARCELLE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -118,7 +119,7 @@ router.delete('/:id', async (req, res) => {
 
     res.json({ message: 'Parcelle supprimée.' });
   } catch (err) {
-    console.error('[DELETE PARCELLE ERROR]', err.message);
+    logger.error({ err }, 'DELETE PARCELLE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

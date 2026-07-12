@@ -106,7 +106,7 @@ const secTrans = {
 };
 
 export default function SecuritySettingsTab({ token, profile, setProfile, onUserUpdate, showToast, onLogout, initialUser }) {
-  const { locale, dir } = useTranslation();
+  const { t, locale, dir } = useTranslation();
   const secT = secTrans[locale] || secTrans.fr;
 
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -266,7 +266,7 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
               <input type={showPasswordCurrent ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} disabled={otpRequested} style={{ width: '100%', paddingLeft: dir === 'ltr' ? '40px' : '16px', paddingRight: dir === 'rtl' ? '40px' : '16px', textAlign: 'start' }} />
               <Lock size={15} style={{ position: 'absolute', left: dir === 'ltr' ? '12px' : 'auto', right: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               {!otpRequested && (
-                <button type="button" onClick={() => setShowPasswordCurrent(!showPasswordCurrent)} style={{ position: 'absolute', right: dir === 'ltr' ? '12px' : 'auto', left: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+                <button type="button" onClick={() => setShowPasswordCurrent(!showPasswordCurrent)} aria-label={showPasswordCurrent ? t('hidePasswordLabel') : t('showPasswordLabel')} style={{ position: 'absolute', right: dir === 'ltr' ? '12px' : 'auto', left: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
                   {showPasswordCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               )}
@@ -297,7 +297,7 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
                 <div style={{ position: 'relative' }}>
                   <input type={showPasswordNew ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ width: '100%', paddingLeft: dir === 'ltr' ? '40px' : '16px', paddingRight: dir === 'rtl' ? '40px' : '16px', textAlign: 'start' }} />
                   <Lock size={15} style={{ position: 'absolute', left: dir === 'ltr' ? '12px' : 'auto', right: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <button type="button" onClick={() => setShowPasswordNew(!showPasswordNew)} style={{ position: 'absolute', right: dir === 'ltr' ? '12px' : 'auto', left: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+                  <button type="button" onClick={() => setShowPasswordNew(!showPasswordNew)} aria-label={showPasswordNew ? t('hidePasswordLabel') : t('showPasswordLabel')} style={{ position: 'absolute', right: dir === 'ltr' ? '12px' : 'auto', left: dir === 'rtl' ? '12px' : 'auto', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
                     {showPasswordNew ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
@@ -334,7 +334,7 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
       {/* Deactivation Confirmation Modal */}
       {showDeactivateModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div className="glass-panel" style={{ maxWidth: '420px', width: '90%', padding: '28px', textAlign: 'center', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <div className="glass-panel" role="dialog" aria-modal="true" aria-label={secT.deactivateConfirmTitle} style={{ maxWidth: '420px', width: '90%', padding: '28px', textAlign: 'center', border: '1px solid rgba(239,68,68,0.3)' }}>
             <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)', marginBottom: '16px' }}>
               <AlertCircle size={28} style={{ color: '#ef4444' }} />
             </div>

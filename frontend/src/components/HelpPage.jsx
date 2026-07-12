@@ -65,10 +65,14 @@ function ContactSupportModal({ user, token, locale, dir, t, onClose }) {
         className="glass-panel animate-fade-in"
         dir={dir}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('helpContactModalTitle')}
         style={{ maxWidth: 460, width: '100%', padding: 32, position: 'relative', textAlign: dir === 'rtl' ? 'right' : 'left' }}
       >
         <button
           onClick={onClose}
+          aria-label={t('helpContactCloseBtn')}
           style={{ position: 'absolute', top: 16, [dir === 'rtl' ? 'left' : 'right']: 16, background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer' }}
         >
           <X size={16} />

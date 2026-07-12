@@ -340,7 +340,7 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
       {/* MODAL FORM */}
       {formOpen && (
         <div className="modal-overlay" style={{ zIndex: 1050 }} onClick={() => setFormOpen(false)}>
-          <div className="modal-card parcel-modal-card animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div className="modal-card parcel-modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={editingParcelle ? (locale === 'ar' ? 'تعديل الحقل' : (locale === 'en' ? 'Edit plot' : 'Modifier la parcelle')) : (locale === 'ar' ? 'حقل جديد' : (locale === 'en' ? 'New plot' : 'Nouvelle parcelle'))}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ background: 'rgba(16,185,129,0.1)', padding: 8, borderRadius: 8 }}><MapPin size={18} style={{ color: 'var(--primary)' }} /></div>
@@ -349,7 +349,7 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{editingParcelle ? (locale === 'ar' ? 'تحديث زراعاتك وإحداثياتك' : (locale === 'en' ? 'Update your crops and coordinates' : 'Mettre à jour vos cultures et coordonnées')) : (locale === 'ar' ? 'إعداد أراضيك الزراعية' : (locale === 'en' ? 'Configure your agricultural lands' : 'Configurer vos terrains agricoles'))}</span>
                 </div>
               </div>
-              <button onClick={() => setFormOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20} /></button>
+              <button onClick={() => setFormOpen(false)} aria-label={locale === 'ar' ? 'إغلاق' : (locale === 'en' ? 'Close' : 'Fermer')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20} /></button>
             </div>
 
             <div className="parcel-modal-body">

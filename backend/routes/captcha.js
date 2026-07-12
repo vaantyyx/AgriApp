@@ -1,6 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { generateChallenge, getTile, renderTileSvg, verifySelection } from '../services/captchaService.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -37,7 +38,7 @@ router.get('/challenge', challengeLimiter, async (req, res) => {
     const challenge = await generateChallenge(locale);
     res.json(challenge);
   } catch (err) {
-    console.error('[CAPTCHA CHALLENGE ERROR]', err.message);
+    logger.error({ err }, 'CAPTCHA CHALLENGE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -55,7 +56,7 @@ router.get('/image/:challengeId/:index', imageLimiter, async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=180');
     res.send(svg);
   } catch (err) {
-    console.error('[CAPTCHA IMAGE ERROR]', err.message);
+    logger.error({ err }, 'CAPTCHA IMAGE ERROR');
     res.status(500).end();
   }
 });
@@ -78,7 +79,7 @@ router.post('/verify', challengeLimiter, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('[CAPTCHA VERIFY ERROR]', err.message);
+    logger.error({ err }, 'CAPTCHA VERIFY ERROR');
     res.status(500).json({ success: false, error: 'Erreur serveur.' });
   }
 });

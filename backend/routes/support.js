@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { sendSupportMessage } from '../services/emailService.js';
 import { resolveLocale } from '../utils/locale.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -40,7 +41,7 @@ router.post('/contact', supportLimiter, async (req, res) => {
 
     res.json({ message: 'Votre message a été envoyé avec succès.' });
   } catch (err) {
-    console.error('[SUPPORT CONTACT ERROR]', err.message);
+    logger.error({ err }, 'SUPPORT CONTACT ERROR');
     res.status(502).json({ error: "Échec de l'envoi du message. Veuillez réessayer plus tard." });
   }
 });

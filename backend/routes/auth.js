@@ -7,6 +7,7 @@ import { sendVerificationEmail, sendWelcomeEmail, sendOtpEmail, sendPasswordRese
 import { createOtp, verifyOtp } from '../services/otpService.js';
 import { consumeVerifiedChallenge } from '../services/captchaService.js';
 import { resolveLocale } from '../utils/locale.js';
+import { logger } from '../utils/logger.js';
 
 
 const router = express.Router();
@@ -83,7 +84,7 @@ router.post('/register', async (req, res) => {
     try {
       await sendVerificationEmail(newUser.email, newUser.name, verificationToken, userLocale);
     } catch (emailErr) {
-      console.error('[EMAIL] Failed to send verification email:', emailErr.message);
+      logger.error({ err: emailErr }, 'EMAIL: Failed to send verification email');
       // Continue - user created, email failed is non-fatal
     }
 
@@ -91,7 +92,7 @@ router.post('/register', async (req, res) => {
       message: 'Compte créé avec succès. Un e-mail de confirmation vous a été envoyé.',
     });
   } catch (err) {
-    console.error('[REGISTER ERROR]', err.message);
+    logger.error({ err }, 'REGISTER ERROR');
     res.status(500).json({ error: 'Erreur serveur. Veuillez réessayer.' });
   }
 });
@@ -132,13 +133,13 @@ router.post('/resend-verification', async (req, res) => {
     try {
       await sendVerificationEmail(user.email, user.name, verificationToken, resolveLocale(locale));
     } catch (emailErr) {
-      console.error('[EMAIL] Failed to resend verification email:', emailErr.message);
+      logger.error({ err: emailErr }, 'EMAIL: Failed to resend verification email');
       return res.status(500).json({ error: "Erreur lors de l'envoi de l'email. Réessayez plus tard." });
     }
 
     res.json({ message: 'Email de vérification renvoyé avec succès. Vérifiez votre boîte de réception.' });
   } catch (err) {
-    console.error('[RESEND VERIFICATION ERROR]', err.message);
+    logger.error({ err }, 'RESEND VERIFICATION ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -182,7 +183,7 @@ router.get('/verify-email', async (req, res) => {
 
     res.json({ message: 'Email confirmé ! Vous pouvez maintenant vous connecter.' });
   } catch (err) {
-    console.error('[VERIFY EMAIL ERROR]', err.message);
+    logger.error({ err }, 'VERIFY EMAIL ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -276,7 +277,7 @@ router.post('/login', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('[LOGIN ERROR]', err.message);
+    logger.error({ err }, 'LOGIN ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -322,7 +323,7 @@ router.post('/verify-otp', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('[VERIFY OTP ERROR]', err.message);
+    logger.error({ err }, 'VERIFY OTP ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -351,7 +352,7 @@ router.post('/resend-otp', async (req, res) => {
 
     res.json({ message: 'Nouveau code OTP envoyé.' });
   } catch (err) {
-    console.error('[RESEND OTP ERROR]', err.message);
+    logger.error({ err }, 'RESEND OTP ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -381,7 +382,7 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json({ message: 'Si cet email correspond à un compte existant, un lien de réinitialisation vous a été envoyé.' });
   } catch (err) {
-    console.error('[FORGOT PASSWORD ERROR]', err.message);
+    logger.error({ err }, 'FORGOT PASSWORD ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -421,7 +422,7 @@ router.post('/reset-password', async (req, res) => {
 
     res.json({ message: 'Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.' });
   } catch (err) {
-    console.error('[RESET PASSWORD ERROR]', err.message);
+    logger.error({ err }, 'RESET PASSWORD ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

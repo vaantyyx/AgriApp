@@ -396,6 +396,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
                 <button
                   type="button" id="toggle-password"
                   onClick={() => setShowPassword(p => !p)}
+                  aria-label={showPassword ? t('hidePasswordLabel') : t('showPasswordLabel')}
                   style={{ position: 'absolute', insetInlineEnd: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, display: 'flex' }}
                 >
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}

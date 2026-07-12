@@ -2,6 +2,7 @@ import express from 'express';
 import { ObjectId } from 'mongodb';
 import { getDb } from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
 
     res.json(notifications);
   } catch (err) {
-    console.error('[GET NOTIFICATIONS ERROR]', err.message);
+    logger.error({ err }, 'GET NOTIFICATIONS ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -36,7 +37,7 @@ router.put('/read', async (req, res) => {
     );
     res.json({ message: 'Notifications marquées comme lues.' });
   } catch (err) {
-    console.error('[MARK READ ERROR]', err.message);
+    logger.error({ err }, 'MARK READ ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -62,7 +63,7 @@ router.put('/:id/read', async (req, res) => {
 
     res.json({ message: 'Notification marquée comme lue.' });
   } catch (err) {
-    console.error('[MARK SINGLE READ ERROR]', err.message);
+    logger.error({ err }, 'MARK SINGLE READ ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

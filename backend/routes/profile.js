@@ -9,6 +9,7 @@ import authMiddleware from '../middleware/authMiddleware.js';
 import { sendOtpEmail, sendAccountDeactivationEmail } from '../services/emailService.js';
 import { createOtp, verifyOtp } from '../services/otpService.js';
 import { resolveLocale } from '../utils/locale.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -90,7 +91,7 @@ router.get('/', async (req, res) => {
       stats: { auctionsCount, bidsCount },
     });
   } catch (err) {
-    console.error('[GET PROFILE ERROR]', err.message);
+    logger.error({ err }, 'GET PROFILE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -138,7 +139,7 @@ router.put('/', async (req, res) => {
 
     res.json({ message: 'Profil mis à jour avec succès.', updates });
   } catch (err) {
-    console.error('[UPDATE PROFILE ERROR]', err.message);
+    logger.error({ err }, 'UPDATE PROFILE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -170,7 +171,7 @@ router.post('/photo', upload.single('photo'), async (req, res) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'Fichier trop volumineux (maximum 20 Mo).' });
     }
-    console.error('[PHOTO UPLOAD ERROR]', err.message);
+    logger.error({ err }, 'PHOTO UPLOAD ERROR');
     res.status(500).json({ error: 'Erreur serveur lors de l\'upload.' });
   }
 });
@@ -203,7 +204,7 @@ router.post('/rc-document', uploadDoc.single('rcDocument'), async (req, res) => 
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'Fichier trop volumineux (maximum 20 Mo).' });
     }
-    console.error('[RC DOCUMENT UPLOAD ERROR]', err.message);
+    logger.error({ err }, 'RC DOCUMENT UPLOAD ERROR');
     res.status(500).json({ error: "Erreur serveur lors de l'upload du document." });
   }
 });
@@ -234,7 +235,7 @@ router.post('/upload-fiche-signaletique', uploadDoc.single('ficheSignaletique'),
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'Fichier trop volumineux (maximum 20 Mo).' });
     }
-    console.error('[FICHE SIGNALETIQUE UPLOAD ERROR]', err.message);
+    logger.error({ err }, 'FICHE SIGNALETIQUE UPLOAD ERROR');
     res.status(500).json({ error: "Erreur serveur lors de l'upload du document." });
   }
 });
@@ -265,7 +266,7 @@ router.post('/upload-carte-agriculteur', uploadDoc.single('carteAgriculteur'), a
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'Fichier trop volumineux (maximum 20 Mo).' });
     }
-    console.error('[CARTE AGRICULTEUR UPLOAD ERROR]', err.message);
+    logger.error({ err }, 'CARTE AGRICULTEUR UPLOAD ERROR');
     res.status(500).json({ error: "Erreur serveur lors de l'upload du document." });
   }
 });
@@ -295,7 +296,7 @@ router.post('/password/otp', async (req, res) => {
 
     res.json({ message: 'Code de vérification envoyé avec succès.' });
   } catch (err) {
-    console.error('[PASSWORD OTP ERROR]', err.message);
+    logger.error({ err }, 'PASSWORD OTP ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -338,7 +339,7 @@ router.post('/password/change', async (req, res) => {
 
     res.json({ message: 'Mot de passe modifié avec succès.' });
   } catch (err) {
-    console.error('[PASSWORD CHANGE ERROR]', err.message);
+    logger.error({ err }, 'PASSWORD CHANGE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -393,7 +394,7 @@ router.put('/security', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('[SECURITY UPDATE ERROR]', err.message);
+    logger.error({ err }, 'SECURITY UPDATE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -419,10 +420,10 @@ router.post('/deactivate', async (req, res) => {
 
     // Send deactivation confirmation email (fire & forget)
     sendAccountDeactivationEmail(updatedUser.email, updatedUser.name, locale).catch(err => {
-      console.error('[DEACTIVATE] Failed to send deactivation email:', err.message);
+      logger.error({ err }, 'DEACTIVATE: Failed to send deactivation email');
     });
   } catch (err) {
-    console.error('[DEACTIVATE ERROR]', err.message);
+    logger.error({ err }, 'DEACTIVATE ERROR');
     res.status(500).json({ error: 'Erreur serveur lors de la désactivation du compte.' });
   }
 });

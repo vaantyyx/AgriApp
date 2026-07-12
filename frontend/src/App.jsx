@@ -1,37 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import io from 'socket.io-client';
 import { Sprout, LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Leaf, Sun, Moon, Menu } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import LandingPage from './components/LandingPage';
-import LoginPage from './components/LoginPage';
-import RegisterPage from './components/RegisterPage';
-import BuyerProfilePage from './components/BuyerProfilePage';
-import ProducerProfilePage from './components/ProducerProfilePage';
-import BuyerOverviewPage from './components/BuyerOverviewPage';
-import BuyerAuctionsPage from './components/BuyerAuctionsPage';
-import ProducerOverviewPage from './components/ProducerOverviewPage';
-import ProducerAuctionsPage from './components/ProducerAuctionsPage';
-import ProducerParcellesPage from './components/ProducerParcellesPage';
 import DashboardLayout from './components/DashboardLayout';
-import VerifyEmailPage from './components/VerifyEmailPage';
-import ForgotPasswordPage from './components/ForgotPasswordPage';
-import ResetPasswordPage from './components/ResetPasswordPage';
-import TermsPage from './components/TermsPage';
 import CookieConsent from './components/CookieConsent';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { useTranslation } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 import { BACKEND_URL } from './utils/config.js';
 import { getNotificationTitle, getNotificationBody } from './utils/notificationText.js';
-import NotificationsPage from './components/NotificationsPage';
-import WeatherPage from './components/WeatherPage';
-import ParcellesMapPage from './components/ParcellesMapPage';
-import CropCalendarPage from './components/CropCalendarPage';
-import ProducerStatsPage from './components/ProducerStatsPage';
-import BuyerStatsPage from './components/BuyerStatsPage';
-import ProducerTransactionsPage from './components/ProducerTransactionsPage';
-import BuyerTransactionsPage from './components/BuyerTransactionsPage';
-import HelpPage from './components/HelpPage';
+
+// Route-level pages are code-split: each is only downloaded when the user
+// actually navigates to it, instead of bloating the initial bundle.
+const LandingPage = lazy(() => import('./components/LandingPage'));
+const LoginPage = lazy(() => import('./components/LoginPage'));
+const RegisterPage = lazy(() => import('./components/RegisterPage'));
+const BuyerProfilePage = lazy(() => import('./components/BuyerProfilePage'));
+const ProducerProfilePage = lazy(() => import('./components/ProducerProfilePage'));
+const BuyerOverviewPage = lazy(() => import('./components/BuyerOverviewPage'));
+const BuyerAuctionsPage = lazy(() => import('./components/BuyerAuctionsPage'));
+const ProducerOverviewPage = lazy(() => import('./components/ProducerOverviewPage'));
+const ProducerAuctionsPage = lazy(() => import('./components/ProducerAuctionsPage'));
+const ProducerParcellesPage = lazy(() => import('./components/ProducerParcellesPage'));
+const VerifyEmailPage = lazy(() => import('./components/VerifyEmailPage'));
+const ForgotPasswordPage = lazy(() => import('./components/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./components/ResetPasswordPage'));
+const TermsPage = lazy(() => import('./components/TermsPage'));
+const NotificationsPage = lazy(() => import('./components/NotificationsPage'));
+const WeatherPage = lazy(() => import('./components/WeatherPage'));
+const ParcellesMapPage = lazy(() => import('./components/ParcellesMapPage'));
+const CropCalendarPage = lazy(() => import('./components/CropCalendarPage'));
+const ProducerStatsPage = lazy(() => import('./components/ProducerStatsPage'));
+const BuyerStatsPage = lazy(() => import('./components/BuyerStatsPage'));
+const ProducerTransactionsPage = lazy(() => import('./components/ProducerTransactionsPage'));
+const BuyerTransactionsPage = lazy(() => import('./components/BuyerTransactionsPage'));
+const HelpPage = lazy(() => import('./components/HelpPage'));
+const AdminDashboardPage = lazy(() => import('./components/AdminDashboardPage'));
+
+function RouteLoadingFallback() {
+  return (
+    <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
+}
 
 // Helper: get token from sessionStorage
 // TODO(security): In production, migrate to HttpOnly cookies to prevent XSS token theft.
@@ -54,6 +66,8 @@ export default function App() {
   const location = useLocation();
 
   const [auctions, setAuctions] = useState([]);
+  const [hasMoreAuctions, setHasMoreAuctions] = useState(false);
+  const [loadingMoreAuctions, setLoadingMoreAuctions] = useState(false);
   const [parcelles, setParcelles] = useState([]);
   const [loadingParcelles, setLoadingParcelles] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -204,6 +218,7 @@ export default function App() {
       }
       setConnected(false);
       setAuctions([]);
+      setHasMoreAuctions(false);
       return;
     }
 
@@ -219,7 +234,10 @@ export default function App() {
       }
     });
 
-    socket.on('auctions_list', (data) => setAuctions(data));
+    socket.on('auctions_list', (data, meta) => {
+      setAuctions(data);
+      setHasMoreAuctions(!!meta?.hasMore);
+    });
 
     socket.on('auction_created', (newAuction) => {
       setAuctions(prev => prev.some(a => a.id === newAuction.id)
@@ -279,7 +297,7 @@ export default function App() {
     setUser(userInfo);
     sessionStorage.setItem('agri_token', newToken);
     sessionStorage.setItem('agri_user', JSON.stringify(userInfo));
-    navigate('/dashboard');
+    navigate(userInfo.role === 'admin' ? '/admin' : '/dashboard');
   };
 
   const handleLogout = () => {
@@ -303,6 +321,30 @@ export default function App() {
   const handlePlaceBid = (data) => socketRef.current?.emit('place_bid', data);
   const handleAcceptBid = (auctionId, bidId) => socketRef.current?.emit('accept_bid', { auctionId, bidId });
   const handleRateProducer = (auctionId, rating) => socketRef.current?.emit('rate_producer', { auctionId, rating });
+
+  // The live feed only carries the most recent page (see INITIAL_AUCTIONS_LIMIT
+  // server-side) — this fetches older ones on demand instead of ever loading
+  // the entire auctions history into memory at once.
+  const loadMoreAuctions = async () => {
+    if (loadingMoreAuctions || auctions.length === 0) return;
+    const oldest = auctions.reduce((min, a) => (a.createdAt < min ? a.createdAt : min), auctions[0].createdAt);
+    setLoadingMoreAuctions(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auctions/older?before=${encodeURIComponent(oldest)}&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAuctions(prev => {
+          const existingIds = new Set(prev.map(a => a.id));
+          return [...prev, ...data.auctions.filter(a => !existingIds.has(a.id))];
+        });
+        setHasMoreAuctions(!!data.hasMore);
+      }
+    } finally {
+      setLoadingMoreAuctions(false);
+    }
+  };
 
   const handleMarkAllRead = async () => {
     try {
@@ -544,6 +586,7 @@ export default function App() {
         display: 'flex',
         flexDirection: 'column',
       }}>
+        <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
           <Route path="/" element={
             <LandingPage
@@ -590,7 +633,9 @@ export default function App() {
             ) : <Navigate to="/login" replace />
           } />
           <Route path="/dashboard" element={
-            user && token ? (
+            !user || !token ? <Navigate to="/login" replace />
+            : user.role === 'admin' ? <Navigate to="/admin" replace />
+            : (
               <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 {user.role === 'buyer' ? (
                   <BuyerOverviewPage user={user} auctions={auctions} />
@@ -598,9 +643,15 @@ export default function App() {
                   <ProducerOverviewPage user={user} auctions={auctions} parcelles={parcelles} />
                 )}
               </DashboardLayout>
+            )
+          } />
+
+          <Route path="/admin" element={
+            user && token && user.role === 'admin' ? (
+              <AdminDashboardPage token={token} onLogout={handleLogout} />
             ) : <Navigate to="/login" replace />
           } />
-          
+
           <Route path="/dashboard/auctions" element={
             user && token ? (
               <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
@@ -615,6 +666,9 @@ export default function App() {
                     onRateProducer={handleRateProducer}
                     newBidFlashIds={newBidFlashIds}
                     highlightAuctionId={highlightAuctionId}
+                    hasMoreAuctions={hasMoreAuctions}
+                    loadingMoreAuctions={loadingMoreAuctions}
+                    onLoadMoreAuctions={loadMoreAuctions}
                   />
                 ) : (
                   <ProducerAuctionsPage
@@ -624,6 +678,9 @@ export default function App() {
                     newBidFlashIds={newBidFlashIds}
                     highlightAuctionId={highlightAuctionId}
                     token={token}
+                    hasMoreAuctions={hasMoreAuctions}
+                    loadingMoreAuctions={loadingMoreAuctions}
+                    onLoadMoreAuctions={loadMoreAuctions}
                   />
                 )}
               </DashboardLayout>
@@ -714,6 +771,7 @@ export default function App() {
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </main>
 
       {/* ── FOOTER ── */}

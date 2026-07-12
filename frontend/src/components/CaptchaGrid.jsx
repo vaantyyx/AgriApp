@@ -114,7 +114,7 @@ const CaptchaGrid = forwardRef(function CaptchaGrid(_props, ref) {
 
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box captcha-modal" onClick={e => e.stopPropagation()}>
+          <div className="modal-box captcha-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('captchaModalTitle')}>
             <div className="modal-header">
               <span className="modal-title">{t('captchaModalTitle')}</span>
               <button type="button" className="modal-close" onClick={closeModal} aria-label={t('captchaClose')}>

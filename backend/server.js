@@ -8,6 +8,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
+import pinoHttp from 'pino-http';
+import { createClient } from 'redis';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { connectToDatabase, getDb } from './db.js';
 import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
@@ -15,7 +18,10 @@ import notificationsRoutes from './routes/notifications.js';
 import parcellesRoutes from './routes/parcelles.js';
 import captchaRoutes from './routes/captcha.js';
 import supportRoutes from './routes/support.js';
+import adminRoutes from './routes/admin.js';
 import { CAPTCHA_CATEGORIES } from './services/captchaCategories.js';
+import { logger } from './utils/logger.js';
+import authMiddleware from './middleware/authMiddleware.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,17 +29,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 if (!process.env.JWT_SECRET) {
   const ephemeral = randomBytes(32).toString('hex');
   process.env.JWT_SECRET = ephemeral;
-  console.warn('[SECURITY WARNING] JWT_SECRET not set in .env — using ephemeral secret. All sessions will be invalidated on restart!');
+  logger.warn('JWT_SECRET not set in .env — using ephemeral secret. All sessions will be invalidated on restart!');
 }
 
 // Login is hard-gated behind the CAPTCHA, so an empty/broken category
 // catalog would lock everyone out — warn loudly rather than fail silently.
 if (Object.keys(CAPTCHA_CATEGORIES).length < 4) {
-  console.warn('[CAPTCHA WARNING] Fewer than 4 categories in captchaCategories.js — CAPTCHA grids may fail to generate, blocking all logins.');
+  logger.warn('Fewer than 4 categories in captchaCategories.js — CAPTCHA grids may fail to generate, blocking all logins.');
 }
 
 // ─── App Setup ────────────────────────────────────────────────────────────
 const app = express();
+app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 
 // CORS — restrict to frontend origin only (comma-separated ALLOWED_ORIGINS env var, falls back to local dev origins)
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -115,6 +122,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/parcelles', parcellesRoutes);
 app.use('/api/captcha', captchaRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -173,7 +181,53 @@ app.get('/api/producers/count', async (req, res) => {
 
     res.json({ count });
   } catch (error) {
-    console.error('[API] Error counting producers:', error.message);
+    logger.error({ err: error }, 'Error counting producers');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// Older auctions, paginated — the initial Socket.IO snapshot only sends the
+// most recent INITIAL_AUCTIONS_LIMIT; the frontend calls this to "load more".
+app.get('/api/auctions/older', authMiddleware, async (req, res) => {
+  try {
+    const before = req.query.before ? new Date(req.query.before) : null;
+    if (!before || isNaN(before.getTime())) {
+      return res.status(400).json({ error: 'Paramètre "before" invalide.' });
+    }
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+
+    const db = getDb();
+    const { userId: uid, role } = req.user;
+
+    let auctions = await db.collection('auctions')
+      .find({ createdAt: { $lt: before.toISOString() } })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
+
+    if (role === 'producer') {
+      const { ObjectId } = await import('mongodb');
+      const producerUser = await db.collection('users').findOne(
+        { _id: new ObjectId(uid) },
+        { projection: { wilaya: 1, commune: 1 } }
+      );
+      const producerCoords = producerUser?.commune
+        ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
+        : getWilayaCoords(producerUser?.wilaya || '');
+
+      const allowed = [];
+      for (const a of auctions) {
+        if (a.status !== 'pending' && await canProducerParticipate(a, uid, producerCoords, db)) {
+          allowed.push(a);
+        }
+      }
+      auctions = allowed;
+    }
+
+    const sanitized = sanitizeAuctions(auctions, uid, role);
+    res.json({ auctions: sanitized, hasMore: auctions.length === limit });
+  } catch (err) {
+    logger.error({ err }, 'Error fetching older auctions');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -446,8 +500,39 @@ const io = new Server(httpServer, {
   },
 });
 
-// Map of connected userId → Set of socket IDs for targeted delivery
-const connectedUsers = new Map(); // userId → Set<socketId>
+// Per-user Socket.IO room, used for targeted delivery. Room-based (rather than
+// tracking raw socket IDs ourselves) so `io.to(userRoom(id)).emit(...)` fans out
+// correctly across instances once the Redis adapter below is active.
+const userRoom = (userId) => `user:${userId}`;
+
+// Real-time delivery (new/updated auctions) is unaffected by this cap — it only
+// bounds the initial snapshot sent on connect; older auctions load on demand.
+const INITIAL_AUCTIONS_LIMIT = 100;
+
+// Attaches the Redis adapter so Socket.IO state (rooms, broadcasts) is shared
+// across multiple server instances. Falls back to the default in-memory
+// adapter (single-instance only) if REDIS_URL is unset or unreachable —
+// the app remains fully functional either way.
+async function setupSocketAdapter(io) {
+  if (!process.env.REDIS_URL) {
+    logger.info('REDIS_URL not set — Socket.IO running in single-instance (in-memory) mode.');
+    return;
+  }
+  try {
+    // reconnectStrategy: false — fail fast on the initial attempt instead of
+    // retrying forever in the background, so a missing/down Redis can never
+    // hang server startup; it just falls back to in-memory mode below.
+    const pubClient = createClient({ url: process.env.REDIS_URL, socket: { reconnectStrategy: false } });
+    const subClient = pubClient.duplicate();
+    pubClient.on('error', (err) => logger.error({ err }, 'Redis pub client error'));
+    subClient.on('error', (err) => logger.error({ err }, 'Redis sub client error'));
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    logger.info('Socket.IO Redis adapter connected — ready for multi-instance scaling.');
+  } catch (err) {
+    logger.error({ err }, 'Failed to connect Socket.IO Redis adapter — falling back to single-instance mode.');
+  }
+}
 
 // Map of auctionId → { fiveMin: Timeout|null, start: Timeout|null } for precise scheduling
 const auctionTimers = new Map();
@@ -523,10 +608,9 @@ async function notifyMatchingProducers(auction, db, type) {
     };
     await db.collection('notifications').insertOne(notification);
 
-    const producerSockets = connectedUsers.get(producer._id.toString());
-    if (producerSockets && producerSockets.size > 0) {
-      producerSockets.forEach(sid => io.to(sid).emit('new_notification', notification));
-    }
+    // Room-based targeting (not raw socket IDs) so delivery works correctly
+    // across instances once the Redis adapter is active — a no-op if empty.
+    io.to(userRoom(producer._id.toString())).emit('new_notification', notification);
   }
 }
 
@@ -567,7 +651,7 @@ async function openAuction(auctionId) {
     await notifyMatchingProducers(auction, db, 'new_auction');
     await broadcastAuction(auction, db, 'auction_updated');
   } catch (err) {
-    console.error('[Scheduler] Error opening auction:', err.message);
+    logger.error({ err, auctionId }, 'Error opening auction');
   }
 }
 
@@ -594,7 +678,7 @@ function scheduleAuctionNotifications(auction) {
           await notifyMatchingProducers(current, db, 'auction_starting_soon');
         }
       } catch (err) {
-        console.error('[Scheduler] Error sending 5-min reminder:', err.message);
+        logger.error({ err, auctionId: auction.id }, 'Error sending 5-min reminder');
       }
     }, fiveMinDelay);
   }
@@ -626,11 +710,11 @@ io.on('connection', async (socket) => {
   const uid = socket.user.userId;
   const role = socket.user.role;
 
-  // Register connected user
-  if (!connectedUsers.has(uid)) connectedUsers.set(uid, new Set());
-  connectedUsers.get(uid).add(socket.id);
+  // Room-based presence — works for targeted delivery across instances once
+  // the Redis adapter is active, and Socket.IO cleans it up on disconnect.
+  socket.join(userRoom(uid));
 
-  console.log(`User connected: ${socket.user.email} [${role}] (${socket.id})`);
+  logger.info({ email: socket.user.email, role, socketId: socket.id }, 'User connected');
 
   // Resolve producer geographic coordinates for zone-based filtering
   socket.producerCoords = null;
@@ -649,8 +733,10 @@ io.on('connection', async (socket) => {
         : getWilayaCoords(producerUser?.wilaya || '');
     }
 
-    // Send initial auctions list — producers only see demands matching their zone & product if smart
-    let auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).toArray();
+    // Send initial auctions list — producers only see demands matching their zone & product if smart.
+    // Capped to the most recent page; older auctions are fetched on demand via GET /api/auctions/older.
+    const totalAuctionsCount = await db.collection('auctions').countDocuments({});
+    let auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).limit(INITIAL_AUCTIONS_LIMIT).toArray();
     if (role === 'producer') {
       const allowed = [];
       for (const a of auctions) {
@@ -662,9 +748,9 @@ io.on('connection', async (socket) => {
     }
 
     const sanitized = sanitizeAuctions(auctions, uid, role);
-    socket.emit('auctions_list', sanitized);
+    socket.emit('auctions_list', sanitized, { hasMore: totalAuctionsCount > INITIAL_AUCTIONS_LIMIT });
   } catch (err) {
-    console.error('[WS] Error fetching initial auctions:', err.message);
+    logger.error({ err }, 'Error fetching initial auctions');
   }
 
   // ── Create Auction (Buyer only) ──────────────────────────────────────
@@ -772,7 +858,7 @@ io.on('connection', async (socket) => {
       // Broadcast new auction — producers only receive demands within their zone and product match if smart
       await broadcastAuction(newAuction, db, 'auction_created');
     } catch (err) {
-      console.error('[WS] Error creating auction:', err.message);
+      logger.error({ err }, 'Error creating auction');
       socket.emit('error', { message: "Échec de la création de l'enchère." });
     }
   });
@@ -862,7 +948,7 @@ io.on('connection', async (socket) => {
 
       await broadcastAuction(updatedAuction, db, 'auction_updated');
     } catch (err) {
-      console.error('[WS] Error updating auction:', err.message);
+      logger.error({ err }, 'Error updating auction');
       socket.emit('error', { message: "Échec de la modification de l'enchère." });
     }
   });
@@ -897,7 +983,7 @@ io.on('connection', async (socket) => {
         s.emit('auction_deleted', { auctionId });
       }
     } catch (err) {
-      console.error('[WS] Error deleting auction:', err.message);
+      logger.error({ err }, 'Error deleting auction');
       socket.emit('error', { message: "Échec de la suppression de l'enchère." });
     }
   });
@@ -1007,12 +1093,7 @@ io.on('connection', async (socket) => {
       await db.collection('notifications').insertOne(notification);
 
       // Push real-time notification if buyer is connected
-      const buyerSockets = connectedUsers.get(auction.buyerId);
-      if (buyerSockets && buyerSockets.size > 0) {
-        buyerSockets.forEach(sid => {
-          io.to(sid).emit('new_notification', notification);
-        });
-      }
+      io.to(userRoom(auction.buyerId)).emit('new_notification', notification);
 
       // Broadcast updated auction (sanitized per receiver)
       const allSockets = await io.fetchSockets();
@@ -1025,7 +1106,7 @@ io.on('connection', async (socket) => {
         s.emit('auction_updated', sanitized);
       }
     } catch (err) {
-      console.error('[WS] Error placing bid:', err.message);
+      logger.error({ err }, 'Error placing bid');
       socket.emit('error', { message: "Échec du dépôt d'offre." });
     }
   });
@@ -1080,12 +1161,7 @@ io.on('connection', async (socket) => {
       };
       await db.collection('notifications').insertOne(notification);
 
-      const producerSockets = connectedUsers.get(bid.producerId);
-      if (producerSockets && producerSockets.size > 0) {
-        producerSockets.forEach(sid => {
-          io.to(sid).emit('new_notification', notification);
-        });
-      }
+      io.to(userRoom(bid.producerId)).emit('new_notification', notification);
 
       const allSockets = await io.fetchSockets();
       for (const s of allSockets) {
@@ -1097,7 +1173,7 @@ io.on('connection', async (socket) => {
         s.emit('auction_updated', sanitized);
       }
     } catch (err) {
-      console.error('[WS] Error accepting bid:', err.message);
+      logger.error({ err }, 'Error accepting bid');
       socket.emit('error', { message: 'Échec de la validation.' });
     }
   });
@@ -1195,18 +1271,14 @@ io.on('connection', async (socket) => {
         s.emit('auction_updated', sanitized);
       }
     } catch (err) {
-      console.error('[WS] Error rating producer:', err.message);
+      logger.error({ err }, 'Error rating producer');
       socket.emit('error', { message: 'Échec de la notation.' });
     }
   });
 
   socket.on('disconnect', () => {
-    const sockets = connectedUsers.get(uid);
-    if (sockets) {
-      sockets.delete(socket.id);
-      if (sockets.size === 0) connectedUsers.delete(uid);
-    }
-    console.log(`User disconnected: ${socket.user.email} (${socket.id})`);
+    // Socket.IO removes the socket from its rooms (including userRoom(uid)) automatically.
+    logger.info({ email: socket.user.email, socketId: socket.id }, 'User disconnected');
   });
 });
 
@@ -1226,12 +1298,12 @@ async function checkPendingAuctions() {
 
     if (pendingAuctions.length === 0) return;
 
-    console.log(`[Scheduler] Found ${pendingAuctions.length} pending auctions to open (fallback poll).`);
+    logger.info({ count: pendingAuctions.length }, 'Fallback poll found pending auctions to open');
     for (const auction of pendingAuctions) {
       await openAuction(auction.id);
     }
   } catch (err) {
-    console.error('[Scheduler] Error processing pending auctions:', err.message);
+    logger.error({ err }, 'Error processing pending auctions');
   }
 }
 
@@ -1244,6 +1316,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 async function startServer() {
   try {
     await connectToDatabase();
+    await setupSocketAdapter(io);
 
     const db = getDb();
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
@@ -1264,13 +1337,13 @@ async function startServer() {
     // Setup periodic scheduler (every 30 seconds) — fallback safety net only
     setInterval(checkPendingAuctions, 30000);
     // Run once immediately on startup
-    checkPendingAuctions().catch(err => console.error('[Scheduler Start Error]', err));
+    checkPendingAuctions().catch(err => logger.error({ err }, 'Scheduler start error'));
 
     httpServer.listen(PORT, HOST, () => {
-      console.log(`✅ Server running on http://${HOST}:${PORT}`);
+      logger.info({ host: HOST, port: PORT }, 'Server running');
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logger.error({ err: error }, 'Failed to start server');
     process.exit(1);
   }
 }

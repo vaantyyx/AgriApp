@@ -117,8 +117,8 @@ function RatingModal({ auctionId, onSubmit, onClose }) {
   const { t, locale } = useTranslation();
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()}>
-        <button className="modal-close-btn" onClick={onClose}><X size={18} /></button>
+      <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('rateProducerTitle')}>
+        <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⭐</div>
           <h3 style={{ fontSize: '1.2rem', marginBottom: '6px' }}>{t('rateProducerTitle')}</h3>
@@ -248,8 +248,8 @@ function DeleteAuctionModal({ onConfirm, onClose }) {
   const { t } = useTranslation();
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-        <button className="modal-close-btn" onClick={onClose}><X size={18} /></button>
+      <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }} role="dialog" aria-modal="true" aria-label={t('deleteAuctionConfirmTitle')}>
+        <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🗑️</div>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 6, color: 'var(--text-main)' }}>{t('deleteAuctionConfirmTitle')}</h3>
@@ -275,7 +275,7 @@ function getMissingFieldsList(user, locale) {
   return missing;
 }
 
-export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onUpdateAuction, onDeleteAuction, onAcceptBid, onRateProducer, newBidFlashIds, highlightAuctionId }) {
+export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onUpdateAuction, onDeleteAuction, onAcceptBid, onRateProducer, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
   const { t, locale, dir } = useTranslation();
   const navigate = useNavigate();
 
@@ -499,8 +499,8 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
       {/* Block Warning Modal */}
       {showBlockWarningModal && (
         <div className="modal-overlay" onClick={() => setShowBlockWarningModal(false)}>
-          <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-            <button className="modal-close-btn" onClick={() => setShowBlockWarningModal(false)}><X size={18} /></button>
+          <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }} role="dialog" aria-modal="true" aria-label={locale === 'ar' ? 'حساب غير مكتمل' : (locale === 'en' ? 'Incomplete profile' : 'Profil incomplet')}>
+            <button className="modal-close-btn" onClick={() => setShowBlockWarningModal(false)} aria-label={t('captchaClose')}><X size={18} /></button>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🔒</div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '8px', color: 'var(--text-main)' }}>
@@ -896,6 +896,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
             </div>
           </div>
         ) : (
+          <>
           <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', background: 'var(--bg-panel)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 80px 80px 95px', minWidth: 680, padding: '10px 20px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               <span>{locale === 'ar' ? 'العنوان' : (locale === 'en' ? 'Title' : 'Titre')}</span>
@@ -1010,6 +1011,14 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
               );
             })}
           </div>
+          {hasMoreAuctions && (
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <button onClick={onLoadMoreAuctions} disabled={loadingMoreAuctions} className="btn btn-secondary" style={{ padding: '8px 20px', fontSize: '0.85rem' }}>
+                {loadingMoreAuctions ? t('loadingMoreBtn') : t('loadMoreBtn')}
+              </button>
+            </div>
+          )}
+          </>
         )
       )}
     </div>
