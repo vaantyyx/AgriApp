@@ -337,7 +337,7 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
       </div>
 
       {activeTab === 'profile' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: dir === 'rtl' ? '320px 1fr' : '1fr 320px', gap: '24px', flexWrap: 'wrap' }}>
+        <div className="profile-content-grid">
           {dir === 'rtl' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="glass-panel" style={{ textAlign: 'start' }}>

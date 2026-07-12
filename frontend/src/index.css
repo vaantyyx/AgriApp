@@ -396,13 +396,18 @@ img { max-width: 100%; }
   .dash-sidebar.dash-sidebar-mobile-open { transform: translateX(0); }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   /* The header packs a lot of controls (logo+wordmark, language, theme,
      notifications, profile pill, logout, divider) that simply don't fit
-     a phone-width row unwrapped. Nothing here may force a min-width wider
-     than the viewport, or mobile browsers expand the whole page's layout
-     viewport to fit it — breaking responsiveness site-wide, not just the
-     header. So on small screens this trims down to icon-only controls.
+     a phone/tablet-width row unwrapped. Nothing here may force a min-width
+     wider than the viewport, or mobile browsers expand the whole page's
+     layout viewport to fit it — breaking responsiveness site-wide, not
+     just the header. So on small/medium screens this trims down to
+     icon-only controls. Matches the 768px breakpoint the hamburger button
+     and mobile sidebar drawer already use above — below that width the
+     hamburger appears, so the header must shrink at the same threshold or
+     there's a gap where the hamburger shows up but nothing else shrinks,
+     overflowing the viewport.
      This block must come after the base rules above in source order —
      same-specificity CSS resolves ties by source order, not by whether a
      rule sits inside a media query. */
@@ -1448,6 +1453,22 @@ textarea { resize: vertical; min-height: 90px; }
 
 @media (max-width: 768px) {
   .profile-grid { grid-template-columns: 1fr; }
+}
+
+/* Buyer/Producer profile page: main info panel + 320px stats/verification
+   sidebar. Collapses to a single column below 900px so the sidebar never
+   gets squeezed next to a barely-readable main column on tablets/phones. */
+.profile-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+}
+[dir="rtl"] .profile-content-grid { grid-template-columns: 320px 1fr; }
+@media (max-width: 900px) {
+  .profile-content-grid,
+  [dir="rtl"] .profile-content-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .profile-header-card {
