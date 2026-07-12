@@ -1,6 +1,7 @@
 services:
   mongo:
     image: mongo:7
+    restart: unless-stopped
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -11,6 +12,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -22,6 +24,7 @@ services:
   # not plain `docker compose up`) so nginx's upstream list below can be static.
   backend1: &backend
     build: ./backend
+    restart: unless-stopped
     env_file: ./backend/.env
     environment:
       MONGODB_URI: mongodb://mongo:27017/agriapp
@@ -43,11 +46,17 @@ services:
     <<: *backend
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        # Leave unset to have the site call its own origin (correct for this
+        # single-domain setup). Only set this if the API will be reachable on
+        # a different domain than the site itself.
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
+    restart: unless-stopped
     ports:
       - "8080:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - backend1
       - backend2
