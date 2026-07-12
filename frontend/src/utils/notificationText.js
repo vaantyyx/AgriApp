@@ -1,4 +1,24 @@
-/** Resolve the display title for a notification, keyed by its `type`. */
+// @ts-check
+
+/**
+ * @typedef {Object} AppNotification
+ * @property {string} type
+ * @property {string} [product]
+ * @property {number} [quantity]
+ * @property {string} [unit]
+ * @property {number} [distanceKm]
+ * @property {number|null} [price]
+ * @property {number} [optionCount]
+ * @property {string} [startAt]
+ */
+
+/** @typedef {(key: string, replacements?: Record<string, unknown>) => string} Translator */
+
+/**
+ * Resolve the display title for a notification, keyed by its `type`.
+ * @param {AppNotification} n
+ * @param {Translator} t
+ */
 export function getNotificationTitle(n, t) {
   if (n.type === 'new_bid') return t('newBidNotificationTitle');
   if (n.type === 'bid_accepted') return t('bidAcceptedNotificationTitle');
@@ -8,7 +28,12 @@ export function getNotificationTitle(n, t) {
   return t('newDemandAtDistance', { distance: n.distanceKm || 0 });
 }
 
-/** Resolve the display body for a notification, keyed by its `type`. */
+/**
+ * Resolve the display body for a notification, keyed by its `type`.
+ * @param {AppNotification} n
+ * @param {Translator} t
+ * @param {string} [locale]
+ */
 export function getNotificationBody(n, t, locale = 'fr') {
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
   if (n.type === 'new_bid') return t('newBidNotificationBody', { product: n.product });

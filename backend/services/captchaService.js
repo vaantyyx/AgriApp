@@ -1,3 +1,4 @@
+// @ts-check
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db.js';
 import { CAPTCHA_CATEGORIES, getCategoryLabel } from './captchaCategories.js';
@@ -5,6 +6,14 @@ import { CAPTCHA_CATEGORIES, getCategoryLabel } from './captchaCategories.js';
 const TILE_COUNT = 16;
 const CHALLENGE_TTL_MS = 3 * 60 * 1000; // time allowed to solve the grid
 const VERIFIED_TTL_MS = 2 * 60 * 1000;  // time allowed to submit the login form after solving
+
+// Documents in this collection use a UUID string as _id (not the driver's
+// default ObjectId), so it's typed loosely here rather than fighting the
+// default Collection<Document> generic at every call site below.
+/** @returns {import('mongodb').Collection<any>} */
+function challenges() {
+  return getDb().collection('captcha_challenges');
+}
 
 function shuffle(arr) {
   const a = [...arr];
@@ -31,7 +40,6 @@ function pickDistractors(otherKeys, count) {
  * only what the client needs to render the grid — never the correct answer.
  */
 export async function generateChallenge(locale = 'fr') {
-  const db = getDb();
   const keys = Object.keys(CAPTCHA_CATEGORIES);
 
   const targetKey = keys[Math.floor(Math.random() * keys.length)];
@@ -50,7 +58,7 @@ export async function generateChallenge(locale = 'fr') {
 
   const challengeId = uuidv4();
 
-  await db.collection('captcha_challenges').insertOne({
+  await challenges().insertOne({
     _id: challengeId,
     category: targetKey,
     tiles,
@@ -81,8 +89,7 @@ export async function getTile(challengeId, index) {
   if (!Number.isInteger(idx) || idx < 0 || idx >= TILE_COUNT) return null;
   if (typeof challengeId !== 'string' || !challengeId) return null;
 
-  const db = getDb();
-  const challenge = await db.collection('captcha_challenges').findOne({
+  const challenge = await challenges().findOne({
     _id: challengeId,
     expiresAt: { $gt: new Date() },
   });
@@ -135,8 +142,7 @@ export async function verifySelection(challengeId, selected) {
     return { success: false, reason: 'invalid' };
   }
 
-  const db = getDb();
-  const challenge = await db.collection('captcha_challenges').findOne({
+  const challenge = await challenges().findOne({
     _id: challengeId,
     verified: false,
     expiresAt: { $gt: new Date() },
@@ -151,11 +157,11 @@ export async function verifySelection(challengeId, selected) {
   const isExactMatch = selectedSet.size === correctSet.size && [...selectedSet].every(i => correctSet.has(i));
 
   if (!isExactMatch) {
-    await db.collection('captcha_challenges').deleteOne({ _id: challengeId });
+    await challenges().deleteOne({ _id: challengeId });
     return { success: false, reason: 'wrong' };
   }
 
-  await db.collection('captcha_challenges').updateOne(
+  await challenges().updateOne(
     { _id: challengeId },
     { $set: { verified: true, expiresAt: new Date(Date.now() + VERIFIED_TTL_MS) } }
   );
@@ -170,8 +176,7 @@ export async function verifySelection(challengeId, selected) {
  */
 export async function consumeVerifiedChallenge(challengeId) {
   if (typeof challengeId !== 'string' || !challengeId) return false;
-  const db = getDb();
-  const result = await db.collection('captcha_challenges').findOneAndDelete({
+  const result = await challenges().findOneAndDelete({
     _id: challengeId,
     verified: true,
     expiresAt: { $gt: new Date() },

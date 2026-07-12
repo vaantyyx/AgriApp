@@ -1,8 +1,19 @@
+// @ts-check
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { translations } from '../i18n/translations';
 
+/**
+ * @typedef {Object} LanguageContextValue
+ * @property {string} locale
+ * @property {(lang: string) => void} setLocale
+ * @property {(key: string, replacements?: Record<string, unknown>) => string} t
+ * @property {'ltr'|'rtl'} dir
+ */
+
+/** @type {import('react').Context<LanguageContextValue|null>} */
 const LanguageContext = createContext(null);
 
+/** @param {{ children: import('react').ReactNode }} props */
 export function LanguageProvider({ children }) {
   const [locale, setLocaleState] = useState(() => {
     try {

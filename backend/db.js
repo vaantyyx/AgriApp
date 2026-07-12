@@ -1,10 +1,14 @@
+// @ts-check
 import { MongoClient } from 'mongodb';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agriapp';
 
+/** @type {import('mongodb').Db | null} */
 let db = null;
+/** @type {MongoClient | null} */
 let client = null;
 
+/** @returns {Promise<import('mongodb').Db>} */
 export async function connectToDatabase() {
   if (db) return db;
 
@@ -21,6 +25,7 @@ export async function connectToDatabase() {
   }
 }
 
+/** @returns {import('mongodb').Db} */
 export function getDb() {
   if (!db) {
     throw new Error('Database has not been initialized. Call connectToDatabase first.');

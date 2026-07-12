@@ -1,7 +1,12 @@
+// @ts-check
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
+/** @typedef {{ theme: string, toggleTheme: () => void }} ThemeContextValue */
+
+/** @type {import('react').Context<ThemeContextValue|null>} */
 const ThemeContext = createContext(null);
 
+/** @param {{ children: import('react').ReactNode }} props */
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => {
     try {

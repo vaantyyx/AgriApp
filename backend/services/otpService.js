@@ -1,3 +1,4 @@
+// @ts-check
 import bcrypt from 'bcryptjs';
 import { getDb } from '../db.js';
 import { randomInt } from 'crypto';

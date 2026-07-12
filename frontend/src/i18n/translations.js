@@ -199,7 +199,6 @@ export const translations = {
 
     // Buyer Dashboard
     expressNeed: "التعبير عن الاحتياج",
-    expressNeedAr: "التعبير عن الاحتياج",
     productLabel: "المنتج *",
     productPlaceholder: "مثال: بطاطس، جزر",
     quantityLabel: "الكمية *",
@@ -1621,6 +1620,7 @@ export const translations = {
     hidePasswordLabel: "Hide password",
 
     // Additional keys
+    anonymousDemand: "Anonymous demand • Posted at {time}",
     proposeMultipleOptionsTip: "💡 Do you have different qualities available? Add them all in one single offer. The buyer accepts or refuses your offer as a whole.",
     submitMultipleBidsBtn: "Send my complete offer ({count} qualities)",
     addOptionBtn: "Add a quality",

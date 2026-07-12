@@ -1,4 +1,15 @@
-/** Resolve which bid line was accepted (whole-bid acceptance uses the single line or null for multi-option packages). */
+// @ts-check
+
+/** @typedef {{ id?: string, optionName?: string, price?: number, unit?: string }} BidLine */
+/** @typedef {{ id?: string, lines?: BidLine[], producerAlias?: string }} Bid */
+/** @typedef {{ acceptedBidId?: string, acceptedLineId?: string|null, unit?: string }} Auction */
+/** @typedef {(key: string, replacements?: Record<string, unknown>) => string} Translator */
+
+/** Resolve which bid line was accepted (whole-bid acceptance uses the single line or null for multi-option packages).
+ * @param {Bid|null|undefined} bid
+ * @param {string|null|undefined} acceptedLineId
+ * @returns {BidLine|null}
+ */
 export function resolveAcceptedLine(bid, acceptedLineId) {
   if (!bid?.lines?.length) return null;
   if (acceptedLineId) {
@@ -8,13 +19,20 @@ export function resolveAcceptedLine(bid, acceptedLineId) {
   return null;
 }
 
-/** Whether a specific line within a bid was accepted. */
+/** Whether a specific line within a bid was accepted.
+ * @param {Auction} auction
+ * @param {Bid} bid
+ * @param {BidLine} line
+ */
 export function isBidLineAccepted(auction, bid, line) {
   if (auction.acceptedBidId !== bid.id) return false;
   if (auction.acceptedLineId) return auction.acceptedLineId === line.id;
   return true;
 }
 
+/**
+ * @param {{ bid: Bid, acceptedLineId?: string|null, auction: Auction, t: Translator }} params
+ */
 export function getWinnerCongratsMessage({ bid, acceptedLineId, auction, t }) {
   const lines = bid?.lines || [];
   const line = resolveAcceptedLine(bid, acceptedLineId);
@@ -38,6 +56,9 @@ export function getWinnerCongratsMessage({ bid, acceptedLineId, auction, t }) {
   return t('bidWinnerCongratsGeneric');
 }
 
+/**
+ * @param {{ winningBid: Bid, acceptedLineId?: string|null, auction: Auction, t: Translator, locale: string }} params
+ */
 export function getBidClosedWinnerMessage({ winningBid, acceptedLineId, auction, t, locale }) {
   const line = resolveAcceptedLine(winningBid, acceptedLineId);
 
@@ -56,7 +77,7 @@ export function getBidClosedWinnerMessage({ winningBid, acceptedLineId, auction,
       unit: t('unit_' + (line.unit || auction.unit)),
     });
   }
-  if (winningBid?.lines?.length > 1) {
+  if (winningBid?.lines && winningBid.lines.length > 1) {
     return t('bidClosedWinnerPackage', {
       name: winningBid.producerAlias,
       count: winningBid.lines.length,

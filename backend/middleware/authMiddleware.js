@@ -1,6 +1,13 @@
+// @ts-check
 import jwt from 'jsonwebtoken';
 
 // TODO(security): In production, always set JWT_SECRET in environment variables.
+
+/**
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
 export default function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -16,11 +23,13 @@ export default function authMiddleware(req, res, next) {
 
   try {
     // Hardcode algorithm to prevent 'none' algorithm attack
-    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
+    const decoded = /** @type {{ userId: string, email: string, role: string }} */ (
+      jwt.verify(token, secret, { algorithms: ['HS256'] })
+    );
     req.user = decoded;
     next();
   } catch (err) {
-    if (err.name === 'TokenExpiredError') {
+    if (err instanceof Error && err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Session expirée. Veuillez vous reconnecter.' });
     }
     return res.status(401).json({ error: 'Token invalide.' });
