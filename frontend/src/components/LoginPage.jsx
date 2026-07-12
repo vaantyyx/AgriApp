@@ -379,7 +379,7 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
                   onClick={() => navigate('/forgot-password')}
                   style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', cursor: 'pointer', padding: 0 }}
                 >
-                  Mot de passe oublié ?
+                  {t('forgotPageTitle')}
                 </button>
               </div>
               <div style={{ position: 'relative' }}>
@@ -469,15 +469,15 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
           </form>
 
           <p style={{ fontSize: '0.78rem', color: 'var(--text-faint)', textAlign: 'center', marginTop: 16 }}>
-            En vous connectant, vous acceptez nos{' '}
+            {t('loginTermsPrefix')}{' '}
             <button
               type="button"
               onClick={() => navigate('/terms')}
               style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
             >
-              Conditions Générales d'Utilisation
+              {t('termsLinkLabel')}
             </button>
-            .
+            {t('loginTermsSuffix')}
           </p>
 
           <div className="auth-divider">{t('appDesc')?.split('•')[0]?.trim() || '—'}</div>

@@ -214,7 +214,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
     }
 
     if (!acceptedTerms) {
-      setError("Vous devez accepter les Conditions Générales d'Utilisation pour créer un compte.");
+      setError(t('mustAcceptTermsError'));
       return;
     }
 
@@ -719,15 +719,15 @@ export default function RegisterPage({ onNavigateToLogin }) {
               required
             />
             <span>
-              Je déclare avoir lu et accepté les{' '}
+              {t('acceptTermsPrefix')}{' '}
               <button
                 type="button"
                 onClick={() => navigate('/terms')}
                 style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
               >
-                Conditions Générales d'Utilisation
+                {t('termsLinkLabel')}
               </button>
-              {' '}de Sougra.
+              {' '}{t('acceptTermsSuffix')}
             </span>
           </label>
 
