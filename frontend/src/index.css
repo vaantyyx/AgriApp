@@ -2750,4 +2750,173 @@ textarea { resize: vertical; min-height: 90px; }
   .no-print { display: none !important; }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   WIZARD (multi-step forms — auction creation, etc.)
+═══════════════════════════════════════════════════════════════ */
+.wizard-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.wizard-header-title { font-size: 1.5rem; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
+.wizard-close-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); }
+
+.wizard-step-indicator {
+  display: flex; align-items: center; gap: 0;
+  background: rgba(255,255,255,0.03); border-radius: 14px; padding: 12px 16px;
+  border: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto;
+}
+.wizard-step-item { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 80px; }
+.wizard-step-circle {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-input); border: 2px solid var(--border);
+  transition: all 0.3s ease;
+}
+.wizard-step-circle.active, .wizard-step-circle.done {
+  background: var(--primary); border-color: var(--primary);
+}
+.wizard-step-circle.active { box-shadow: 0 0 12px rgba(16,185,129,0.4); }
+.wizard-step-label { font-size: 0.7rem; font-weight: 500; color: var(--text-muted); text-align: center; white-space: nowrap; }
+.wizard-step-label.active { font-weight: 700; color: var(--primary); }
+.wizard-step-label.done { color: var(--text-body); }
+.wizard-step-connector { flex: 1; height: 2px; margin: 0 4px 24px; background: var(--border); transition: background 0.3s ease; min-width: 16px; }
+.wizard-step-connector.done { background: var(--primary); }
+
+.wizard-section-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+.wizard-nav-row { display: flex; justify-content: space-between; margin-top: 24px; gap: 12px; }
+
+.required-asterisk { color: var(--danger); }
+
+.bordered-card { border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; background: rgba(255,255,255,0.02); }
+.bordered-card-sm { border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; background: rgba(255,255,255,0.02); }
+
+.input-suffix-wrap { position: relative; }
+.input-suffix-label { position: absolute; inset-inline-end: 12px; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+.input-with-suffix { padding-inline-end: 44px; }
+
+.toggle-switch-track {
+  width: 44px; height: 24px; border-radius: 99px; position: relative;
+  transition: background 0.25s ease; flex-shrink: 0; cursor: pointer;
+  background: var(--border);
+}
+.toggle-switch-track.on { background: var(--primary); }
+.toggle-switch-knob {
+  /* Physical left (not logical) on purpose — the original never mirrored
+     this for RTL, so keeping it physical preserves exact prior behavior. */
+  width: 18px; height: 18px; border-radius: 50%; background: white;
+  position: absolute; top: 3px; left: 3px;
+  transition: left 0.25s ease; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.toggle-switch-knob.on { left: 23px; }
+
+.summary-box-title { font-size: 0.72rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+.form-section-title {
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--primary); font-weight: 800;
+  border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 12px;
+}
+.summary-row { display: flex; gap: 10px; margin-bottom: 6px; font-size: 0.875rem; }
+.summary-row-label { color: var(--text-muted); min-width: 140px; flex-shrink: 0; }
+.summary-row-value { color: var(--text-main); font-weight: 600; }
+
+.inline-alert-danger {
+  padding: 10px 14px; border-radius: 8px; font-size: 0.875rem;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444; display: flex; align-items: flex-start; gap: 8px;
+}
+.inline-alert-warning {
+  padding: 14px; border-radius: 8px; font-size: 0.85rem;
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+  color: #f59e0b;
+}
+.missing-field-chip { background: rgba(239,68,68,0.08); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD HOME (stat cards, profile-completion widget)
+═══════════════════════════════════════════════════════════════ */
+.stats-mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 36px; }
+.stat-mini-card { padding: 20px 24px; display: flex; align-items: center; gap: 16px; }
+.stat-mini-icon-box { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-mini-value { font-size: 1.75rem; font-weight: 800; }
+.stat-mini-label { font-size: 0.8rem; color: var(--text-muted); }
+
+.completion-widget { padding: 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.completion-ring-wrap { position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.completion-ring-value { position: absolute; font-size: 1.1rem; font-weight: 800; color: var(--text-main); }
+.completion-widget-body { flex: 1; min-width: 240px; text-align: start; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA TABLE (compact expandable rows — auctions/parcelles lists)
+═══════════════════════════════════════════════════════════════ */
+.data-table { border-radius: 14px; border: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; background: var(--bg-panel); }
+.data-table-header-row {
+  display: grid; padding: 10px 20px;
+  background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border);
+  font-size: 0.72rem; font-weight: 800; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.data-table-row-wrap:not(:last-child) { border-bottom: 1px solid var(--border); }
+.data-table-row {
+  display: grid; padding: 14px 20px; align-items: center; cursor: pointer;
+  transition: background 0.2s; background: transparent;
+}
+/* Auctions list: title / type / date / bids count / status / chevron */
+.auctions-table-grid { grid-template-columns: 2fr 1fr 1fr 80px 80px 40px; min-width: 640px; }
+/* Same, but with an actions column (view/edit/delete icon buttons) instead
+   of a chevron — used on the buyer/producer "my auctions" management tables. */
+.auctions-table-grid-actions { grid-template-columns: 2.2fr 1fr 1fr 80px 80px 95px; min-width: 680px; }
+
+.table-icon-btn {
+  border: 1px solid; padding: 6px 9px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.table-icon-btn-view { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); color: #3b82f6; }
+.table-icon-btn-view:hover { background: rgba(59,130,246,0.2); }
+.btn-view-details {
+  font-size: 0.82rem; padding: 8px 16px; display: flex; align-items: center; gap: 8px;
+  background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); border-radius: 8px;
+  cursor: pointer; color: #3b82f6; font-weight: 600; transition: all 0.2s;
+}
+.btn-view-details:hover { background: rgba(59,130,246,0.18); }
+.table-icon-btn-edit { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.25); color: #f59e0b; }
+.table-icon-btn-edit:hover { background: rgba(245,158,11,0.2); }
+.table-icon-btn-delete { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.25); color: #ef4444; }
+.table-icon-btn-delete:hover { background: rgba(239,68,68,0.2); }
+.data-table-row:not(.is-new):not(.is-expanded):hover { background: rgba(255,255,255,0.03); }
+.data-table-row.is-new { background: rgba(16,185,129,0.06); }
+.data-table-row.is-expanded { background: rgba(255,255,255,0.04); }
+.data-table-cell-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.data-table-cell-title-text { font-size: 0.9rem; font-weight: 700; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.data-table-cell-sub { font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 3px; }
+.data-table-cell-center { text-align: center; }
+.new-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981; margin-inline-end: 6px; vertical-align: middle; box-shadow: 0 0 6px #10b981; }
+.count-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  font-weight: 800; font-size: 0.85rem;
+  background: rgba(255,255,255,0.05); color: var(--text-muted);
+}
+.count-pill.has-count { background: rgba(16,185,129,0.15); color: var(--primary); }
+.expand-chevron-cell { display: flex; justify-content: center; color: var(--text-muted); }
+/* Distinct from .badge-open/.badge-closed/.badge-pending: this table uses its
+   own open=green/closed=blue/pending=amber convention (closed reads as "done
+   deal", not neutral/gray), so it gets its own status-pill set to match. */
+.status-pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+.status-pill-open { background: rgba(16,185,129,0.12); color: #10b981; }
+.status-pill-closed { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.status-pill-pending { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.data-table-expanded-panel { padding: 16px 24px 24px; background: rgba(255,255,255,0.02); border-top: 1px solid var(--border); }
+.data-table-description {
+  font-size: 0.875rem; color: var(--text-body);
+  border-inline-start: 3px solid var(--primary);
+  margin-bottom: 20px; padding: 8px 12px; border-radius: 0 8px 8px 0;
+  background: rgba(16,185,129,0.05);
+}
+
+.mini-bid-card { border-radius: 10px; padding: 12px 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); }
+.mini-bid-card.accepted { border-color: var(--primary); background: rgba(16,185,129,0.06); }
+.mini-bid-line { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 7px; flex-wrap: wrap; }
+.mini-bid-option-tag { font-size: 0.8rem; color: var(--text-main); background: var(--primary-soft); padding: 1px 7px; border-radius: 4px; }
+.mini-bid-price { font-size: 0.88rem; font-weight: 800; color: var(--secondary); }
+.mini-bid-selected-tag { font-size: 0.7rem; font-weight: 700; background: var(--primary); color: white; border-radius: 99px; padding: 2px 8px; }
+.metadata-box { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 14px; }
+.metadata-box-title { margin-bottom: 10px; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: bold; }
+
 

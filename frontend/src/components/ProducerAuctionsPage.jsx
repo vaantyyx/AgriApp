@@ -7,9 +7,9 @@ import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
 
 function SummaryRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', gap: 10, marginBottom: 4, fontSize: '0.82rem' }}>
-      <span style={{ color: 'var(--text-muted)', minWidth: 120, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{value}</span>
+    <div className="summary-row" style={{ marginBottom: 4, fontSize: '0.82rem' }}>
+      <span className="summary-row-label" style={{ minWidth: 120 }}>{label}</span>
+      <span className="summary-row-value">{value}</span>
     </div>
   );
 }
@@ -165,12 +165,12 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
         ];
         return (
           <div style={{ marginBottom: 40 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="wizard-header-row">
+              <h2 className="wizard-header-title">
                 <Eye size={24} style={{ color: '#3b82f6' }} />
                 {locale === 'ar' ? 'تفاصيل المزاد' : (locale === 'en' ? 'Auction details' : "Détails de l'enchère")}
               </h2>
-              <button onClick={closeConsultation} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <button onClick={closeConsultation} className="wizard-close-btn">
                 <X size={22} />
               </button>
             </div>
@@ -194,7 +194,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
               {/* Step 1 - General */}
               {viewStep === 1 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <ClipboardList size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}
                   </h3>
@@ -222,13 +222,13 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
               {/* Step 2 - Lots */}
               {viewStep === 2 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <Layers size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'الأقسام (Lots)' : (locale === 'en' ? 'Lots' : 'Lots')}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                     {aLots.map((lot, idx) => (
-                      <div key={idx} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', background: 'rgba(255,255,255,0.02)' }}>
+                      <div key={idx} className="bordered-card">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
                           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Hash size={16} color="white" />
@@ -275,7 +275,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
               {/* Step 3 - Zone */}
               {viewStep === 3 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <FileSearch size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'المنطقة الجغرافية' : (locale === 'en' ? 'Geographic zone' : 'Zone géographique')}
                   </h3>
@@ -288,7 +288,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
               {/* Step 4 - Dates */}
               {viewStep === 4 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <CalendarClock size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'التواريخ والإعدادات' : (locale === 'en' ? 'Dates & settings' : 'Dates & paramètres')}
                   </h3>
@@ -311,7 +311,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
             </div>
 
             {/* Navigation */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, gap: 12 }}>
+            <div className="wizard-nav-row">
               <button type="button" onClick={() => setViewStep(s => Math.max(s - 1, 1))} disabled={viewStep === 1} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: viewStep === 1 ? 0.4 : 1 }}>
                 <ChevronLeft size={16} /> {locale === 'ar' ? 'السابق' : (locale === 'en' ? 'Previous' : 'Précédent')}
               </button>
@@ -444,8 +444,8 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
 
                     {/* Metadata boxes */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 20 }}>
-                      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: 14 }}>
-                        <div style={{ marginBottom: 10, fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 'bold' }}>{locale === 'ar' ? 'المعلومات الأساسية' : (locale === 'en' ? 'General information' : 'Informations générales')}</div>
+                      <div className="metadata-box">
+                        <div className="metadata-box-title">{locale === 'ar' ? 'المعلومات الأساسية' : (locale === 'en' ? 'General information' : 'Informations générales')}</div>
                         <div style={{ display: 'grid', gap: 8 }}>
                           <SummaryRow label={locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? 'Auction type' : 'Type d’enchère')} value={getAuctionTypeLabel(auction.auctionType)} />
                           <SummaryRow label={locale === 'ar' ? 'المنتج الرئيس' : (locale === 'en' ? 'Main product' : 'Produit principal')} value={auction.product || '-'} />
@@ -454,8 +454,8 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
                           <SummaryRow label={locale === 'ar' ? 'الحد الأقصى للسعر' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')} value={auction.targetPrice ? `${auction.targetPrice} DA` : (locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not set' : 'Non défini'))} />
                         </div>
                       </div>
-                      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: 14 }}>
-                        <div style={{ marginBottom: 10, fontSize: '0.78rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 'bold' }}>{locale === 'ar' ? 'التوقيت والإعدادات' : (locale === 'en' ? 'Timing & settings' : 'Dates & paramètres')}</div>
+                      <div className="metadata-box">
+                        <div className="metadata-box-title">{locale === 'ar' ? 'التوقيت والإعدادات' : (locale === 'en' ? 'Timing & settings' : 'Dates & paramètres')}</div>
                         <div style={{ display: 'grid', gap: 8 }}>
                           <SummaryRow label={locale === 'ar' ? 'تاريخ البدء' : (locale === 'en' ? 'Start' : 'Début')} value={auction.startAt ? new Date(auction.startAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
                           <SummaryRow label={locale === 'ar' ? 'تاريخ الانتهاء' : (locale === 'en' ? 'End' : 'Fin')} value={auction.endAt ? new Date(auction.endAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
@@ -495,22 +495,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
                       <button
                         type="button"
                         onClick={() => openConsultation(auction)}
-                        style={{
-                          fontSize: '0.82rem',
-                          padding: '8px 16px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          background: 'rgba(59, 130, 246, 0.1)',
-                          border: '1px solid rgba(59, 130, 246, 0.25)',
-                          borderRadius: 8,
-                          cursor: 'pointer',
-                          color: '#3b82f6',
-                          fontWeight: 600,
-                          transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.18)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'; }}
+                        className="btn-view-details"
                       >
                         <Eye size={15} />
                         <span>{locale === 'ar' ? 'استشارة التفاصيل الكاملة' : (locale === 'en' ? 'View full details' : 'Consulter les détails complets')}</span>

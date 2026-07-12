@@ -597,34 +597,34 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
             </p>
 
             {/* Stats grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 36 }}>
-              <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="stats-mini-grid">
+              <div className="glass-panel stat-mini-card">
+                <div className="stat-mini-icon-box" style={{ background: 'rgba(245,158,11,0.12)' }}>
                   <Activity size={24} style={{ color: '#f59e0b' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f59e0b' }}>{activeBidsCount}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{locale === 'ar' ? 'عروض نشطة' : 'Offres actives'}</div>
+                  <div className="stat-mini-value" style={{ color: '#f59e0b' }}>{activeBidsCount}</div>
+                  <div className="stat-mini-label">{locale === 'ar' ? 'عروض نشطة' : 'Offres actives'}</div>
                 </div>
               </div>
 
-              <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="glass-panel stat-mini-card">
+                <div className="stat-mini-icon-box" style={{ background: 'rgba(16,185,129,0.12)' }}>
                   <Trophy size={24} style={{ color: 'var(--primary)' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)' }}>{wonAuctionsCount}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{locale === 'ar' ? 'مناقصات ربحتها' : 'Enchères gagnées'}</div>
+                  <div className="stat-mini-value" style={{ color: 'var(--primary)' }}>{wonAuctionsCount}</div>
+                  <div className="stat-mini-label">{locale === 'ar' ? 'مناقصات ربحتها' : 'Enchères gagnées'}</div>
                 </div>
               </div>
 
-              <div className="glass-panel" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(59,130,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="glass-panel stat-mini-card">
+                <div className="stat-mini-icon-box" style={{ background: 'rgba(59,130,246,0.12)' }}>
                   <Sprout size={24} style={{ color: '#3b82f6' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#3b82f6' }}>{parcelles.length}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{locale === 'ar' ? 'عدد قطع الأراضي' : 'Parcelles agricoles'}</div>
+                  <div className="stat-mini-value" style={{ color: '#3b82f6' }}>{parcelles.length}</div>
+                  <div className="stat-mini-label">{locale === 'ar' ? 'عدد قطع الأراضي' : 'Parcelles agricoles'}</div>
                 </div>
               </div>
             </div>
@@ -1263,12 +1263,12 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
                 
                 {/* Section: Informations générales */}
                 <div>
-                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12 }}>
+                  <h4 className="form-section-title">
                     Informations générales
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>Nom de la parcelle <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <label>Nom de la parcelle <span className="required-asterisk">*</span></label>
                       <input
                         type="text"
                         placeholder="Ex: Champ d'Oliviers Nord"
@@ -1280,7 +1280,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>Superficie (ha) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        <label>Superficie (ha) <span className="required-asterisk">*</span></label>
                         <input
                           type="number"
                           step="any"
@@ -1381,7 +1381,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
                 {/* Section: Caractéristiques */}
                 <div>
-                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12 }}>
+                  <h4 className="form-section-title">
                     Caractéristiques techniques
                   </h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1417,11 +1417,11 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
                 {/* Section: Localisation administrative */}
                 <div>
-                  <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', fontWeight: 800, borderBottom: '1px solid var(--border)', paddingBottom: 6, marginBottom: 12 }}>
+                  <h4 className="form-section-title">
                     Localisation administrative
                   </h4>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label>Wilaya <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label>Wilaya <span className="required-asterisk">*</span></label>
                     <select
                       value={formWilayaId}
                       onChange={e => handleWilayaSelect(e.target.value)}

@@ -204,46 +204,26 @@ const STEPS = [
 
 function StepIndicator({ currentStep, locale }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 0,
-      background: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: '12px 16px',
-      border: '1px solid var(--border)', marginBottom: 28, overflowX: 'auto',
-    }}>
+    <div className="wizard-step-indicator">
       {STEPS.map((step, idx) => {
         const Icon = step.icon;
         const isActive = currentStep === step.id;
         const isDone = currentStep > step.id;
         return (
           <React.Fragment key={step.id}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 80 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: isDone ? 'var(--primary)' : isActive ? 'var(--primary)' : 'var(--bg-input)',
-                border: `2px solid ${isDone || isActive ? 'var(--primary)' : 'var(--border)'}`,
-                transition: 'all 0.3s ease',
-                boxShadow: isActive ? '0 0 12px rgba(16,185,129,0.4)' : 'none',
-              }}>
+            <div className="wizard-step-item">
+              <div className={`wizard-step-circle ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}`}>
                 {isDone
                   ? <Check size={18} color="white" />
                   : <Icon size={18} color={isActive ? 'white' : 'var(--text-muted)'} />
                 }
               </div>
-              <span style={{
-                fontSize: '0.7rem', fontWeight: isActive ? 700 : 500,
-                color: isActive ? 'var(--primary)' : isDone ? 'var(--text-body)' : 'var(--text-muted)',
-                textAlign: 'center', whiteSpace: 'nowrap',
-              }}>
+              <span className={`wizard-step-label ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}>
                 {locale === 'ar' ? step.labelAr : (locale === 'en' ? step.labelEn : step.labelFr)}
               </span>
             </div>
             {idx < STEPS.length - 1 && (
-              <div style={{
-                flex: 1, height: 2, margin: '0 4px', marginBottom: 24,
-                background: currentStep > step.id ? 'var(--primary)' : 'var(--border)',
-                transition: 'background 0.3s ease',
-                minWidth: 16,
-              }} />
+              <div className={`wizard-step-connector ${currentStep > step.id ? 'done' : ''}`} />
             )}
           </React.Fragment>
         );
@@ -573,13 +553,13 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                         : `Votre taux de complétion de profil est actuellement de ${computeProfileCompletion(user)}%. Un minimum de 70% est requis pour créer une enchère.`)}
                 </p>
               </div>
-              <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 10, padding: 16, border: '1px solid var(--border)', marginBottom: 20 }}>
+              <div className="bordered-card-sm" style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, textAlign: 'start' }}>
                   {locale === 'ar' ? 'الحقول الناقصة :' : (locale === 'en' ? 'Missing fields:' : 'Champs manquants :')}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'flex-start' }}>
                   {getMissingFieldsList(user, locale).map((field, idx) => (
-                    <span key={idx} style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', padding: '3px 8px', borderRadius: '4px', fontSize: '0.75rem' }}>
+                    <span key={idx} className="missing-field-chip">
                       {field}
                     </span>
                   ))}
@@ -600,12 +580,12 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
         {/* ══ WIZARD ══════════════════════════════════════════════════ */}
         {wizardOpen && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="wizard-header-row">
+              <h2 className="wizard-header-title">
                 <Gavel size={24} style={{ color: 'var(--primary)' }} />
                 {locale === 'ar' ? 'إنشاء مزاد جديد' : (locale === 'en' ? 'Create new auction' : 'Créer une enchère')}
               </h2>
-              <button onClick={closeWizard} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <button onClick={closeWizard} className="wizard-close-btn">
                 <X size={22} />
               </button>
             </div>
@@ -617,14 +597,14 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
               {/* ── STEP 1: General Info ──────────────────────────────── */}
               {wizardStep === 1 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <ClipboardList size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label htmlFor="auction-title">
-                        {locale === 'ar' ? 'عنوان المزاد' : (locale === 'en' ? 'Auction title' : 'Titre de l\'enchère')} <span style={{ color: 'var(--danger)' }}>*</span>
+                        {locale === 'ar' ? 'عنوان المزاد' : (locale === 'en' ? 'Auction title' : 'Titre de l\'enchère')} <span className="required-asterisk">*</span>
                       </label>
                       <input
                         id="auction-title" type="text"
@@ -634,7 +614,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label htmlFor="auction-type">
-                        {locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? 'Auction type' : 'Type d\'enchère')} <span style={{ color: 'var(--danger)' }}>*</span>
+                        {locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? 'Auction type' : 'Type d\'enchère')} <span className="required-asterisk">*</span>
                       </label>
                       <select id="auction-type" value={auctionType} onChange={e => setAuctionType(e.target.value)}>
                         {AUCTION_TYPES.map(at => (
@@ -646,7 +626,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label htmlFor="delivery-location">
-                        {locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} <span style={{ color: 'var(--danger)' }}>*</span>
+                        {locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} <span className="required-asterisk">*</span>
                       </label>
                       <input
                         id="delivery-location" type="text"
@@ -672,7 +652,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
               {wizardStep === 2 && (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <h3 className="wizard-section-title">
                       <Layers size={20} style={{ color: 'var(--primary)' }} />
                       {locale === 'ar' ? 'الأقسام (Lots)' : (locale === 'en' ? 'Lots' : 'Lots')}
                     </h3>
@@ -685,11 +665,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     {lots.map((lot, idx) => {
                       const filteredProducts = products.filter(p => p.cultureTypeId === lot.cultureTypeId);
                       return (
-                        <div key={idx} style={{
-                          border: '1px solid var(--border)', borderRadius: 12,
-                          padding: '20px 24px', background: 'rgba(255,255,255,0.02)',
-                          position: 'relative',
-                        }}>
+                        <div key={idx} className="bordered-card" style={{ position: 'relative' }}>
                           {/* Lot header */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
                             <div style={{
@@ -715,7 +691,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                             {/* Designation */}
                             <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
                               <label>
-                                {locale === 'ar' ? 'التسمية' : (locale === 'en' ? 'Designation' : 'Désignation')} <span style={{ color: 'var(--danger)' }}>*</span>
+                                {locale === 'ar' ? 'التسمية' : (locale === 'en' ? 'Designation' : 'Désignation')} <span className="required-asterisk">*</span>
                               </label>
                               <input
                                 type="text"
@@ -728,7 +704,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                             {/* Culture type */}
                             <div className="form-group" style={{ margin: 0 }}>
                               <label>
-                                {locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')} <span style={{ color: 'var(--danger)' }}>*</span>
+                                {locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')} <span className="required-asterisk">*</span>
                               </label>
                               <select value={lot.cultureTypeId} onChange={e => updateLot(idx, 'cultureTypeId', e.target.value)}>
                                 <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
@@ -741,7 +717,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                             {/* Product */}
                             <div className="form-group" style={{ margin: 0 }}>
                               <label>
-                                {locale === 'ar' ? 'المنتج المحدد' : (locale === 'en' ? 'Specific product' : 'Produit spécifique')} <span style={{ color: 'var(--danger)' }}>*</span>
+                                {locale === 'ar' ? 'المنتج المحدد' : (locale === 'en' ? 'Specific product' : 'Produit spécifique')} <span className="required-asterisk">*</span>
                               </label>
                               <select
                                 value={lot.productId}
@@ -758,7 +734,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                             {/* Wilaya d'origine */}
                             <div className="form-group" style={{ margin: 0 }}>
                               <label>
-                                {locale === 'ar' ? 'ولاية المنشأ' : (locale === 'en' ? 'Origin wilaya' : 'Wilaya d\'origine')} <span style={{ color: 'var(--danger)' }}>*</span>
+                                {locale === 'ar' ? 'ولاية المنشأ' : (locale === 'en' ? 'Origin wilaya' : 'Wilaya d\'origine')} <span className="required-asterisk">*</span>
                               </label>
                               <select value={lot.wilayaId} onChange={e => updateLot(idx, 'wilayaId', e.target.value)}>
                                 <option value="">{locale === 'ar' ? '-- اختر الولاية --' : (locale === 'en' ? '-- Select wilaya --' : '-- Choisir wilaya --')}</option>
@@ -771,7 +747,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                             {/* Unit + Quantity */}
                             <div className="form-group" style={{ margin: 0 }}>
                               <label>
-                                {locale === 'ar' ? 'الوحدة' : (locale === 'en' ? 'Unit' : 'Unité')} <span style={{ color: 'var(--danger)' }}>*</span>
+                                {locale === 'ar' ? 'الوحدة' : (locale === 'en' ? 'Unit' : 'Unité')} <span className="required-asterisk">*</span>
                               </label>
                               <select value={lot.unit} onChange={e => updateLot(idx, 'unit', e.target.value)}>
                                 <option value="tonnes">{t('unit_tonnes')}</option>
@@ -785,7 +761,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                             <div className="form-group" style={{ margin: 0 }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {locale === 'ar' ? 'الكمية المطلوبة' : (locale === 'en' ? 'Required quantity' : 'Quantité demandée')}
-                                <span style={{ color: 'var(--danger)' }}>*</span>
+                                <span className="required-asterisk">*</span>
                                 {lot.unit && (
                                   <span style={{
                                     marginLeft: 4, fontSize: '0.72rem', fontWeight: 700,
@@ -804,15 +780,15 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                             <div className="form-group" style={{ margin: 0 }}>
                               <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <TrendingDown size={13} style={{ color: 'var(--danger)' }} />
-                                {locale === 'ar' ? 'السعر الأقصى (سقف)' : (locale === 'en' ? 'Maximum price (ceiling)' : 'Prix plafond (max)')} <span style={{ color: 'var(--danger)' }}>*</span>
+                                {locale === 'ar' ? 'السعر الأقصى (سقف)' : (locale === 'en' ? 'Maximum price (ceiling)' : 'Prix plafond (max)')} <span className="required-asterisk">*</span>
                               </label>
-                              <div style={{ position: 'relative' }}>
+              <div className="input-suffix-wrap">
                                 <input
                                   type="number" step="any" min="0" placeholder="Ex: 50000"
                                   value={lot.priceCeiling} onChange={e => updateLot(idx, 'priceCeiling', e.target.value)}
-                                  style={{ paddingRight: 44 }}
+                                  className="input-with-suffix"
                                 />
-                                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DA</span>
+                                <span className="input-suffix-label">DA</span>
                               </div>
                             </div>
 
@@ -822,13 +798,13 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                                 <TrendingUp size={13} style={{ color: 'var(--primary)' }} />
                                 {locale === 'ar' ? 'سعر الاحتياط (حد أدنى)' : (locale === 'en' ? 'Reserve price (min)' : 'Prix de réserve (min)')}
                               </label>
-                              <div style={{ position: 'relative' }}>
+                              <div className="input-suffix-wrap">
                                 <input
                                   type="number" step="any" min="0" placeholder="Ex: 30000"
                                   value={lot.priceReserve} onChange={e => updateLot(idx, 'priceReserve', e.target.value)}
-                                  style={{ paddingRight: 44 }}
+                                  className="input-with-suffix"
                                 />
-                                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DA</span>
+                                <span className="input-suffix-label">DA</span>
                               </div>
                             </div>
                           </div>
@@ -842,7 +818,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
               {/* ── STEP 3: Geographic zone ───────────────────────────── */}
               {wizardStep === 3 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-8">
                     <MapPin size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'المنطقة الجغرافية' : (locale === 'en' ? 'Geographic zone' : 'Zone géographique')}
                   </h3>
@@ -860,7 +836,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                       producerCount={producerCount}
                     />
                   ) : (
-                    <div style={{ padding: 14, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, fontSize: '0.85rem', color: '#f59e0b' }}>
+                    <div className="inline-alert-warning">
                       ⚠️ {locale === 'ar' ? 'أكمل ملفك الشخصي (الولاية) لعرض الخريطة.' : (locale === 'en' ? 'Complete your profile (wilaya) to display the map.' : 'Complétez votre profil (wilaya) pour afficher la carte.')}
                     </div>
                   )}
@@ -870,7 +846,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
               {/* ── STEP 4: Dates & Settings ─────────────────────────── */}
               {wizardStep === 4 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <CalendarClock size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'التواريخ والإعدادات' : (locale === 'en' ? 'Dates & Settings' : 'Dates & Paramètres')}
                   </h3>
@@ -878,7 +854,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label htmlFor="start-dt">
-                          {locale === 'ar' ? 'تاريخ + وقت البداية' : (locale === 'en' ? 'Start date + time' : 'Date + heure de début')} <span style={{ color: 'var(--danger)' }}>*</span>
+                          {locale === 'ar' ? 'تاريخ + وقت البداية' : (locale === 'en' ? 'Start date + time' : 'Date + heure de début')} <span className="required-asterisk">*</span>
                         </label>
                         <input
                           id="start-dt" type="datetime-local"
@@ -887,7 +863,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label htmlFor="end-dt">
-                          {locale === 'ar' ? 'تاريخ + وقت النهاية' : (locale === 'en' ? 'End date + time' : 'Date + heure de fin')} <span style={{ color: 'var(--danger)' }}>*</span>
+                          {locale === 'ar' ? 'تاريخ + وقت النهاية' : (locale === 'en' ? 'End date + time' : 'Date + heure de fin')} <span className="required-asterisk">*</span>
                         </label>
                         <input
                           id="end-dt" type="datetime-local"
@@ -897,23 +873,13 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     </div>
 
                     {/* Auto prolongation */}
-                    <div style={{
-                      border: '1px solid var(--border)', borderRadius: 12, padding: '18px 22px',
-                      background: 'rgba(255,255,255,0.02)',
-                    }}>
+                    <div className="bordered-card" style={{ padding: '18px 22px' }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                        <div style={{
-                          width: 44, height: 24, borderRadius: 99,
-                          background: autoProlongate ? 'var(--primary)' : 'var(--border)',
-                          position: 'relative', transition: 'background 0.25s ease',
-                          flexShrink: 0,
-                        }} onClick={() => setAutoProlongate(p => !p)}>
-                          <div style={{
-                            width: 18, height: 18, borderRadius: '50%', background: 'white',
-                            position: 'absolute', top: 3, left: autoProlongate ? 23 : 3,
-                            transition: 'left 0.25s ease',
-                            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
-                          }} />
+                        <div
+                          className={`toggle-switch-track ${autoProlongate ? 'on' : ''}`}
+                          onClick={() => setAutoProlongate(p => !p)}
+                        >
+                          <div className={`toggle-switch-knob ${autoProlongate ? 'on' : ''}`} />
                         </div>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -958,15 +924,15 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
               {/* ── STEP 5: Summary ──────────────────────────────────── */}
               {wizardStep === 5 && (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <FileSearch size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'ملخص المزاد' : (locale === 'en' ? 'Auction summary' : 'Récapitulatif de l\'enchère')}
                   </h3>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* General info summary */}
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+                    <div className="bordered-card-sm">
+                      <div className="summary-box-title">
                         {locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}
                       </div>
                       <SummaryRow label={locale === 'ar' ? 'العنوان' : (locale === 'en' ? 'Title' : 'Titre')} value={title} />
@@ -976,8 +942,8 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     </div>
 
                     {/* Lots summary */}
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+                    <div className="bordered-card-sm">
+                      <div className="summary-box-title">
                         {locale === 'ar' ? 'الأقسام' : (locale === 'en' ? 'Lots' : 'Lots')} ({lots.length})
                       </div>
                       {lots.map(lot => (
@@ -997,8 +963,8 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     </div>
 
                     {/* Zone & dates */}
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>
+                    <div className="bordered-card-sm">
+                      <div className="summary-box-title">
                         {locale === 'ar' ? 'المنطقة والتواريخ' : (locale === 'en' ? 'Zone & Dates' : 'Zone & Dates')}
                       </div>
                       <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${radiusKm} km`} />
@@ -1018,11 +984,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
 
               {/* ── Error message ── */}
               {stepError && (
-                <div style={{
-                  marginTop: 20, padding: '10px 14px', borderRadius: 8, fontSize: '0.875rem',
-                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-                  color: '#ef4444', display: 'flex', alignItems: 'flex-start', gap: 8,
-                }}>
+                <div className="inline-alert-danger mt-20">
                   <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
                   {stepError}
                 </div>
@@ -1030,7 +992,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
             </div>
 
             {/* ── Wizard Nav Buttons ── */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, gap: 12 }}>
+            <div className="wizard-nav-row">
               <button
                 type="button" onClick={goPrev} disabled={wizardStep === 1}
                 className="btn btn-secondary"
@@ -1066,7 +1028,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
             </p>
 
             {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 36 }}>
+            <div className="stats-mini-grid">
               {[
                 { icon: Gavel, label: locale === 'ar' ? 'إجمالي المزادات' : (locale === 'en' ? 'Total auctions' : 'Total enchères'), value: myAuctions.length, color: 'var(--primary)' },
                 { icon: ListOrdered, label: locale === 'ar' ? 'مزادات مفتوحة' : (locale === 'en' ? 'Open auctions' : 'Enchères ouvertes'), value: myAuctions.filter(a => a.status === 'open').length, color: '#f59e0b' },
@@ -1074,13 +1036,13 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
               ].map((stat, i) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={i} className="glass-panel" style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ width: 48, height: 48, borderRadius: 12, background: `${stat.color}22`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div key={i} className="glass-panel stat-mini-card">
+                    <div className="stat-mini-icon-box" style={{ background: `${stat.color}22` }}>
                       <Icon size={24} style={{ color: stat.color }} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '1.75rem', fontWeight: 800, color: stat.color }}>{stat.value}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{stat.label}</div>
+                      <div className="stat-mini-value" style={{ color: stat.color }}>{stat.value}</div>
+                      <div className="stat-mini-label">{stat.label}</div>
                     </div>
                   </div>
                 );
@@ -1088,8 +1050,8 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
             </div>
 
             {/* Profile Completion Widget */}
-            <div className="glass-panel" style={{ padding: '24px', marginBottom: '28px', display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', textAlign: 'start' }}>
-              <div style={{ position: 'relative', width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div className="glass-panel completion-widget" style={{ marginBottom: '28px' }}>
+              <div className="completion-ring-wrap">
                 {/* Circular Progress (SVG) */}
                 <svg width="80" height="80" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>
                   <circle cx="40" cy="40" r="34" stroke="rgba(255,255,255,0.05)" strokeWidth="6" fill="transparent" />
@@ -1099,18 +1061,18 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                     style={{ transition: 'stroke-dashoffset 0.8s ease' }}
                   />
                 </svg>
-                <div style={{ position: 'absolute', fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)' }}>
+                <div className="completion-ring-value">
                   {computeProfileCompletion(user)}%
                 </div>
               </div>
 
-              <div style={{ flex: 1, minWidth: '240px', textAlign: 'start' }}>
+              <div className="completion-widget-body">
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '4px', color: 'var(--text-main)' }}>
                   {locale === 'ar' ? 'مستوى اكتمال ملفك الشخصي' : (locale === 'en' ? 'Profile completion level' : 'Taux de complétion de votre profil')}
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: 0, lineHeight: 1.4 }}>
                   {computeProfileCompletion(user) < 70 ? (
-                    locale === 'ar' 
+                    locale === 'ar'
                       ? '⚠️ ملفك الشخصي غير مكتمل بعد. يجب أن يصل إلى 70% لتتمكن من إطلاق المزادات (تحتاج إلى ملء الحقول المطلوبة).'
                       : (locale === 'en'
                           ? '⚠️ Your profile is incomplete (< 70%). You must complete it to be able to create auctions.'
@@ -1126,7 +1088,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                 {computeProfileCompletion(user) < 70 && (
                   <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '0.72rem', justifyContent: 'flex-start' }}>
                     {getMissingFieldsList(user, locale).map((field, idx) => (
-                      <span key={idx} style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', padding: '2px 8px', borderRadius: '4px' }}>
+                      <span key={idx} className="missing-field-chip">
                         {field}
                       </span>
                     ))}
@@ -1206,9 +1168,9 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
 // ─── Summary Row helper ─────────────────────────────────────────────────────
 function SummaryRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: '0.875rem' }}>
-      <span style={{ color: 'var(--text-muted)', minWidth: 140, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{value}</span>
+    <div className="summary-row">
+      <span className="summary-row-label">{label}</span>
+      <span className="summary-row-value">{value}</span>
     </div>
   );
 }
@@ -1218,9 +1180,9 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
   const [expandedId, setExpandedId] = useState(null);
 
   const statusColors = {
-    open:    { bg: 'rgba(16,185,129,0.12)', color: '#10b981', label: (locale) => locale === 'ar' ? 'مفتوح' : (locale === 'en' ? 'Open' : 'Ouvert') },
-    closed:  { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', label: (locale) => locale === 'ar' ? 'مغلق' : (locale === 'en' ? 'Closed' : 'Clôturé') },
-    pending: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: (locale) => locale === 'ar' ? 'معلق' : (locale === 'en' ? 'Pending' : 'En attente') },
+    open:    { cls: 'status-pill-open', label: (locale) => locale === 'ar' ? 'مفتوح' : (locale === 'en' ? 'Open' : 'Ouvert') },
+    closed:  { cls: 'status-pill-closed', label: (locale) => locale === 'ar' ? 'مغلق' : (locale === 'en' ? 'Closed' : 'Clôturé') },
+    pending: { cls: 'status-pill-pending', label: (locale) => locale === 'ar' ? 'معلق' : (locale === 'en' ? 'Pending' : 'En attente') },
   };
 
   useEffect(() => {
@@ -1230,16 +1192,9 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
   }, [highlightAuctionId]);
 
   return (
-    <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', background: 'var(--bg-panel)' }}>
+    <div className="data-table">
       {/* Table Header */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px 80px 40px', minWidth: 640,
-        padding: '10px 20px',
-        background: 'rgba(255,255,255,0.03)',
-        borderBottom: '1px solid var(--border)',
-        fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)',
-        textTransform: 'uppercase', letterSpacing: '0.06em',
-      }}>
+      <div className="data-table-header-row auctions-table-grid">
         <span>{locale === 'ar' ? 'العنوان' : 'Titre'}</span>
         <span>{locale === 'ar' ? 'النوع' : 'Type'}</span>
         <span>{locale === 'ar' ? 'التاريخ' : 'Date'}</span>
@@ -1255,38 +1210,28 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
         const dateStr = new Date(auction.createdAt).toLocaleDateString('fr-DZ', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
         return (
-          <div 
-            key={auction.id} 
+          <div
+            key={auction.id}
+            className="data-table-row-wrap"
             ref={el => {
               if (highlightAuctionId === auction.id && el) {
                 setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
               }
             }}
-            style={{ borderBottom: idx < auctions.length - 1 ? '1px solid var(--border)' : 'none' }}
           >
             {/* Row */}
             <div
               onClick={() => setExpandedId(isExpanded ? null : auction.id)}
-              style={{
-                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 80px 80px 40px', minWidth: 640,
-                padding: '14px 20px', alignItems: 'center', cursor: 'pointer',
-                background: isNew ? 'rgba(16,185,129,0.06)' : isExpanded ? 'rgba(255,255,255,0.04)' : 'transparent',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={e => { if (!isExpanded && !isNew) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-              onMouseLeave={e => { if (!isExpanded && !isNew) e.currentTarget.style.background = 'transparent'; }}
+              className={`data-table-row auctions-table-grid ${isNew ? 'is-new' : ''} ${isExpanded ? 'is-expanded' : ''}`}
             >
               {/* Title */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                <span style={{
-                  fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {isNew && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#10b981', marginRight: 6, verticalAlign: 'middle', boxShadow: '0 0 6px #10b981' }} />}
+              <div className="data-table-cell-title">
+                <span className="data-table-cell-title-text">
+                  {isNew && <span className="new-dot" />}
                   {auction.title || auction.product}
                 </span>
                 {auction.deliveryLocation && (
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span className="data-table-cell-sub">
                     <MapPin size={10} /> {auction.deliveryLocation}
                   </span>
                 )}
@@ -1301,51 +1246,31 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{dateStr}</span>
 
               {/* Bids count */}
-              <div style={{ textAlign: 'center' }}>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: auction.bids.length > 0 ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
-                  color: auction.bids.length > 0 ? 'var(--primary)' : 'var(--text-muted)',
-                  fontWeight: 800, fontSize: '0.85rem',
-                }}>
+              <div className="data-table-cell-center">
+                <span className={`count-pill ${auction.bids.length > 0 ? 'has-count' : ''}`}>
                   {auction.bids.length}
                 </span>
               </div>
 
               {/* Status */}
-              <div style={{ textAlign: 'center' }}>
-                <span style={{
-                  display: 'inline-block', padding: '3px 10px', borderRadius: 99,
-                  background: status.bg, color: status.color,
-                  fontSize: '0.72rem', fontWeight: 700,
-                }}>
+              <div className="data-table-cell-center">
+                <span className={`status-pill ${status.cls}`}>
                   {status.label(locale)}
                 </span>
               </div>
 
               {/* Expand chevron */}
-              <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              <div className="expand-chevron-cell">
                 {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </div>
             </div>
 
             {/* Expanded detail panel */}
             {isExpanded && (
-              <div style={{
-                padding: '16px 24px 24px',
-                background: 'rgba(255,255,255,0.02)',
-                borderTop: '1px solid var(--border)',
-                animationName: 'fadeIn', animationDuration: '0.2s',
-              }}>
+              <div className="data-table-expanded-panel">
                 {/* Description */}
                 {auction.description && (
-                  <p style={{
-                    fontSize: '0.875rem', color: 'var(--text-body)',
-                    borderLeft: '3px solid var(--primary)', paddingLeft: 12,
-                    marginBottom: 20, background: 'rgba(16,185,129,0.05)',
-                    padding: '8px 12px', borderRadius: '0 8px 8px 0',
-                  }}>
+                  <p className="data-table-description">
                     {auction.description}
                   </p>
                 )}
@@ -1375,12 +1300,7 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
                           return (
                             <div
                               key={bid.id}
-                              className={isBidNew ? 'bid-flash-new' : ''}
-                              style={{
-                                border: `1px solid ${isAccepted ? 'var(--primary)' : 'var(--border)'}`,
-                                borderRadius: 10, padding: '12px 16px',
-                                background: isAccepted ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)',
-                              }}
+                              className={`mini-bid-card ${isAccepted ? 'accepted' : ''} ${isBidNew ? 'bid-flash-new' : ''}`}
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1388,7 +1308,7 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
                                   <StarDisplay rating={bid.producerRating} count={bid.producerRatingCount} />
                                 </div>
                                 {isAccepted && (
-                                  <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'var(--primary)', color: 'white', borderRadius: 99, padding: '2px 8px' }}>
+                                  <span className="mini-bid-selected-tag">
                                     {t('bidSelected')}
                                   </span>
                                 )}
@@ -1397,16 +1317,12 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
                               {/* Bid lines */}
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
                                 {(bid.lines || []).map(line => (
-                                  <div key={line.id} style={{
-                                    display: 'flex', alignItems: 'flex-start', gap: 8,
-                                    padding: '6px 10px', background: 'rgba(255,255,255,0.03)',
-                                    border: '1px solid var(--border)', borderRadius: 7, flexWrap: 'wrap',
-                                  }}>
+                                  <div key={line.id} className="mini-bid-line">
                                     <div style={{ flex: 1 }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                        {line.optionName && <strong style={{ fontSize: '0.8rem', color: 'var(--text-main)', background: 'var(--primary-soft)', padding: '1px 7px', borderRadius: 4 }}>{line.optionName}</strong>}
+                                        {line.optionName && <strong className="mini-bid-option-tag">{line.optionName}</strong>}
                                         {line.quantity && <span style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>{line.quantity} {t('unit_' + (line.unit || auction.unit))}</span>}
-                                        <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--secondary)' }}>
+                                        <span className="mini-bid-price">
                                           {line.price} DA <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/ {t('unit_' + (line.unit || auction.unit))}</span>
                                         </span>
                                       </div>

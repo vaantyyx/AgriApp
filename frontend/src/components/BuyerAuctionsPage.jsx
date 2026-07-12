@@ -52,23 +52,23 @@ const STEPS = [
 
 function StepIndicator({ currentStep, locale }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, background: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: '12px 16px', border: '1px solid var(--border)', marginBottom: 28, overflowX: 'auto' }}>
+    <div className="wizard-step-indicator">
       {STEPS.map((step, idx) => {
         const Icon = step.icon;
         const isActive = currentStep === step.id;
         const isDone = currentStep > step.id;
         return (
           <React.Fragment key={step.id}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 80 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDone || isActive ? 'var(--primary)' : 'var(--bg-input)', border: `2px solid ${isDone || isActive ? 'var(--primary)' : 'var(--border)'}`, transition: 'all 0.3s ease', boxShadow: isActive ? '0 0 12px rgba(16,185,129,0.4)' : 'none' }}>
+            <div className="wizard-step-item">
+              <div className={`wizard-step-circle ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}`}>
                 {isDone ? <Check size={18} color="white" /> : <Icon size={18} color={isActive ? 'white' : 'var(--text-muted)'} />}
               </div>
-              <span style={{ fontSize: '0.7rem', fontWeight: isActive ? 700 : 500, color: isActive ? 'var(--primary)' : isDone ? 'var(--text-body)' : 'var(--text-muted)', textAlign: 'center', whiteSpace: 'nowrap' }}>
+              <span className={`wizard-step-label ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}>
                 {locale === 'ar' ? step.labelAr : (locale === 'en' ? step.labelEn : step.labelFr)}
               </span>
             </div>
             {idx < STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 2, margin: '0 4px', marginBottom: 24, background: currentStep > step.id ? 'var(--primary)' : 'var(--border)', transition: 'background 0.3s ease', minWidth: 16 }} />
+              <div className={`wizard-step-connector ${currentStep > step.id ? 'done' : ''}`} />
             )}
           </React.Fragment>
         );
@@ -79,9 +79,9 @@ function StepIndicator({ currentStep, locale }) {
 
 function SummaryRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: '0.875rem' }}>
-      <span style={{ color: 'var(--text-muted)', minWidth: 140, flexShrink: 0 }}>{label}</span>
-      <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>{value}</span>
+    <div className="summary-row">
+      <span className="summary-row-label">{label}</span>
+      <span className="summary-row-value">{value}</span>
     </div>
   );
 }
@@ -460,9 +460,9 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
 
   // Status colors
   const statusColors = {
-    open: { bg: 'rgba(16,185,129,0.12)', color: '#10b981', label: (l) => l === 'ar' ? 'مفتوح' : (l === 'en' ? 'Open' : 'Ouvert') },
-    closed: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', label: (l) => l === 'ar' ? 'مغلق' : (l === 'en' ? 'Closed' : 'Clôturé') },
-    pending: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', label: (l) => l === 'ar' ? 'معلق' : (l === 'en' ? 'Pending' : 'En attente') },
+    open: { cls: 'status-pill-open', label: (l) => l === 'ar' ? 'مفتوح' : (l === 'en' ? 'Open' : 'Ouvert') },
+    closed: { cls: 'status-pill-closed', label: (l) => l === 'ar' ? 'مغلق' : (l === 'en' ? 'Closed' : 'Clôturé') },
+    pending: { cls: 'status-pill-pending', label: (l) => l === 'ar' ? 'معلق' : (l === 'en' ? 'Pending' : 'En attente') },
   };
 
   const [expandedId, setExpandedId] = useState(highlightAuctionId || null);
@@ -540,14 +540,14 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
       {/* WIZARD */}
       {wizardOpen && (
         <div style={{ marginBottom: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="wizard-header-row">
+            <h2 className="wizard-header-title">
               <Gavel size={24} style={{ color: 'var(--primary)' }} />
               {viewingAuctionId
                 ? (locale === 'ar' ? 'تفاصيل المزاد' : (locale === 'en' ? 'Auction details' : "Détails de l'enchère"))
                 : editingAuctionId ? t('editAuctionTitle') : (locale === 'ar' ? 'إنشاء مزاد جديد' : (locale === 'en' ? 'Create new auction' : 'Créer une enchère'))}
             </h2>
-            <button onClick={closeWizard} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+            <button onClick={closeWizard} className="wizard-close-btn">
               <X size={22} />
             </button>
           </div>
@@ -559,23 +559,23 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
             {/* STEP 1 */}
             {wizardStep === 1 && (
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 className="wizard-section-title mb-20">
                   <ClipboardList size={20} style={{ color: 'var(--primary)' }} />
                   {locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="auction-title">{locale === 'ar' ? 'عنوان المزاد' : (locale === 'en' ? "Auction title" : "Titre de l'enchère")} {!viewingAuctionId && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
+                    <label htmlFor="auction-title">{locale === 'ar' ? 'عنوان المزاد' : (locale === 'en' ? "Auction title" : "Titre de l'enchère")} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
                     <input id="auction-title" type="text" placeholder={locale === 'ar' ? 'مثال: طلب بطاطس' : (locale === 'en' ? 'Ex: Potato request' : 'Ex: Demande de pommes de terre')} value={title} onChange={e => setTitle(e.target.value)} disabled={!!viewingAuctionId} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="auction-type">{locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? "Auction type" : "Type d'enchère")} {!viewingAuctionId && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
+                    <label htmlFor="auction-type">{locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? "Auction type" : "Type d'enchère")} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
                     <select id="auction-type" value={auctionType} onChange={e => setAuctionType(e.target.value)} disabled={!!viewingAuctionId}>
                       {AUCTION_TYPES.map(at => <option key={at.value} value={at.value}>{locale === 'ar' ? at.labelAr : (locale === 'en' ? at.labelEn : at.labelFr)}</option>)}
                     </select>
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="delivery-location">{locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} {!viewingAuctionId && <span style={{ color: 'var(--danger)' }}>*</span>}</label>
+                    <label htmlFor="delivery-location">{locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
                     <input id="delivery-location" type="text" placeholder={locale === 'ar' ? 'مثال: ورقلة' : (locale === 'en' ? 'Ex: Algiers, industrial zone' : 'Ex: Alger, Zone industrielle')} value={deliveryLocation} onChange={e => setDeliveryLocation(e.target.value)} disabled={!!viewingAuctionId} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
@@ -590,7 +590,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
             {wizardStep === 2 && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title">
                     <Layers size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'الأقسام (Lots)' : (locale === 'en' ? 'Lots' : 'Lots')}
                   </h3>
@@ -602,7 +602,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                   {lots.map((lot, idx) => {
                     const filteredProducts = products.filter(p => p.cultureTypeId === lot.cultureTypeId);
                     return (
-                      <div key={idx} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', background: 'rgba(255,255,255,0.02)', position: 'relative' }}>
+                      <div key={idx} className="bordered-card" style={{ position: 'relative' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
                           <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Hash size={16} color="white" />
@@ -616,52 +616,52 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
                           <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
-                            <label>{locale === 'ar' ? 'التسمية' : (locale === 'en' ? 'Designation' : 'Désignation')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                            <label>{locale === 'ar' ? 'التسمية' : (locale === 'en' ? 'Designation' : 'Désignation')} <span className="required-asterisk">*</span></label>
                             <input type="text" placeholder={locale === 'ar' ? 'مثال: بطاطس مميزة' : (locale === 'en' ? 'Ex: Premium potatoes' : 'Ex: Pommes de terre calibre supérieur')} value={lot.designation} onChange={e => updateLot(idx, 'designation', e.target.value)} />
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>{locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                            <label>{locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')} <span className="required-asterisk">*</span></label>
                             <select value={lot.cultureTypeId} onChange={e => updateLot(idx, 'cultureTypeId', e.target.value)}>
                               <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
                               {cultureTypes.map(ct => <option key={ct.id} value={ct.id}>{ct.name[locale] || ct.name.fr}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>{locale === 'ar' ? 'المنتج المحدد' : (locale === 'en' ? 'Specific product' : 'Produit')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                            <label>{locale === 'ar' ? 'المنتج المحدد' : (locale === 'en' ? 'Specific product' : 'Produit')} <span className="required-asterisk">*</span></label>
                             <select value={lot.productId} onChange={e => updateLot(idx, 'productId', e.target.value)} disabled={!lot.cultureTypeId}>
                               <option value="">{lot.cultureTypeId ? (locale === 'ar' ? '-- اختر المنتج --' : (locale === 'en' ? '-- Select product --' : '-- Choisir produit --')) : (locale === 'ar' ? 'اختر النوع أولاً' : (locale === 'en' ? 'Choose type first' : "Choisir type d'abord"))}</option>
                               {filteredProducts.map(p => <option key={p.id} value={p.id}>{p.name[locale] || p.name.fr}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>{locale === 'ar' ? 'ولاية المنشأ' : (locale === 'en' ? 'Origin wilaya' : "Wilaya d'origine")} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                            <label>{locale === 'ar' ? 'ولاية المنشأ' : (locale === 'en' ? 'Origin wilaya' : "Wilaya d'origine")} <span className="required-asterisk">*</span></label>
                             <select value={lot.wilayaId} onChange={e => updateLot(idx, 'wilayaId', e.target.value)}>
                               <option value="">{locale === 'ar' ? '-- اختر الولاية --' : (locale === 'en' ? '-- Select wilaya --' : '-- Choisir wilaya --')}</option>
                               {WILAYA_LIST.map(w => <option key={w.id} value={w.id}>{w.id < 10 ? `0${w.id}` : w.id} – {w.name}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>{locale === 'ar' ? 'الوحدة' : (locale === 'en' ? 'Unit' : 'Unité')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                            <label>{locale === 'ar' ? 'الوحدة' : (locale === 'en' ? 'Unit' : 'Unité')} <span className="required-asterisk">*</span></label>
                             <select value={lot.unit} onChange={e => updateLot(idx, 'unit', e.target.value)}>
                               {['tonnes', 'kg', 'cagettes', 'palettes', 'sacs'].map(u => <option key={u} value={u}>{t('unit_' + u)}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>{locale === 'ar' ? 'الكمية المطلوبة' : (locale === 'en' ? 'Required quantity' : 'Quantité')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                            <label>{locale === 'ar' ? 'الكمية المطلوبة' : (locale === 'en' ? 'Required quantity' : 'Quantité')} <span className="required-asterisk">*</span></label>
                             <input type="number" step="any" min="0" placeholder="0" value={lot.quantity} onChange={e => updateLot(idx, 'quantity', e.target.value)} />
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label><TrendingDown size={13} style={{ color: 'var(--danger)' }} /> {locale === 'ar' ? 'السعر الأقصى (سقف)' : (locale === 'en' ? 'Maximum price (ceiling)' : 'Prix plafond (max)')} <span style={{ color: 'var(--danger)' }}>*</span></label>
-                            <div style={{ position: 'relative' }}>
-                              <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 50000' : (locale === 'en' ? 'E.g. 50000' : 'Ex: 50000')} value={lot.priceCeiling} onChange={e => updateLot(idx, 'priceCeiling', e.target.value)} style={{ paddingRight: 44 }} />
-                              <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DA</span>
+                            <label><TrendingDown size={13} style={{ color: 'var(--danger)' }} /> {locale === 'ar' ? 'السعر الأقصى (سقف)' : (locale === 'en' ? 'Maximum price (ceiling)' : 'Prix plafond (max)')} <span className="required-asterisk">*</span></label>
+                            <div className="input-suffix-wrap">
+                              <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 50000' : (locale === 'en' ? 'E.g. 50000' : 'Ex: 50000')} value={lot.priceCeiling} onChange={e => updateLot(idx, 'priceCeiling', e.target.value)} className="input-with-suffix" />
+                              <span className="input-suffix-label">DA</span>
                             </div>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label><TrendingUp size={13} style={{ color: 'var(--primary)' }} /> {locale === 'ar' ? 'سعر الاحتياط (حد أدنى)' : (locale === 'en' ? 'Reserve price (min)' : 'Prix de réserve (min)')}</label>
-                            <div style={{ position: 'relative' }}>
-                              <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 30000' : (locale === 'en' ? 'E.g. 30000' : 'Ex: 30000')} value={lot.priceReserve} onChange={e => updateLot(idx, 'priceReserve', e.target.value)} style={{ paddingRight: 44 }} />
-                              <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DA</span>
+                            <div className="input-suffix-wrap">
+                              <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 30000' : (locale === 'en' ? 'E.g. 30000' : 'Ex: 30000')} value={lot.priceReserve} onChange={e => updateLot(idx, 'priceReserve', e.target.value)} className="input-with-suffix" />
+                              <span className="input-suffix-label">DA</span>
                             </div>
                           </div>
                         </div>
@@ -675,7 +675,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
             {/* STEP 3 */}
             {wizardStep === 3 && (
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 className="wizard-section-title mb-8">
                   <MapPin size={20} style={{ color: 'var(--primary)' }} />
                   {locale === 'ar' ? 'المنطقة الجغرافية' : (locale === 'en' ? 'Geographic zone' : 'Zone géographique')}
                 </h3>
@@ -683,7 +683,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                   <AuctionMap centerLat={userCoords.lat} centerLng={userCoords.lng} radiusKm={radiusKm}
                     onRadiusChange={val => { setRadiusKm(val); setIsSearchZoneChanged(true); }} producerCount={producerCount} />
                 ) : (
-                  <div style={{ padding: 14, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, fontSize: '0.85rem', color: '#f59e0b' }}>
+                  <div className="inline-alert-warning">
                     ⚠️ {locale === 'ar' ? 'أكمل ملفك الشخصي (الولاية) لعرض الخريطة.' : (locale === 'en' ? 'Complete your profile (wilaya) to display the map.' : 'Complétez votre profil (wilaya) pour afficher la carte.')}
                   </div>
                 )}
@@ -693,25 +693,25 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
             {/* STEP 4 */}
             {wizardStep === 4 && (
               <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h3 className="wizard-section-title mb-20">
                   <CalendarClock size={20} style={{ color: 'var(--primary)' }} />
                   {locale === 'ar' ? 'التواريخ والإعدادات' : (locale === 'en' ? 'Dates & Settings' : 'Dates & Paramètres')}
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label htmlFor="start-dt">{locale === 'ar' ? 'تاريخ + وقت البداية' : (locale === 'en' ? 'Start date + time' : 'Date + heure de début')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <label htmlFor="start-dt">{locale === 'ar' ? 'تاريخ + وقت البداية' : (locale === 'en' ? 'Start date + time' : 'Date + heure de début')} <span className="required-asterisk">*</span></label>
                       <input id="start-dt" type="datetime-local" value={startDatetime} onChange={e => setStartDatetime(e.target.value)} />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label htmlFor="end-dt">{locale === 'ar' ? 'تاريخ + وقت النهاية' : (locale === 'en' ? 'End date + time' : 'Date + heure de fin')} <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <label htmlFor="end-dt">{locale === 'ar' ? 'تاريخ + وقت النهاية' : (locale === 'en' ? 'End date + time' : 'Date + heure de fin')} <span className="required-asterisk">*</span></label>
                       <input id="end-dt" type="datetime-local" value={endDatetime} onChange={e => setEndDatetime(e.target.value)} />
                     </div>
                   </div>
-                  <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '18px 22px', background: 'rgba(255,255,255,0.02)' }}>
+                  <div className="bordered-card" style={{ padding: '18px 22px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                      <div style={{ width: 44, height: 24, borderRadius: 99, background: autoProlongate ? 'var(--primary)' : 'var(--border)', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }} onClick={() => setAutoProlongate(p => !p)}>
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: autoProlongate ? 23 : 3, transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }} />
+                      <div className={`toggle-switch-track ${autoProlongate ? 'on' : ''}`} onClick={() => setAutoProlongate(p => !p)}>
+                        <div className={`toggle-switch-knob ${autoProlongate ? 'on' : ''}`} />
                       </div>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -744,19 +744,19 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
               const activeAuction = myAuctions.find(a => a.id === viewingAuctionId);
               return (
                 <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="wizard-section-title mb-20">
                     <FileSearch size={20} style={{ color: 'var(--primary)' }} />
                     {locale === 'ar' ? 'ملخص المزاد' : (locale === 'en' ? "Auction summary" : "Récapitulatif de l'enchère")}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}</div>
+                    <div className="bordered-card-sm">
+                      <div className="summary-box-title">{locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}</div>
                       <SummaryRow label={locale === 'ar' ? 'العنوان' : (locale === 'en' ? 'Title' : 'Titre')} value={title} />
                       <SummaryRow label={locale === 'ar' ? 'النوع' : (locale === 'en' ? 'Type' : 'Type')} value={getAuctionTypeLabel(auctionType)} />
                       <SummaryRow label={locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} value={deliveryLocation} />
                     </div>
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{locale === 'ar' ? 'الأقسام' : (locale === 'en' ? 'Lots' : 'Lots')} ({lots.length})</div>
+                    <div className="bordered-card-sm">
+                      <div className="summary-box-title">{locale === 'ar' ? 'الأقسام' : (locale === 'en' ? 'Lots' : 'Lots')} ({lots.length})</div>
                       {lots.map(lot => (
                         <div key={lot.seq} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
                           <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: 4, fontSize: '0.9rem' }}>{locale === 'ar' ? 'قسم' : (locale === 'en' ? 'Lot' : 'Lot')} {lot.seq} — {lot.designation}</div>
@@ -769,8 +769,8 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                         </div>
                       ))}
                     </div>
-                    <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', background: 'rgba(255,255,255,0.02)' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>{locale === 'ar' ? 'المنطقة والتواريخ' : (locale === 'en' ? 'Zone & Dates' : 'Zone & Dates')}</div>
+                    <div className="bordered-card-sm">
+                      <div className="summary-box-title">{locale === 'ar' ? 'المنطقة والتواريخ' : (locale === 'en' ? 'Zone & Dates' : 'Zone & Dates')}</div>
                       <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${radiusKm} km`} />
                       <SummaryRow label={locale === 'ar' ? 'منتجون في المنطقة' : (locale === 'en' ? 'Producers in zone' : 'Producteurs dans la zone')} value={`${producerCount}`} />
                       <SummaryRow label={locale === 'ar' ? 'بداية' : (locale === 'en' ? 'Start' : 'Début')} value={startDatetime ? new Date(startDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ') : '—'} />
@@ -779,7 +779,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
 
                     {/* Active auction offers list */}
                     {activeAuction && (
-                      <div style={{ border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', background: 'rgba(255,255,255,0.02)', marginTop: 8 }}>
+                      <div className="bordered-card mt-8">
                         <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 16, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Gavel size={18} style={{ color: 'var(--primary)' }} /> {t('proposalsProducers')} ({activeAuction.bids.length})
                         </h4>
@@ -791,22 +791,22 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                               const isBidNew = newBidFlashIds.includes(bid.id);
                               const isAccepted = activeAuction.acceptedBidId === bid.id;
                               return (
-                                <div key={bid.id} className={isBidNew ? 'bid-flash-new' : ''} style={{ border: `1px solid ${isAccepted ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 10, padding: '16px', background: isAccepted ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)' }}>
+                                <div key={bid.id} className={`mini-bid-card ${isAccepted ? 'accepted' : ''} ${isBidNew ? 'bid-flash-new' : ''}`}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                       <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>{bid.producerAlias}</span>
                                       <StarDisplay rating={bid.producerRating} count={bid.producerRatingCount} />
                                     </div>
-                                    {isAccepted && <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--primary)', color: 'white', borderRadius: 99, padding: '3px 10px' }}>{t('bidSelected')}</span>}
+                                    {isAccepted && <span className="mini-bid-selected-tag">{t('bidSelected')}</span>}
                                   </div>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                                     {(bid.lines || []).map(line => (
-                                      <div key={line.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                                      <div key={line.id} className="mini-bid-line">
                                         <div style={{ flex: 1 }}>
                                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                            {line.optionName && <strong style={{ fontSize: '0.8rem', color: 'var(--text-main)', background: 'var(--primary-soft)', padding: '2px 8px', borderRadius: 4 }}>{line.optionName}</strong>}
+                                            {line.optionName && <strong className="mini-bid-option-tag">{line.optionName}</strong>}
                                             {line.quantity && <span style={{ fontSize: '0.82rem', color: 'var(--text-body)' }}>{line.quantity} {t('unit_' + (line.unit || activeAuction.unit))}</span>}
-                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--secondary)' }}>{line.price} DA</span>
+                                            <span className="mini-bid-price">{line.price} DA</span>
                                           </div>
                                           {line.comments && <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: '0.78rem', color: 'var(--text-body)' }}><MessageSquare size={12} /><span>{line.comments}</span></div>}
                                           {line.images?.length > 0 && (
@@ -849,14 +849,14 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
 
             {/* Error */}
             {stepError && (
-              <div style={{ marginTop: 20, padding: '10px 14px', borderRadius: 8, fontSize: '0.875rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <div className="inline-alert-danger mt-20">
                 <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />{stepError}
               </div>
             )}
           </div>
 
           {/* Wizard Nav */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24, gap: 12 }}>
+          <div className="wizard-nav-row">
             <button type="button" onClick={goPrev} disabled={wizardStep === 1} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: wizardStep === 1 ? 0.4 : 1 }}>
               <ChevronLeft size={16} /> {locale === 'ar' ? 'السابق' : (locale === 'en' ? 'Previous' : 'Précédent')}
             </button>
@@ -897,8 +897,8 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
           </div>
         ) : (
           <>
-          <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', overflowY: 'hidden', background: 'var(--bg-panel)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 80px 80px 95px', minWidth: 680, padding: '10px 20px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div className="data-table">
+            <div className="data-table-header-row auctions-table-grid-actions">
               <span>{locale === 'ar' ? 'العنوان' : (locale === 'en' ? 'Title' : 'Titre')}</span>
               <span>{locale === 'ar' ? 'النوع' : 'Type'}</span>
               <span>{locale === 'ar' ? 'التاريخ' : 'Date'}</span>
@@ -907,31 +907,28 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
               <span style={{ textAlign: 'center' }}>{locale === 'ar' ? 'إجراء' : 'Actions'}</span>
             </div>
             {myAuctions.map((auction, idx) => {
-              const isExpanded = expandedId === auction.id;
               const isNew = newBidFlashIds.some(id => auction.bids.some(b => b.id === id));
               const status = statusColors[auction.status] || statusColors.closed;
               const dateStr = new Date(auction.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { day: '2-digit', month: '2-digit', year: '2-digit' });
               return (
-                <div key={auction.id} ref={el => { if (highlightAuctionId === auction.id && el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100); }}
-                  style={{ borderBottom: idx < myAuctions.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  <div
-                    style={{ display: 'grid', gridTemplateColumns: '2.2fr 1fr 1fr 80px 80px 95px', minWidth: 680, padding: '14px 20px', alignItems: 'center', background: isNew ? 'rgba(16,185,129,0.06)' : 'transparent', transition: 'background 0.2s' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {isNew && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#10b981', marginRight: 6, verticalAlign: 'middle', boxShadow: '0 0 6px #10b981' }} />}
+                <div key={auction.id} className="data-table-row-wrap" ref={el => { if (highlightAuctionId === auction.id && el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100); }}>
+                  <div className={`data-table-row auctions-table-grid-actions ${isNew ? 'is-new' : ''}`}>
+                    <div className="data-table-cell-title">
+                      <span className="data-table-cell-title-text">
+                        {isNew && <span className="new-dot" />}
                         {auction.title || auction.product}
                       </span>
-                      {auction.deliveryLocation && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}><MapPin size={10} /> {auction.deliveryLocation}</span>}
+                      {auction.deliveryLocation && <span className="data-table-cell-sub"><MapPin size={10} /> {auction.deliveryLocation}</span>}
                     </div>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>{getAuctionTypeLabel(auction.auctionType)}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{dateStr}</span>
-                    <div style={{ textAlign: 'center' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: auction.bids.length > 0 ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', color: auction.bids.length > 0 ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem' }}>
+                    <div className="data-table-cell-center">
+                      <span className={`count-pill ${auction.bids.length > 0 ? 'has-count' : ''}`}>
                         {auction.bids.length}
                       </span>
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 99, background: status.bg, color: status.color, fontSize: '0.72rem', fontWeight: 700 }}>
+                    <div className="data-table-cell-center">
+                      <span className={`status-pill ${status.cls}`}>
                         {status.label(locale)}
                       </span>
                     </div>
@@ -941,20 +938,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                           type="button"
                           onClick={() => openViewWizard(auction)}
                           title={locale === 'ar' ? 'استشارة' : (locale === 'en' ? 'View' : 'Consulter')}
-                          style={{
-                            background: 'rgba(59,130,246,0.1)',
-                            border: '1px solid rgba(59,130,246,0.25)',
-                            color: '#3b82f6',
-                            padding: '6px 9px',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.2)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; }}
+                          className="table-icon-btn table-icon-btn-view"
                         >
                           <Eye size={13} />
                         </button>
@@ -964,20 +948,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                               type="button"
                               onClick={() => openEditWizard(auction)}
                               title={t('editAuctionBtn')}
-                              style={{
-                                background: 'rgba(245,158,11,0.1)',
-                                border: '1px solid rgba(245,158,11,0.25)',
-                                color: '#f59e0b',
-                                padding: '6px 9px',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.2)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.1)'; }}
+                              className="table-icon-btn table-icon-btn-edit"
                             >
                               <Pencil size={13} />
                             </button>
@@ -985,20 +956,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                               type="button"
                               onClick={() => setDeleteConfirmAuctionId(auction.id)}
                               title={t('deleteAuctionBtn')}
-                              style={{
-                                background: 'rgba(239,68,68,0.1)',
-                                border: '1px solid rgba(239,68,68,0.25)',
-                                color: '#ef4444',
-                                padding: '6px 9px',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s',
-                              }}
-                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; }}
+                              className="table-icon-btn table-icon-btn-delete"
                             >
                               <Trash2 size={13} />
                             </button>
