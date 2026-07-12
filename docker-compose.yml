@@ -1,0 +1,58 @@
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Three replicas of the same backend image — named explicitly rather than
+  # `deploy: replicas:` (which only takes effect under `docker stack deploy`,
+  # not plain `docker compose up`) so nginx's upstream list below can be static.
+  backend1: &backend
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/agriapp
+      REDIS_URL: redis://redis:6379
+      TRUST_PROXY: "1"
+      HOST: 0.0.0.0
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  backend2:
+    <<: *backend
+
+  backend3:
+    <<: *backend
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
+
+volumes:
+  mongo_data:
+  uploads:

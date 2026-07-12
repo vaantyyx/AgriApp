@@ -52,6 +52,12 @@ if (Object.keys(CAPTCHA_CATEGORIES).length < 4) {
 
 // ─── App Setup ────────────────────────────────────────────────────────────
 const app = express();
+// Behind a reverse proxy (Nginx, a cloud load balancer), Express otherwise
+// sees the proxy's own IP for every request — express-rate-limit would key
+// every visitor's rate limit off that single shared IP instead of their
+// real one. TRUST_PROXY=1 opts into trusting the first hop's X-Forwarded-*
+// headers; leave it unset for direct/local (no proxy in front) deployments.
+if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 // Gzip/brotli response compression — cuts bandwidth for JSON payloads (auction
 // lists, notifications) and static uploads, which matters most once traffic
