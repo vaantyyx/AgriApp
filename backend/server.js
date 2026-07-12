@@ -31,6 +31,8 @@ import {
   hasProducerProduct,
   canProducerParticipate,
   sanitizeAuctions,
+  wilayaRoomName,
+  getEligibleWilayaRooms,
 } from './services/auctionMatching.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -172,26 +174,25 @@ app.get('/api/producers/count', async (req, res) => {
     const db = getDb();
     const producers = await db.collection('users').find({ role: 'producer', isVerified: true }).toArray();
 
-    let count = 0;
-    for (const producer of producers) {
+    // Each producer's eligibility check is independent — run them concurrently
+    // instead of one-at-a-time, so this scales with how long the slowest single
+    // check takes rather than with the total number of producers.
+    const eligible = await Promise.all(producers.map(async producer => {
       const pCoords = producer.commune
         ? getCommuneCoords(producer.wilaya || '', producer.commune)
         : getWilayaCoords(producer.wilaya || '');
 
-      if (!pCoords) continue;
+      if (!pCoords) return false;
 
       const dist = haversineKm(lat, lng, pCoords.lat, pCoords.lng);
-      if (dist <= radius) {
-        if (auctionType === 'smart' && requestedProductNames.length > 0) {
-          const hasProduct = await hasProducerProduct(producer._id.toString(), requestedProductNames, db);
-          if (hasProduct) {
-            count++;
-          }
-        } else {
-          count++;
-        }
+      if (dist > radius) return false;
+
+      if (auctionType === 'smart' && requestedProductNames.length > 0) {
+        return await hasProducerProduct(producer._id.toString(), requestedProductNames, db);
       }
-    }
+      return true;
+    }));
+    const count = eligible.filter(Boolean).length;
 
     res.json({ count });
   } catch (error) {
@@ -229,13 +230,10 @@ app.get('/api/auctions/older', authMiddleware, async (req, res) => {
         ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
         : getWilayaCoords(producerUser?.wilaya || '');
 
-      const allowed = [];
-      for (const a of auctions) {
-        if (a.status !== 'pending' && await canProducerParticipate(a, uid, producerCoords, db)) {
-          allowed.push(a);
-        }
-      }
-      auctions = allowed;
+      const checks = await Promise.all(auctions.map(async a =>
+        (a.status !== 'pending' && await canProducerParticipate(a, uid, producerCoords, db)) ? a : null
+      ));
+      auctions = checks.filter(Boolean);
     }
 
     const sanitized = sanitizeAuctions(auctions, uid, role);
@@ -303,9 +301,10 @@ async function getMatchingProducers(auction, db) {
     : null;
   const radiusKm = auction.radiusKm || 100;
   const producers = await db.collection('users').find({ role: 'producer', isVerified: true }).toArray();
-  const matches = [];
 
-  for (const producer of producers) {
+  // Each producer's zone/product eligibility is independent of the others —
+  // run them concurrently instead of one-at-a-time.
+  const results = await Promise.all(producers.map(async producer => {
     let shouldNotify = false;
     let distKm = 0;
 
@@ -340,10 +339,10 @@ async function getMatchingProducers(auction, db) {
       shouldNotify = await hasProducerProduct(producer._id.toString(), requestedProductNames, db);
     }
 
-    if (shouldNotify) matches.push({ producer, distKm });
-  }
+    return shouldNotify ? { producer, distKm } : null;
+  }));
 
-  return matches;
+  return results.filter(Boolean);
 }
 
 /** Persists + pushes (if connected) a notification of `type` to every producer matching this auction. */
@@ -374,16 +373,26 @@ async function notifyMatchingProducers(auction, db, type) {
 
 /** Broadcasts a sanitized version of the auction to every connected socket (zone/product filtered for producers). */
 async function broadcastAuction(auction, db, eventName = 'auction_updated') {
-  const allSockets = await io.fetchSockets();
-  for (const s of allSockets) {
+  // Fetch buyers (always eligible) and only the producers whose wilaya room
+  // could plausibly be in range, instead of every connected socket — the
+  // exact per-producer check below still runs, just over a far smaller set.
+  const buyerSockets = await io.in('role:buyer').fetchSockets();
+  const producerSockets = auction.status === 'pending'
+    ? []
+    : await io.in(getEligibleWilayaRooms(auction.buyerLat, auction.buyerLng, auction.radiusKm)).fetchSockets();
+  const candidateSockets = [...buyerSockets, ...producerSockets];
+
+  // Each socket's eligibility check + emit is independent — run them
+  // concurrently. Sequentially awaiting one socket at a time made every
+  // broadcast's cost scale with the size of the candidate set.
+  await Promise.all(candidateSockets.map(async s => {
     if (s.user.role === 'producer') {
-      if (auction.status === 'pending') continue;
       const allowed = await canProducerParticipate(auction, s.user.userId, s.producerCoords, db);
-      if (!allowed) continue;
+      if (!allowed) return;
     }
     const [sanitized] = sanitizeAuctions([auction], s.user.userId, s.user.role);
     s.emit(eventName, sanitized);
-  }
+  }));
 }
 
 function clearAuctionTimers(auctionId) {
@@ -489,6 +498,11 @@ io.on('connection', async (socket) => {
       socket.producerCoords = producerUser?.commune
         ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
         : getWilayaCoords(producerUser?.wilaya || '');
+      // Lets broadcasts fetch a per-auction candidate set (producers in
+      // plausibly-in-range wilayas) instead of every connected socket.
+      socket.join(wilayaRoomName(producerUser?.wilaya || ''));
+    } else if (role === 'buyer') {
+      socket.join('role:buyer');
     }
 
     // Send initial auctions list — producers only see demands matching their zone & product if smart.
@@ -496,13 +510,10 @@ io.on('connection', async (socket) => {
     const totalAuctionsCount = await db.collection('auctions').countDocuments({});
     let auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).limit(INITIAL_AUCTIONS_LIMIT).toArray();
     if (role === 'producer') {
-      const allowed = [];
-      for (const a of auctions) {
-        if (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.producerCoords, db)) {
-          allowed.push(a);
-        }
-      }
-      auctions = allowed;
+      const checks = await Promise.all(auctions.map(async a =>
+        (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.producerCoords, db)) ? a : null
+      ));
+      auctions = checks.filter(Boolean);
     }
 
     const sanitized = sanitizeAuctions(auctions, uid, role);
@@ -854,15 +865,19 @@ io.on('connection', async (socket) => {
       io.to(userRoom(auction.buyerId)).emit('new_notification', notification);
 
       // Broadcast updated auction (sanitized per receiver)
-      const allSockets = await io.fetchSockets();
-      for (const s of allSockets) {
+      // Fetch buyers (always eligible) plus only the producers in wilaya
+      // rooms that could plausibly be in range — see broadcastAuction() above.
+      const buyerSockets = await io.in('role:buyer').fetchSockets();
+      const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
+      const candidateSockets = [...buyerSockets, ...producerSockets];
+      await Promise.all(candidateSockets.map(async s => {
         if (s.user.role === 'producer') {
           const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
-          if (!allowed) continue;
+          if (!allowed) return;
         }
         const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
         s.emit('auction_updated', sanitized);
-      }
+      }));
     } catch (err) {
       logger.error({ err }, 'Error placing bid');
       socket.emit('error', { message: "Échec du dépôt d'offre." });
@@ -921,15 +936,19 @@ io.on('connection', async (socket) => {
 
       io.to(userRoom(bid.producerId)).emit('new_notification', notification);
 
-      const allSockets = await io.fetchSockets();
-      for (const s of allSockets) {
+      // Fetch buyers (always eligible) plus only the producers in wilaya
+      // rooms that could plausibly be in range — see broadcastAuction() above.
+      const buyerSockets = await io.in('role:buyer').fetchSockets();
+      const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
+      const candidateSockets = [...buyerSockets, ...producerSockets];
+      await Promise.all(candidateSockets.map(async s => {
         if (s.user.role === 'producer') {
           const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
-          if (!allowed) continue;
+          if (!allowed) return;
         }
         const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
         s.emit('auction_updated', sanitized);
-      }
+      }));
     } catch (err) {
       logger.error({ err }, 'Error accepting bid');
       socket.emit('error', { message: 'Échec de la validation.' });
@@ -1019,15 +1038,19 @@ io.on('connection', async (socket) => {
 
       // Update auction's alreadyRated flag across all connections
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
-      const allSockets = await io.fetchSockets();
-      for (const s of allSockets) {
+      // Fetch buyers (always eligible) plus only the producers in wilaya
+      // rooms that could plausibly be in range — see broadcastAuction() above.
+      const buyerSockets = await io.in('role:buyer').fetchSockets();
+      const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
+      const candidateSockets = [...buyerSockets, ...producerSockets];
+      await Promise.all(candidateSockets.map(async s => {
         if (s.user.role === 'producer') {
           const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
-          if (!allowed) continue;
+          if (!allowed) return;
         }
         const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
         s.emit('auction_updated', sanitized);
-      }
+      }));
     } catch (err) {
       logger.error({ err }, 'Error rating producer');
       socket.emit('error', { message: 'Échec de la notation.' });

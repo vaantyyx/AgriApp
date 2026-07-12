@@ -8,6 +8,9 @@ import {
   hasProducerProduct,
   canProducerParticipate,
   sanitizeAuctions,
+  wilayaRoomName,
+  getAllWilayaRoomNames,
+  getEligibleWilayaRooms,
 } from '../services/auctionMatching.js';
 
 /** Minimal fake of the MongoDB driver surface these functions actually use. */
@@ -129,6 +132,55 @@ describe('canProducerParticipate', () => {
     });
     assert.equal(await canProducerParticipate(auction, 'producer1', pCoords, dbWithMatch), true);
     assert.equal(await canProducerParticipate(auction, 'producer1', pCoords, dbWithoutMatch), false);
+  });
+});
+
+describe('wilayaRoomName', () => {
+  test('resolves a known wilaya to its id-based room', () => {
+    assert.equal(wilayaRoomName('Alger'), 'wilaya:16');
+  });
+
+  test('is case-insensitive and trims whitespace, like getWilayaCoords', () => {
+    assert.equal(wilayaRoomName('  ALGER '), wilayaRoomName('alger'));
+  });
+
+  test('falls back to the catch-all room for unknown or empty names', () => {
+    assert.equal(wilayaRoomName('Atlantis'), 'wilaya:unknown');
+    assert.equal(wilayaRoomName(''), 'wilaya:unknown');
+    assert.equal(wilayaRoomName(undefined), 'wilaya:unknown');
+  });
+});
+
+describe('getEligibleWilayaRooms', () => {
+  test('falls back to every wilaya room when the auction has no buyer coordinates', () => {
+    const rooms = getEligibleWilayaRooms(null, null, 50);
+    assert.deepEqual(rooms.sort(), getAllWilayaRoomNames().sort());
+  });
+
+  test('always includes the unknown-location catch-all room', () => {
+    const rooms = getEligibleWilayaRooms(36.75, 3.06, 10);
+    assert.ok(rooms.includes('wilaya:unknown'));
+  });
+
+  test('includes a producer\'s own room whenever isProducerInZone would allow them', () => {
+    // Cross-check against the exact per-producer function this coarse
+    // filter must never disagree with in the "would wrongly exclude" direction.
+    const buyerLat = 36.75, buyerLng = 3.06, radiusKm = 50;
+    const rooms = getEligibleWilayaRooms(buyerLat, buyerLng, radiusKm);
+
+    const nearbyProducerCoords = { lat: 36.80, lng: 3.10 }; // a few km from Alger
+    const nearbyProducerRoom = wilayaRoomName('Alger');
+    assert.equal(
+      isProducerInZone({ buyerLat, buyerLng, radiusKm }, nearbyProducerCoords),
+      true,
+    );
+    assert.ok(rooms.includes(nearbyProducerRoom), 'exact-match producer\'s room must be in the coarse candidate set');
+  });
+
+  test('excludes distant wilayas outside the radius + buffer', () => {
+    // Tamanrasset (far south) shouldn't be a candidate for a 10km-radius Alger auction.
+    const rooms = getEligibleWilayaRooms(36.75, 3.06, 10);
+    assert.ok(!rooms.includes(wilayaRoomName('Tamanrasset')));
   });
 });
 

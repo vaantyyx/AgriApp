@@ -92,6 +92,52 @@ export function isProducerInZone(auction, pCoords) {
   return dist <= (auction.radiusKm || 100);
 }
 
+// ─── Socket.IO wilaya rooms ───────────────────────────────────────────────
+// Broadcasting an auction update used to mean fetching every connected
+// socket and running the zone/product check on each one — cost that scales
+// with total connected users, not with who actually needs the update. These
+// rooms let the server pre-filter to a much smaller candidate set (producers
+// whose wilaya could plausibly be in range) before running the exact,
+// per-socket check, without changing what any individual producer sees.
+
+/** Room name a producer socket joins for its own wilaya (or the catch-all
+ * "unknown" room when the wilaya doesn't resolve to a known id — those
+ * producers must never be silently excluded, since isProducerInZone()
+ * treats unknown location as "in zone" by default). */
+export function wilayaRoomName(wilayaName) {
+  const id = wilayaName ? WILAYA_NAME_TO_ID[wilayaName.toLowerCase().trim()] : null;
+  return id ? `wilaya:${id}` : 'wilaya:unknown';
+}
+
+/** Every wilaya room name, plus the unknown-location catch-all. */
+export function getAllWilayaRoomNames() {
+  return [...Object.keys(WILAYA_COORDS).map(id => `wilaya:${id}`), 'wilaya:unknown'];
+}
+
+// Covers the up-to-~50km random offset getCommuneCoords adds around a
+// wilaya's center, so this coarse per-wilaya filter can never wrongly
+// exclude a producer that the exact haversine check would still allow —
+// it can only over-include, which the follow-up exact check corrects.
+const WILAYA_ROOM_BUFFER_KM = 80;
+
+/**
+ * Room names worth fetching sockets from for an auction at (buyerLat,
+ * buyerLng) with the given radius: every wilaya whose center could plausibly
+ * contain an in-range producer, plus the unknown-location catch-all. Falls
+ * back to every wilaya room when the auction has no buyer coordinates at
+ * all (isProducerInZone treats that as "everyone is in zone" too).
+ */
+export function getEligibleWilayaRooms(buyerLat, buyerLng, radiusKm) {
+  if (buyerLat == null || buyerLng == null) return getAllWilayaRoomNames();
+  const rooms = ['wilaya:unknown'];
+  for (const [id, coords] of Object.entries(WILAYA_COORDS)) {
+    if (haversineKm(buyerLat, buyerLng, coords.lat, coords.lng) <= (radiusKm || 100) + WILAYA_ROOM_BUFFER_KM) {
+      rooms.push(`wilaya:${id}`);
+    }
+  }
+  return rooms;
+}
+
 // ─── Products Map for Smart Auctions ─────────────────────────────────────
 export const PRODUCTS_MAP = {
   '1': 'Blé Dur',
