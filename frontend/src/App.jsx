@@ -648,7 +648,7 @@ export default function App() {
 
           <Route path="/admin" element={
             user && token && user.role === 'admin' ? (
-              <AdminDashboardPage token={token} onLogout={handleLogout} />
+              <AdminDashboardPage token={token} />
             ) : <Navigate to="/login" replace />
           } />
 

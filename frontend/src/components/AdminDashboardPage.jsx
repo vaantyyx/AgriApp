@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Shield, Users, Gavel, LogOut, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
-import LanguageSwitcher from './LanguageSwitcher';
 
 function StatTile({ label, value }) {
   return (
@@ -13,7 +12,7 @@ function StatTile({ label, value }) {
   );
 }
 
-export default function AdminDashboardPage({ token, onLogout }) {
+export default function AdminDashboardPage({ token }) {
   const { t, dir, locale } = useTranslation();
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
 
@@ -110,19 +109,6 @@ export default function AdminDashboardPage({ token, onLogout }) {
 
   return (
     <div dir={dir} style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 32px', borderBottom: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Shield size={22} style={{ color: 'var(--primary)' }} />
-          <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-main)' }}>{t('adminTitle')}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <LanguageSwitcher />
-          <button onClick={onLogout} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: '0.85rem' }}>
-            <LogOut size={14} /> {t('logout')}
-          </button>
-        </div>
-      </header>
-
       <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 28 }}>
