@@ -30,7 +30,7 @@ export default function SiteNavbar() {
 
   return (
     <nav className="slp-navbar" dir={dir}>
-      <div className="slp-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+      <div className="slp-logo slp-logo-clickable" onClick={() => navigate('/')}>
         <img src="/logo.png" alt="Sougra" />
         <div className="slp-logo-text">
           <strong>SOUGRA</strong>
@@ -45,7 +45,7 @@ export default function SiteNavbar() {
 
         <div className="slp-espace-wrap" ref={langRef}>
           <button className="slp-globe-btn" onClick={() => setLangOpen(o => !o)} title={t('languageLabel')}>
-            {currentLang.flag ? <img src={currentLang.flag} alt="" style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} /> : <UKFlag size={18} />}
+            {currentLang.flag ? <img src={currentLang.flag} alt="" className="slp-flag-icon" /> : <UKFlag size={18} />}
           </button>
           {langOpen && (
             <div className="slp-dropdown">
@@ -53,9 +53,9 @@ export default function SiteNavbar() {
                 <button
                   key={l.code}
                   onClick={() => { setLocale(l.code); setLangOpen(false); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                  className="slp-dropdown-item"
                 >
-                  {l.flag ? <img src={l.flag} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} /> : <UKFlag size={18} />}
+                  {l.flag ? <img src={l.flag} alt="" className="slp-flag-icon-sm" /> : <UKFlag size={18} />}
                   {l.label}
                 </button>
               ))}

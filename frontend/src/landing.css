@@ -177,6 +177,13 @@
   cursor: pointer;
 }
 .slp-dropdown button:hover { background: var(--primary-soft); color: var(--primary); }
+.slp-dropdown-item { display: flex; align-items: center; gap: 8px; }
+.slp-flag-icon { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.slp-flag-icon-sm { width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%; object-fit: cover; }
+.slp-logo-clickable { cursor: pointer; }
+.slp-btn-white-outline { color: var(--primary); border: 1px solid var(--border); }
+.slp-cat-card-arrow-icon { transform: rotate(-90deg); }
+[dir="rtl"] .slp-cat-card-arrow-icon { transform: rotate(90deg); }
 
 .slp-globe-btn {
   width: 36px;

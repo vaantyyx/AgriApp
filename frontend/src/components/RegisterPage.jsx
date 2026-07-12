@@ -32,73 +32,34 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
   );
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+    <div ref={containerRef} className="input-icon-wrap w-full">
       <button
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          padding: '12px 14px',
-          background: 'var(--bg-input)',
-          border: '1px solid var(--border)',
-          borderRadius: '8px',
-          color: selectedOption ? 'var(--text-main)' : 'var(--text-muted)',
-          fontSize: '0.95rem',
-          outline: 'none',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          textAlign: 'start',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          opacity: disabled ? 0.5 : 1,
-        }}
+        className="select-trigger-btn"
+        style={{ color: selectedOption ? 'var(--text-main)' : 'var(--text-muted)', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}
       >
         <span>{selectedOption ? selectedOption[labelKey] : placeholder}</span>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginInlineStart: '8px' }}>▼</span>
+        <span className="select-trigger-caret">▼</span>
       </button>
 
       {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 6px)',
-          left: 0,
-          right: 0,
-          zIndex: 1000,
-          background: 'var(--bg-panel)',
-          border: '1px solid var(--border)',
-          borderRadius: '8px',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
-          maxHeight: '260px',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          backdropFilter: 'blur(20px)',
-        }}>
-          <div style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>
+        <div className="select-dropdown-panel">
+          <div className="select-search-wrap">
             <input
               type="text"
               placeholder={t('searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               autoFocus
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid var(--border)',
-                borderRadius: '6px',
-                color: 'var(--text-main)',
-                fontSize: '0.9rem',
-                outline: 'none',
-                textAlign: 'start',
-              }}
+              className="select-search-input"
             />
           </div>
 
-          <div style={{ overflowY: 'auto', flex: 1 }}>
+          <div className="select-options-list">
             {filteredOptions.length === 0 ? (
-              <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center' }}>
+              <div className="select-empty">
                 {t('noResult')}
               </div>
             ) : (
@@ -112,24 +73,7 @@ function SearchableSelect({ options, value, onChange, placeholder, disabled, lab
                       onChange(opt[valueKey]);
                       setIsOpen(false);
                     }}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      background: isSelected ? 'var(--primary-glow)' : 'transparent',
-                      border: 'none',
-                      color: isSelected ? 'var(--primary)' : 'var(--text-main)',
-                      fontSize: '0.9rem',
-                      textAlign: 'start',
-                      cursor: 'pointer',
-                      outline: 'none',
-                      transition: 'background 0.2s',
-                    }}
-                    onMouseEnter={e => {
-                      if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                    }}
-                    onMouseLeave={e => {
-                      if (!isSelected) e.currentTarget.style.background = 'transparent';
-                    }}
+                    className={`select-option-btn${isSelected ? ' selected' : ''}`}
                   >
                     {opt[labelKey]}
                   </button>
@@ -270,34 +214,34 @@ export default function RegisterPage({ onNavigateToLogin }) {
       <div className="auth-page animate-fade-in" dir={dir}>
         <div className="auth-left">
           <div className="auth-left-content">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-              <div style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="auth-brand-row">
+              <div className="auth-brand-icon">
                 <Sprout size={22} color="white" />
               </div>
-              <span style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-heading)' }}>{t('appName')}</span>
+              <span className="auth-brand-name">{t('appName')}</span>
             </div>
             <h2>{t('regSuccessTitle')}</h2>
-            <h2 style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginBottom: 16 }}>{t('joinSougra')}</h2>
+            <h2 className="auth-subtitle-muted">{t('joinSougra')}</h2>
             <p>{t('heroSubtitle')}</p>
           </div>
         </div>
 
         <div className="auth-right">
-          <div style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-            <div style={{ display: 'inline-flex', padding: '20px', borderRadius: '50%', background: 'rgba(16,185,129,0.15)', marginBottom: '24px' }}>
+          <div className="mw-400 w-full text-center">
+            <div className="success-icon-circle">
               <CheckCircle size={48} style={{ color: 'var(--primary)' }} />
             </div>
-            <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>{t('regSuccessTitle')}</h2>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.7', marginBottom: '8px' }}>
+            <h2 className="success-title">{t('regSuccessTitle')}</h2>
+            <p className="success-text">
               {t('regSuccessEmailSent', { email: form.email })}
             </p>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.6', marginBottom: '32px' }}>
+            <p className="success-subtext">
               {t('regSuccessVerifyLink')}
             </p>
-            <div style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '10px', padding: '14px', marginBottom: '28px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div className="success-dev-tip">
               {t('regSuccessDevTip')}
             </div>
-            <button onClick={onNavigateToLogin} className="btn btn-primary" style={{ width: '100%', padding: '14px' }}>
+            <button onClick={onNavigateToLogin} className="btn btn-primary btn-block-xl">
               {t('accessLogin')}
             </button>
           </div>
@@ -325,17 +269,17 @@ export default function RegisterPage({ onNavigateToLogin }) {
       {/* Left panel */}
       <div className="auth-left">
         <div className="auth-left-content">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-            <div style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.15)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="auth-brand-row">
+            <div className="auth-brand-icon">
               <Sprout size={22} color="white" />
             </div>
-            <span style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-heading)' }}>
+            <span className="auth-brand-name">
               {t('appName')}
             </span>
           </div>
 
           <h2>{t('registerTitle')} —</h2>
-          <h2 style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginBottom: 16 }}>
+          <h2 className="auth-subtitle-muted">
             {t('joinSougra')}
           </h2>
           <p>{t('heroSubtitle')}</p>
@@ -366,12 +310,12 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
       {/* Right panel — form */}
       <div className="auth-right auth-right-wide">
-        <div style={{ maxWidth: 480, width: '100%' }}>
+        <div className="mw-480 w-full">
           <div className="auth-logo-row">
-            <div style={{ width: 36, height: 36, background: 'var(--primary)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="auth-logo-icon">
               <Sprout size={18} color="white" />
             </div>
-            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: '1.1rem', color: 'var(--primary)' }}>
+            <span className="auth-logo-name">
               {t('appName')}
             </span>
           </div>
@@ -382,9 +326,9 @@ export default function RegisterPage({ onNavigateToLogin }) {
         <form onSubmit={handleSubmit}>
 
           {/* Role Selection */}
-          <div className="form-group" style={{ marginBottom: '24px' }}>
-            <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('accountType')}</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-group mb-24">
+            <label className="text-start">{t('accountType')}</label>
+            <div className="role-select-grid">
               {[
                 { value: 'buyer', label: t('buyerLabel'), icon: <ShoppingBag size={20} />, desc: t('buyerDesc') },
                 { value: 'producer', label: t('producerLabel'), icon: <Tractor size={20} />, desc: t('producerDesc') },
@@ -393,17 +337,11 @@ export default function RegisterPage({ onNavigateToLogin }) {
                   key={opt.value}
                   type="button"
                   onClick={() => { setForm(prev => ({ ...prev, role: opt.value })); setError(''); }}
-                  style={{
-                    padding: '16px', borderRadius: '10px', border: '2px solid',
-                    borderColor: form.role === opt.value ? 'var(--primary)' : 'var(--border)',
-                    background: form.role === opt.value ? 'var(--primary-glow)' : 'var(--bg-input)',
-                    color: 'var(--text-main)', cursor: 'pointer', textAlign: 'start',
-                    transition: 'all 0.2s ease',
-                  }}
+                  className={`role-select-card${form.role === opt.value ? ' selected' : ''}`}
                 >
-                  <div style={{ color: form.role === opt.value ? 'var(--primary)' : 'var(--text-muted)', marginBottom: '6px' }}>{opt.icon}</div>
-                  <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>{opt.label}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{opt.desc}</div>
+                  <div className="role-select-card-icon">{opt.icon}</div>
+                  <div className="role-select-card-label">{opt.label}</div>
+                  <div className="role-select-card-desc">{opt.desc}</div>
                 </button>
               ))}
             </div>
@@ -411,57 +349,28 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           {/* Entity Type (buyers only) */}
           {form.role === 'buyer' && (
-            <div className="form-group animate-fade-in" style={{ marginBottom: '20px' }}>
-              <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+            <div className="form-group animate-fade-in mb-20">
+              <label className="text-start">
                 {t('entityTypeLabel')}
               </label>
-              <div style={{
-                display: 'flex',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '4px',
-                gap: '4px',
-              }}>
+              <div className="segmented-control">
                 <button
                   type="button"
                   onClick={() => setForm(prev => ({ ...prev, entity_type: 'particulier' }))}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: form.entity_type === 'particulier' ? 'var(--primary)' : 'transparent',
-                    color: form.entity_type === 'particulier' ? 'white' : 'var(--text-muted)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    fontSize: '0.9rem',
-                  }}
+                  className={`segmented-btn${form.entity_type === 'particulier' ? ' active' : ''}`}
                 >
                   {t('entityTypeParticulier')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setForm(prev => ({ ...prev, entity_type: 'entreprise' }))}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: form.entity_type === 'entreprise' ? 'var(--primary)' : 'transparent',
-                    color: form.entity_type === 'entreprise' ? 'white' : 'var(--text-muted)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    fontSize: '0.9rem',
-                  }}
+                  className={`segmented-btn${form.entity_type === 'entreprise' ? ' active' : ''}`}
                 >
                   {t('entityTypeEntreprise')}
                 </button>
               </div>
               {form.entity_type === 'entreprise' && (
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                <p className="hint-text-sm mt-6">
                   {locale === 'ar'
                     ? 'يمكنك إكمال معلومات مؤسستك (السجل التجاري، NIF...) لاحقاً من صفحة الملف الشخصي.'
                     : locale === 'en'
@@ -474,70 +383,42 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           {/* Name */}
           <div className="form-group">
-            <label htmlFor="reg-name" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('fullNameLabel')}</label>
-            <div style={{ position: 'relative' }}>
+            <label htmlFor="reg-name" className="text-start">{t('fullNameLabel')}</label>
+            <div className="input-icon-wrap">
               <input id="reg-name" type="text" placeholder={t('fullNamePlaceholder')}
                 value={form.name} onChange={handleChange('name')}
-                style={{
-                  width: '100%',
-                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
-                  paddingRight: dir === 'rtl' ? '44px' : '16px',
-                  textAlign: 'start'
-                }} required />
-              <User size={18} style={{
-                position: 'absolute',
-                left: dir === 'ltr' ? '14px' : 'auto',
-                right: dir === 'rtl' ? '14px' : 'auto',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)'
-              }} />
+                className="input-with-leading-icon" required />
+              <User size={18} className="input-icon-leading" />
             </div>
           </div>
 
           {/* Email */}
           <div className="form-group">
-            <label htmlFor="reg-email" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('emailLabel')}</label>
-            <div style={{ position: 'relative' }}>
+            <label htmlFor="reg-email" className="text-start">{t('emailLabel')}</label>
+            <div className="input-icon-wrap">
               <input id="reg-email" type="email" placeholder={t('emailPlaceholder')}
                 value={form.email} onChange={handleChange('email')}
-                style={{
-                  width: '100%',
-                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
-                  paddingRight: dir === 'rtl' ? '44px' : '16px',
-                  textAlign: 'start'
-                }} required />
-              <Mail size={18} style={{
-                position: 'absolute',
-                left: dir === 'ltr' ? '14px' : 'auto',
-                right: dir === 'rtl' ? '14px' : 'auto',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)'
-              }} />
+                className="input-with-leading-icon" required />
+              <Mail size={18} className="input-icon-leading" />
             </div>
           </div>
 
           {/* Phone */}
           <div className="form-group">
-            <label htmlFor="reg-phone" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-              {t('phoneLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>{t('optional')}</span>
+            <label htmlFor="reg-phone" className="text-start">
+              {t('phoneLabel')} <span className="label-hint">{t('optional')}</span>
             </label>
-            <div style={{ display: 'flex', gap: '0', alignItems: 'stretch', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '0 14px',
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid var(--border)',
-                borderRight: dir === 'ltr' ? 'none' : '1px solid var(--border)',
-                borderLeft: dir === 'rtl' ? 'none' : '1px solid var(--border)',
-                borderRadius: dir === 'ltr' ? '8px 0 0 8px' : '0 8px 8px 0',
-                whiteSpace: 'nowrap',
-                color: 'var(--text-muted)',
-                fontSize: '0.9rem',
-                minWidth: '90px',
-              }}>
-                <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: '2px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'stretch', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+              <div
+                className="phone-prefix-box"
+                style={{
+                  border: '1px solid var(--border)',
+                  borderRight: dir === 'ltr' ? 'none' : '1px solid var(--border)',
+                  borderLeft: dir === 'rtl' ? 'none' : '1px solid var(--border)',
+                  borderRadius: dir === 'ltr' ? '8px 0 0 8px' : '0 8px 8px 0',
+                }}
+              >
+                <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="phone-flag-icon">
                   <rect width="11" height="16" fill="#006233"/>
                   <rect x="11" width="11" height="16" fill="white"/>
                   <path d="M13.5 8C13.5 9.65685 12.1569 11 10.5 11C8.84315 11 7.5 9.65685 7.5 8C7.5 6.34315 8.84315 5 10.5 5C12.1569 5 13.5 6.34315 13.5 8Z" fill="#D21034"/>
@@ -552,29 +433,23 @@ export default function RegisterPage({ onNavigateToLogin }) {
                 placeholder="06 12 34 56 78"
                 value={form.phone}
                 onChange={handleChange('phone')}
+                className="phone-input"
                 style={{
-                  flex: 1,
-                  background: 'var(--bg-input)',
                   border: '1px solid var(--border)',
                   borderLeft: dir === 'ltr' ? 'none' : '1px solid var(--border)',
                   borderRight: dir === 'rtl' ? 'none' : '1px solid var(--border)',
                   borderRadius: dir === 'ltr' ? '0 8px 8px 0' : '8px 0 0 8px',
-                  padding: '12px 14px',
-                  color: 'var(--text-main)',
-                  fontSize: '0.95rem',
-                  outline: 'none',
-                  textAlign: 'start',
                 }}
               />
             </div>
           </div>
 
           {/* Wilaya + Commune */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div className="two-col-grid mb-20">
             {/* Wilaya */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                {t('wilayaLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>{t('optional')}</span>
+            <div className="form-group form-group-tight">
+              <label className="text-start">
+                {t('wilayaLabel')} <span className="label-hint">{t('optional')}</span>
               </label>
               <SearchableSelect
                 options={wilayaOptions}
@@ -585,9 +460,9 @@ export default function RegisterPage({ onNavigateToLogin }) {
             </div>
 
             {/* Commune */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                {t('communeLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}>{t('optional')}</span>
+            <div className="form-group form-group-tight">
+              <label className="text-start">
+                {t('communeLabel')} <span className="label-hint">{t('optional')}</span>
               </label>
               <SearchableSelect
                 options={communeOptions}
@@ -601,51 +476,28 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
           {/* Password */}
           <div className="form-group">
-            <label htmlFor="reg-password" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-              {t('passwordLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', fontSize: '0.8rem' }}>{t('passwordHelp')}</span>
+            <label htmlFor="reg-password" className="text-start">
+              {t('passwordLabel')} <span className="label-hint label-hint-normal-case">{t('passwordHelp')}</span>
             </label>
-            <div style={{ position: 'relative' }}>
+            <div className="input-icon-wrap">
               <input id="reg-password" type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
                 placeholder={t('passwordHelpPlaceholder')}
                 value={form.password} onChange={handleChange('password')}
-                style={{
-                  width: '100%',
-                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
-                  paddingRight: dir === 'rtl' ? '44px' : '16px',
-                  textAlign: 'start'
-                }} required />
-              <Lock size={18} style={{
-                position: 'absolute',
-                left: dir === 'ltr' ? '14px' : 'auto',
-                right: dir === 'rtl' ? '14px' : 'auto',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)'
-              }} />
+                className="input-with-icons" required />
+              <Lock size={18} className="input-icon-leading" />
               <button type="button" onClick={() => setShowPassword(p => !p)}
                 aria-label={showPassword ? t('hidePasswordLabel') : t('showPasswordLabel')}
-                style={{
-                  position: 'absolute',
-                  right: dir === 'ltr' ? '14px' : 'auto',
-                  left: dir === 'rtl' ? '14px' : 'auto',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: 0
-                }}>
+                className="input-icon-trailing-btn">
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
             {form.password && (
-              <div style={{ display: 'flex', gap: '4px', marginTop: '6px', alignItems: 'center', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+              <div className="pwd-strength-row" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
                 {[8, 12, 16].map((len, i) => (
-                  <div key={i} style={{ flex: 1, height: '3px', borderRadius: '2px', background: form.password.length >= len ? (i === 0 ? '#f59e0b' : i === 1 ? '#10b981' : '#3b82f6') : 'var(--border)', transition: 'background 0.3s' }} />
+                  <div key={i} className="pwd-strength-segment" style={{ background: form.password.length >= len ? (i === 0 ? '#f59e0b' : i === 1 ? '#10b981' : '#3b82f6') : 'var(--border)' }} />
                 ))}
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', minWidth: '55px', textAlign: dir === 'rtl' ? 'left' : 'right' }}>
+                <span className="pwd-strength-label text-end">
                   {form.password.length < 8 ? t('strengthWeak') : form.password.length < 12 ? t('strengthMedium') : form.password.length < 16 ? t('strengthStrong') : t('strengthVeryStrong')}
                 </span>
               </div>
@@ -653,69 +505,35 @@ export default function RegisterPage({ onNavigateToLogin }) {
           </div>
 
           {/* Confirm Password */}
-          <div className="form-group" style={{ marginBottom: '24px' }}>
-            <label htmlFor="reg-confirm" style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{t('confirmPasswordLabel')}</label>
-            <div style={{ position: 'relative' }}>
+          <div className="form-group mb-24">
+            <label htmlFor="reg-confirm" className="text-start">{t('confirmPasswordLabel')}</label>
+            <div className="input-icon-wrap">
               <input id="reg-confirm" type="password" autoComplete="new-password" placeholder={t('confirmPasswordPlaceholder')}
                 value={form.confirmPassword} onChange={handleChange('confirmPassword')}
-                style={{
-                  width: '100%',
-                  paddingLeft: dir === 'ltr' ? '44px' : '16px',
-                  paddingRight: dir === 'rtl' ? '44px' : '16px',
-                  textAlign: 'start',
-                  borderColor: form.confirmPassword && form.password !== form.confirmPassword ? 'var(--danger)' : undefined,
-                }} required />
-              <Lock size={18} style={{
-                position: 'absolute',
-                left: dir === 'ltr' ? '14px' : 'auto',
-                right: dir === 'rtl' ? '14px' : 'auto',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)'
-              }} />
+                className="input-with-icons"
+                style={{ borderColor: form.confirmPassword && form.password !== form.confirmPassword ? 'var(--danger)' : undefined }}
+                required />
+              <Lock size={18} className="input-icon-leading" />
               {form.confirmPassword && form.password === form.confirmPassword && (
-                <CheckCircle size={16} style={{
-                  position: 'absolute',
-                  right: dir === 'ltr' ? '14px' : 'auto',
-                  left: dir === 'rtl' ? '14px' : 'auto',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--primary)'
-                }} />
+                <CheckCircle size={16} className="input-icon-trailing-success" />
               )}
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div style={{
-              color: 'var(--danger)',
-              background: 'rgba(239,68,68,0.1)',
-              border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              fontSize: '0.875rem',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              flexDirection: dir === 'rtl' ? 'row-reverse' : 'row',
-              textAlign: 'start'
-            }}>
+            <div className="alert-box alert-box-center alert-danger mb-20" style={{ flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
               <ShieldAlert size={16} />
               <span>{error}</span>
             </div>
           )}
 
-          <label style={{
-            display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '16px',
-            fontSize: '0.85rem', color: 'var(--text-body)', cursor: 'pointer', textAlign: 'start',
-          }}>
+          <label className="terms-checkbox-label">
             <input
               type="checkbox"
               checked={acceptedTerms}
               onChange={(e) => { setAcceptedTerms(e.target.checked); setError(''); }}
-              style={{ marginTop: '3px', flexShrink: 0, width: '16px', height: '16px', cursor: 'pointer' }}
+              className="checkbox-terms"
               required
             />
             <span>
@@ -723,7 +541,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
               <button
                 type="button"
                 onClick={() => navigate('/terms')}
-                style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 'inherit', fontFamily: 'inherit', padding: 0, textDecoration: 'underline' }}
+                className="btn-text-link btn-text-link-underline"
               >
                 {t('termsLinkLabel')}
               </button>
@@ -731,19 +549,19 @@ export default function RegisterPage({ onNavigateToLogin }) {
             </span>
           </label>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px' }} disabled={loading || !acceptedTerms}>
+          <button type="submit" className="btn btn-primary btn-block-xl" disabled={loading || !acceptedTerms}>
             {loading ? (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <span style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <span className="btn-loading-row">
+                <span className="spinner spinner-md" />
                 {t('registering')}
               </span>
             ) : t('registerBtn')}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+        <p className="auth-footer-note">
           {t('alreadyHaveAccount')}{' '}
-          <button onClick={onNavigateToLogin} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem' }}>
+          <button onClick={onNavigateToLogin} className="btn-text-link btn-text-semibold btn-text-md">
             {t('login')}
           </button>
         </p>

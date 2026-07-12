@@ -14,7 +14,7 @@ import '../landing.css';
    library dependency is needed for logos lucide-react doesn't ship. */
 function SocialIcon({ path, size = 15 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ display: 'block' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className="icon-block">
       <path d={path} />
     </svg>
   );
@@ -233,7 +233,7 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
 
           <div className="slp-espace-wrap" ref={langRef}>
             <button className="slp-globe-btn" onClick={() => setLangOpen(o => !o)} title={t('languageLabel')}>
-              {currentLang.flag ? <img src={currentLang.flag} alt="" style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} /> : <UKFlag size={18} />}
+              {currentLang.flag ? <img src={currentLang.flag} alt="" className="slp-flag-icon" /> : <UKFlag size={18} />}
             </button>
             {langOpen && (
               <div className="slp-dropdown">
@@ -241,9 +241,9 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
                   <button
                     key={l.code}
                     onClick={() => { setLocale(l.code); setLangOpen(false); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    className="slp-dropdown-item"
                   >
-                    {l.flag ? <img src={l.flag} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} /> : <UKFlag size={18} />}
+                    {l.flag ? <img src={l.flag} alt="" className="slp-flag-icon-sm" /> : <UKFlag size={18} />}
                     {l.label}
                   </button>
                 ))}
@@ -329,7 +329,7 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
               <h2 className="slp-section-title">{t('landingCategoriesTitle')}</h2>
               <p className="slp-section-sub">{t('landingCategoriesSub')}</p>
             </div>
-            <button className="slp-btn-white" style={{ color: 'var(--primary)', border: '1px solid var(--border)' }} onClick={goRegister}>
+            <button className="slp-btn-white slp-btn-white-outline" onClick={goRegister}>
               {t('landingViewAllAuctions')}
             </button>
           </Reveal>
@@ -343,7 +343,7 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
                     <h4>{t(cat.nameKey)}</h4>
                     <p>{cat.count} {t('landingOffersSuffix')}</p>
                   </div>
-                  <span className="slp-cat-card-arrow"><ChevronDown size={13} style={{ transform: dir === 'rtl' ? 'rotate(90deg)' : 'rotate(-90deg)' }} /></span>
+                  <span className="slp-cat-card-arrow"><ChevronDown size={13} className="slp-cat-card-arrow-icon" /></span>
                 </div>
               </div>
             ))}
