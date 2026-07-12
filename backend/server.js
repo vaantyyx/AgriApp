@@ -278,7 +278,10 @@ async function setupSocketAdapter(io) {
     // reconnectStrategy: false — fail fast on the initial attempt instead of
     // retrying forever in the background, so a missing/down Redis can never
     // hang server startup; it just falls back to in-memory mode below.
-    const pubClient = createClient({ url: process.env.REDIS_URL, socket: { reconnectStrategy: false } });
+    // RESP: 2 — the client defaults to negotiating RESP3 via HELLO, which
+    // only exists on Redis 6+; forcing RESP2 keeps this working against
+    // older Redis deployments too (HELLO is otherwise rejected outright).
+    const pubClient = createClient({ url: process.env.REDIS_URL, RESP: 2, socket: { reconnectStrategy: false } });
     const subClient = pubClient.duplicate();
     pubClient.on('error', (err) => logger.error({ err }, 'Redis pub client error'));
     subClient.on('error', (err) => logger.error({ err }, 'Redis sub client error'));
@@ -386,11 +389,11 @@ async function broadcastAuction(auction, db, eventName = 'auction_updated') {
   // concurrently. Sequentially awaiting one socket at a time made every
   // broadcast's cost scale with the size of the candidate set.
   await Promise.all(candidateSockets.map(async s => {
-    if (s.user.role === 'producer') {
-      const allowed = await canProducerParticipate(auction, s.user.userId, s.producerCoords, db);
+    if (s.data.user.role === 'producer') {
+      const allowed = await canProducerParticipate(auction, s.data.user.userId, s.data.producerCoords, db);
       if (!allowed) return;
     }
-    const [sanitized] = sanitizeAuctions([auction], s.user.userId, s.user.role);
+    const [sanitized] = sanitizeAuctions([auction], s.data.user.userId, s.data.user.role);
     s.emit(eventName, sanitized);
   }));
 }
@@ -466,7 +469,12 @@ io.use((socket, next) => {
   if (!token) return next(new Error('Authentication required'));
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    socket.user = decoded;
+    // socket.data (not a plain custom property) — it's the one namespace the
+    // Redis adapter actually serializes onto the RemoteSocket objects
+    // returned by fetchSockets() for sockets connected to OTHER instances.
+    // A plain `socket.user = decoded` only exists in this process's memory
+    // and silently reads as undefined on every other instance.
+    socket.data.user = decoded;
     next();
   } catch {
     next(new Error('Invalid token'));
@@ -474,17 +482,17 @@ io.use((socket, next) => {
 });
 
 io.on('connection', async (socket) => {
-  const uid = socket.user.userId;
-  const role = socket.user.role;
+  const uid = socket.data.user.userId;
+  const role = socket.data.user.role;
 
   // Room-based presence — works for targeted delivery across instances once
   // the Redis adapter is active, and Socket.IO cleans it up on disconnect.
   socket.join(userRoom(uid));
 
-  logger.info({ email: socket.user.email, role, socketId: socket.id }, 'User connected');
+  logger.info({ email: socket.data.user.email, role, socketId: socket.id }, 'User connected');
 
   // Resolve producer geographic coordinates for zone-based filtering
-  socket.producerCoords = null;
+  socket.data.producerCoords = null;
 
   try {
     const db = getDb();
@@ -495,7 +503,7 @@ io.on('connection', async (socket) => {
         { _id: new ObjectId(uid) },
         { projection: { wilaya: 1, commune: 1 } }
       );
-      socket.producerCoords = producerUser?.commune
+      socket.data.producerCoords = producerUser?.commune
         ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
         : getWilayaCoords(producerUser?.wilaya || '');
       // Lets broadcasts fetch a per-auction candidate set (producers in
@@ -511,7 +519,7 @@ io.on('connection', async (socket) => {
     let auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).limit(INITIAL_AUCTIONS_LIMIT).toArray();
     if (role === 'producer') {
       const checks = await Promise.all(auctions.map(async a =>
-        (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.producerCoords, db)) ? a : null
+        (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.data.producerCoords, db)) ? a : null
       ));
       auctions = checks.filter(Boolean);
     }
@@ -871,11 +879,11 @@ io.on('connection', async (socket) => {
       const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
       const candidateSockets = [...buyerSockets, ...producerSockets];
       await Promise.all(candidateSockets.map(async s => {
-        if (s.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
+        if (s.data.user.role === 'producer') {
+          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
           if (!allowed) return;
         }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
         s.emit('auction_updated', sanitized);
       }));
     } catch (err) {
@@ -942,11 +950,11 @@ io.on('connection', async (socket) => {
       const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
       const candidateSockets = [...buyerSockets, ...producerSockets];
       await Promise.all(candidateSockets.map(async s => {
-        if (s.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
+        if (s.data.user.role === 'producer') {
+          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
           if (!allowed) return;
         }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
         s.emit('auction_updated', sanitized);
       }));
     } catch (err) {
@@ -1044,11 +1052,11 @@ io.on('connection', async (socket) => {
       const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
       const candidateSockets = [...buyerSockets, ...producerSockets];
       await Promise.all(candidateSockets.map(async s => {
-        if (s.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.user.userId, s.producerCoords, db);
+        if (s.data.user.role === 'producer') {
+          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
           if (!allowed) return;
         }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.user.userId, s.user.role);
+        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
         s.emit('auction_updated', sanitized);
       }));
     } catch (err) {
@@ -1059,7 +1067,7 @@ io.on('connection', async (socket) => {
 
   socket.on('disconnect', () => {
     // Socket.IO removes the socket from its rooms (including userRoom(uid)) automatically.
-    logger.info({ email: socket.user.email, socketId: socket.id }, 'User disconnected');
+    logger.info({ email: socket.data.user.email, socketId: socket.id }, 'User disconnected');
   });
 });
 

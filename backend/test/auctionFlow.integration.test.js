@@ -47,6 +47,11 @@ function waitForHealth(timeoutMs = 15000) {
 function connectSocket(token) {
   return new Promise((resolve, reject) => {
     const socket = ioClient(SERVER_URL, { auth: { token }, transports: ['websocket'] });
+    // Buffer the very first auctions_list emission immediately (synchronously,
+    // before the WebSocket handshake even completes) — the server can emit it
+    // right after connecting, before a caller gets a chance to attach its own
+    // listener via waitForEvent, which would otherwise miss it entirely.
+    socket._auctionsListPromise = new Promise((res) => socket.once('auctions_list', (...args) => res(args)));
     const timer = setTimeout(() => reject(new Error('Socket connect timed out')), 10000);
     socket.on('connect', () => { clearTimeout(timer); resolve(socket); });
     socket.on('connect_error', (err) => { clearTimeout(timer); reject(err); });
@@ -143,8 +148,8 @@ test('create_auction -> place_bid -> accept_bid end-to-end flow', async () => {
     // Both sockets receive their initial snapshot on connect — wait for it
     // so we know the server has fully processed the connection before we
     // start emitting events.
-    await waitForEvent(buyerSocket, 'auctions_list');
-    await waitForEvent(producerSocket, 'auctions_list');
+    await buyerSocket._auctionsListPromise;
+    await producerSocket._auctionsListPromise;
 
     const auctionTitle = `Integration test auction ${Date.now()}`;
 
@@ -224,8 +229,8 @@ test('a producer outside the auction zone cannot bid', async () => {
   const outsiderSocket = await connectSocket(outsiderToken);
 
   try {
-    await waitForEvent(buyerSocket, 'auctions_list');
-    await waitForEvent(outsiderSocket, 'auctions_list');
+    await buyerSocket._auctionsListPromise;
+    await outsiderSocket._auctionsListPromise;
 
     const auctionTitle = `Zone test auction ${Date.now()}`;
     // A tight 10km radius makes the ~2000km Alger<->Tamanrasset gap
