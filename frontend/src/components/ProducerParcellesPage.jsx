@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sprout, Plus, Layers, MapPin, Calendar, Edit3, Trash2, X, Check } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
@@ -62,7 +64,11 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingParcelle, setEditingParcelle] = useState(null);
-  
+
+  useEscapeKey(formOpen, () => setFormOpen(false));
+  const parcelModalRef = useRef(null);
+  useFocusTrap(parcelModalRef, formOpen);
+
   const [formIntitule, setFormIntitule] = useState('');
   const [formWilayaId, setFormWilayaId] = useState('');
   const [formSuperficie, setFormSuperficie] = useState('');
@@ -280,12 +286,10 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
       {loadingParcelles ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>{locale === 'ar' ? 'جاري تحميل حقولك...' : (locale === 'en' ? 'Loading your plots...' : 'Chargement de vos parcelles...')}</div>
       ) : parcelles.length === 0 ? (
-        <div className="glass-panel empty-state" style={{ padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ background: 'rgba(16,185,129,0.05)', width: 80, height: 80, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <Sprout size={36} style={{ color: 'var(--primary)' }} />
-          </div>
-          <h4 style={{ fontSize: '1.2rem', marginBottom: 8, color: 'var(--text-main)' }}>{locale === 'ar' ? 'لا توجد حقول مسجلة' : (locale === 'en' ? 'No plots registered' : 'Aucune parcelle enregistrée')}</h4>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: 460, margin: '0 auto 24px' }}>{locale === 'ar' ? 'لم تقم بإضافة أراضٍ زراعية إلى ملفك الشخصي بعد. أنشئ حقلك الأول لبدء الاستغلال!' : (locale === 'en' ? "You haven't added any agricultural lands to your profile yet. Create your first plot to start exploiting it!" : "Vous n'avez pas encore ajouté de terres agricoles à votre profil. Créez votre première parcelle pour commencer à l'exploiter !")}</p>
+        <div className="glass-panel empty-state">
+          <div className="empty-state-icon"><Sprout size={28} /></div>
+          <h3>{locale === 'ar' ? 'لا توجد حقول مسجلة' : (locale === 'en' ? 'No plots registered' : 'Aucune parcelle enregistrée')}</h3>
+          <p>{locale === 'ar' ? 'لم تقم بإضافة أراضٍ زراعية إلى ملفك الشخصي بعد. أنشئ حقلك الأول لبدء الاستغلال!' : (locale === 'en' ? "You haven't added any agricultural lands to your profile yet. Create your first plot to start exploiting it!" : "Vous n'avez pas encore ajouté de terres agricoles à votre profil. Créez votre première parcelle pour commencer à l'exploiter !")}</p>
           <button onClick={handleOpenAddForm} className="btn btn-primary"><Plus size={16} /> {locale === 'ar' ? 'إضافة حقلي الأول' : (locale === 'en' ? 'Add my first plot' : 'Ajouter ma première parcelle')}</button>
         </div>
       ) : (
@@ -340,7 +344,7 @@ export default function ProducerParcellesPage({ user, parcelles, token, fetchPar
       {/* MODAL FORM */}
       {formOpen && (
         <div className="modal-overlay" style={{ zIndex: 1050 }} onClick={() => setFormOpen(false)}>
-          <div className="modal-card parcel-modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={editingParcelle ? (locale === 'ar' ? 'تعديل الحقل' : (locale === 'en' ? 'Edit plot' : 'Modifier la parcelle')) : (locale === 'ar' ? 'حقل جديد' : (locale === 'en' ? 'New plot' : 'Nouvelle parcelle'))}>
+          <div ref={parcelModalRef} className="modal-card parcel-modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={editingParcelle ? (locale === 'ar' ? 'تعديل الحقل' : (locale === 'en' ? 'Edit plot' : 'Modifier la parcelle')) : (locale === 'ar' ? 'حقل جديد' : (locale === 'en' ? 'New plot' : 'Nouvelle parcelle'))}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ background: 'rgba(16,185,129,0.1)', padding: 8, borderRadius: 8 }}><MapPin size={18} style={{ color: 'var(--primary)' }} /></div>

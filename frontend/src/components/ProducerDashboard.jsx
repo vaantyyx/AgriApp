@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
@@ -154,7 +156,12 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
   const [loadingParcelles, setLoadingParcelles] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editingParcelle, setEditingParcelle] = useState(null);
-  
+
+  useEscapeKey(formOpen, () => setFormOpen(false));
+  useEscapeKey(!!activeZoomImage, () => setActiveZoomImage(null));
+  const parcelModalRef = useRef(null);
+  useFocusTrap(parcelModalRef, formOpen);
+
   // Parcelles form fields
   const [formIntitule, setFormIntitule] = useState('');
   const [formWilayaId, setFormWilayaId] = useState('');
@@ -578,7 +585,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
         {activeZoomImage && (
           <div className="lightbox-modal" onClick={() => setActiveZoomImage(null)}>
             <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-              <button className="lightbox-close" onClick={() => setActiveZoomImage(null)}>
+              <button className="lightbox-close" onClick={() => setActiveZoomImage(null)} aria-label={t('captchaClose')}>
                 <X size={20} />
               </button>
               <img src={activeZoomImage} alt={t('zoomProduct')} />
@@ -832,11 +839,9 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
 
             {auctions.length === 0 ? (
               <div className="glass-panel empty-state">
-                <Inbox className="empty-icon" size={48} />
-                <div>
-                  <h4 style={{ fontSize: '1.25rem', marginBottom: '6px', color: 'var(--text-main)' }}>{t('noAuctionInCurrent')}</h4>
-                  <p>{t('noAuctionInCurrentSub')}</p>
-                </div>
+                <div className="empty-state-icon"><Inbox size={28} /></div>
+                <h3>{t('noAuctionInCurrent')}</h3>
+                <p>{t('noAuctionInCurrentSub')}</p>
               </div>
             ) : (
               [...auctions]
@@ -1234,7 +1239,7 @@ export default function ProducerDashboard({ user, auctions, onPlaceBid, newBidFl
       {/* ══ FORM DIALOG MODAL (Add / Edit Parcelle) ═══════════════════ */}
       {formOpen && (
         <div className="modal-overlay" style={{ zIndex: 1050 }} onClick={() => setFormOpen(false)}>
-          <div className="modal-card parcel-modal-card animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div ref={parcelModalRef} className="modal-card parcel-modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={editingParcelle ? 'Modifier la parcelle' : 'Nouvelle parcelle'}>
             {/* Modal Toolbar Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

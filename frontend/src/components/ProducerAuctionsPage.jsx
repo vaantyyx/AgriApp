@@ -4,6 +4,7 @@ import { Inbox, MessageSquare, Check, Trophy, X, Image as ImageIcon, Send, Star,
 import { getWinnerCongratsMessage, getBidClosedWinnerMessage, isBidLineAccepted } from '../utils/auctionHelpers';
 import { cultureTypes, products } from '../utils/referenceData.js';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
+import { useEscapeKey } from '../hooks/useEscapeKey';
 
 function SummaryRow({ label, value }) {
   return (
@@ -75,6 +76,9 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
     setViewingAuction(null);
     setViewStep(1);
   };
+
+  useEscapeKey(!!viewingAuction, closeConsultation);
+  useEscapeKey(!!activeZoomImage, () => setActiveZoomImage(null));
 
   const getAuctionTypeLabel = (val) => {
     if (val === 'open') return locale === 'ar' ? 'مزاد مفتوح' : (locale === 'en' ? 'Open auction' : 'Enchère ouverte');
@@ -148,7 +152,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
       {activeZoomImage && (
         <div className="lightbox-modal" onClick={() => setActiveZoomImage(null)}>
           <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <button className="lightbox-close" onClick={() => setActiveZoomImage(null)}><X size={20} /></button>
+            <button className="lightbox-close" onClick={() => setActiveZoomImage(null)} aria-label={t('captchaClose')}><X size={20} /></button>
             <img src={activeZoomImage} alt={t('zoomProduct')} />
           </div>
         </div>
@@ -170,7 +174,7 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
                 <Eye size={24} style={{ color: '#3b82f6' }} />
                 {locale === 'ar' ? 'تفاصيل المزاد' : (locale === 'en' ? 'Auction details' : "Détails de l'enchère")}
               </h2>
-              <button onClick={closeConsultation} className="wizard-close-btn">
+              <button onClick={closeConsultation} className="wizard-close-btn" aria-label={t('captchaClose')}>
                 <X size={22} />
               </button>
             </div>
@@ -337,11 +341,9 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
 
       {auctions.length === 0 ? (
         <div className="glass-panel empty-state">
-          <Inbox className="empty-icon" size={48} />
-          <div>
-            <h4 style={{ fontSize: '1.25rem', marginBottom: '6px', color: 'var(--text-main)' }}>{t('noAuctionInCurrent')}</h4>
-            <p>{t('noAuctionInCurrentSub')}</p>
-          </div>
+          <div className="empty-state-icon"><Inbox size={28} /></div>
+          <h3>{t('noAuctionInCurrent')}</h3>
+          <p>{t('noAuctionInCurrentSub')}</p>
         </div>
       ) : (
         <>
@@ -402,11 +404,11 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
                   {/* Status Badge */}
                   <div>
                     {isClosed ? (
-                      <span style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: 99, background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontWeight: 700 }}>
+                      <span className="status-pill status-pill-closed">
                         {t('statusClosed')}
                       </span>
                     ) : (
-                      <span style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: 99, background: 'rgba(16,185,129,0.12)', color: '#10b981', fontWeight: 700 }}>
+                      <span className="status-pill status-pill-open">
                         {t('statusOpen')}
                       </span>
                     )}
@@ -416,11 +418,11 @@ export default function ProducerAuctionsPage({ user, auctions, onPlaceBid, newBi
                   <div>
                     {myBid && (
                       isWinner ? (
-                        <span style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: 99, background: 'var(--primary)', color: 'white', fontWeight: 700 }}>
+                        <span className="status-pill status-pill-winner">
                           🏆 {t('winnerLabel')}
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: 99, background: 'rgba(34, 163, 98, 0.12)', color: 'var(--secondary)', fontWeight: 700 }}>
+                        <span className="status-pill status-pill-submitted">
                           {locale === 'ar' ? 'تم التقديم' : (locale === 'en' ? 'Submitted' : 'Soumis')}
                         </span>
                       )

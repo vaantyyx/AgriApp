@@ -620,12 +620,12 @@ textarea { resize: vertical; min-height: 90px; }
 
 .badge-open {
   background: var(--success-soft);
-  color: var(--success);
+  color: #047857;
   border: 1px solid rgba(34, 163, 98, 0.3);
 }
 .badge-closed {
   background: #f3f4f6;
-  color: var(--text-muted);
+  color: #4b5563;
   border: 1px solid var(--border);
 }
 .badge-pending {
@@ -1680,7 +1680,7 @@ textarea { resize: vertical; min-height: 90px; }
 }
 .auth-logo-name { font-family: var(--font-heading); font-weight: 800; font-size: 1.1rem; color: var(--primary); }
 .auth-subtitle-muted { color: rgba(255,255,255,0.6); font-weight: 400; margin-bottom: 16px; }
-.auth-terms-note { font-size: 0.78rem; color: var(--text-faint); text-align: center; margin-top: 16px; }
+.auth-terms-note { font-size: 0.78rem; color: var(--text-muted); text-align: center; margin-top: 16px; }
 
 /* ═══════════════════════════════════════════════════════════════
    FORM: ICON-WRAPPED INPUTS
@@ -2806,6 +2806,18 @@ textarea { resize: vertical; min-height: 90px; }
 }
 .toggle-switch-knob.on { left: 23px; }
 
+/* Visually hidden but still reachable by keyboard/screen readers — used to
+   back custom toggle switches with a real, accessible <input type="checkbox">
+   instead of a div/onClick that can't be tabbed to or activated with Space. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.sr-only:focus-visible + .toggle-switch-track {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .summary-box-title { font-size: 0.72rem; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
 .form-section-title {
   font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em;
@@ -2899,9 +2911,11 @@ textarea { resize: vertical; min-height: 90px; }
    own open=green/closed=blue/pending=amber convention (closed reads as "done
    deal", not neutral/gray), so it gets its own status-pill set to match. */
 .status-pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
-.status-pill-open { background: rgba(16,185,129,0.12); color: #10b981; }
-.status-pill-closed { background: rgba(59,130,246,0.12); color: #3b82f6; }
-.status-pill-pending { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.status-pill-open { background: rgba(16,185,129,0.12); color: #047857; }
+.status-pill-closed { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+.status-pill-pending { background: rgba(245,158,11,0.12); color: #b45309; }
+.status-pill-winner { background: var(--primary); color: white; }
+.status-pill-submitted { background: rgba(34,163,98,0.12); color: var(--secondary); }
 .data-table-expanded-panel { padding: 16px 24px 24px; background: rgba(255,255,255,0.02); border-top: 1px solid var(--border); }
 .data-table-description {
   font-size: 0.875rem; color: var(--text-body);

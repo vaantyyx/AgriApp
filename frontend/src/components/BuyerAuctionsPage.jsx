@@ -12,6 +12,8 @@ import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName } from '../util
 import { cultureTypes, products } from '../utils/referenceData.js';
 import { BACKEND_URL } from '../utils/config.js';
 import { useTranslation } from '../context/LanguageContext';
+import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { computeBuyerCompletion } from './BuyerProfilePage';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -115,9 +117,12 @@ function StarPicker({ value, onChange }) {
 function RatingModal({ auctionId, onSubmit, onClose }) {
   const [rating, setRating] = useState(0);
   const { t, locale } = useTranslation();
+  const cardRef = useRef(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(cardRef, true);
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('rateProducerTitle')}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('rateProducerTitle')}>
         <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⭐</div>
@@ -246,9 +251,12 @@ function AuctionActionsMenu({ auction, onViewDetails, onEdit, onDelete }) {
 
 function DeleteAuctionModal({ onConfirm, onClose }) {
   const { t } = useTranslation();
+  const cardRef = useRef(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(cardRef, true);
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }} role="dialog" aria-modal="true" aria-label={t('deleteAuctionConfirmTitle')}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }} role="dialog" aria-modal="true" aria-label={t('deleteAuctionConfirmTitle')}>
         <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🗑️</div>
@@ -411,6 +419,9 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
 
   const closeWizard = () => { setWizardOpen(false); setWizardStep(1); setEditingAuctionId(null); setViewingAuctionId(null); resetWizard(); };
 
+  useEscapeKey(wizardOpen, closeWizard);
+  useEscapeKey(!!activeZoomImage, () => setActiveZoomImage(null));
+
   const openViewWizard = (auction) => {
     setViewingAuctionId(auction.id);
     setEditingAuctionId(null);
@@ -490,7 +501,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
       {activeZoomImage && (
         <div className="lightbox-modal" onClick={() => setActiveZoomImage(null)}>
           <div className="lightbox-content" onClick={e => e.stopPropagation()}>
-            <button className="lightbox-close" onClick={() => setActiveZoomImage(null)}><X size={20} /></button>
+            <button className="lightbox-close" onClick={() => setActiveZoomImage(null)} aria-label={t('captchaClose')}><X size={20} /></button>
             <img src={activeZoomImage} alt="zoom" />
           </div>
         </div>
@@ -547,7 +558,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                 ? (locale === 'ar' ? 'تفاصيل المزاد' : (locale === 'en' ? 'Auction details' : "Détails de l'enchère"))
                 : editingAuctionId ? t('editAuctionTitle') : (locale === 'ar' ? 'إنشاء مزاد جديد' : (locale === 'en' ? 'Create new auction' : 'Créer une enchère'))}
             </h2>
-            <button onClick={closeWizard} className="wizard-close-btn">
+            <button onClick={closeWizard} className="wizard-close-btn" aria-label={t('captchaClose')}>
               <X size={22} />
             </button>
           </div>
@@ -710,7 +721,13 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                   </div>
                   <div className="bordered-card" style={{ padding: '18px 22px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                      <div className={`toggle-switch-track ${autoProlongate ? 'on' : ''}`} onClick={() => setAutoProlongate(p => !p)}>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={autoProlongate}
+                        onChange={() => setAutoProlongate(p => !p)}
+                      />
+                      <div className={`toggle-switch-track ${autoProlongate ? 'on' : ''}`}>
                         <div className={`toggle-switch-knob ${autoProlongate ? 'on' : ''}`} />
                       </div>
                       <div>
@@ -889,11 +906,9 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
       {!wizardOpen && (
         myAuctions.length === 0 ? (
           <div className="glass-panel empty-state">
-            <Package className="empty-icon" size={48} />
-            <div>
-              <h4 style={{ fontSize: '1.25rem', marginBottom: '6px', color: 'var(--text-main)' }}>{t('noDemandPosted')}</h4>
-              <p>{t('noDemandPostedSub')}</p>
-            </div>
+            <div className="empty-state-icon"><Package size={28} /></div>
+            <h3>{t('noDemandPosted')}</h3>
+            <p>{t('noDemandPostedSub')}</p>
           </div>
         ) : (
           <>
@@ -938,6 +953,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                           type="button"
                           onClick={() => openViewWizard(auction)}
                           title={locale === 'ar' ? 'استشارة' : (locale === 'en' ? 'View' : 'Consulter')}
+                          aria-label={locale === 'ar' ? 'استشارة' : (locale === 'en' ? 'View' : 'Consulter')}
                           className="table-icon-btn table-icon-btn-view"
                         >
                           <Eye size={13} />
@@ -948,6 +964,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                               type="button"
                               onClick={() => openEditWizard(auction)}
                               title={t('editAuctionBtn')}
+                              aria-label={t('editAuctionBtn')}
                               className="table-icon-btn table-icon-btn-edit"
                             >
                               <Pencil size={13} />
@@ -956,6 +973,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                               type="button"
                               onClick={() => setDeleteConfirmAuctionId(auction.id)}
                               title={t('deleteAuctionBtn')}
+                              aria-label={t('deleteAuctionBtn')}
                               className="table-icon-btn table-icon-btn-delete"
                             >
                               <Trash2 size={13} />
