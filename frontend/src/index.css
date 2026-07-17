@@ -145,6 +145,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   line-height: 1.6;
+  overflow-x: hidden;
   transition: background-color 0.3s var(--ease-smooth), color 0.3s var(--ease-smooth);
 }
 
