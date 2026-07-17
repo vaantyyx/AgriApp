@@ -112,6 +112,13 @@
   flex-shrink: 0;
 }
 
+.slp-navbar-buttons,
+.slp-navbar-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .slp-btn-accent {
   background: var(--accent);
   color: #1a2e23;
@@ -417,18 +424,35 @@
   }
 
   /* Four controls (CTA, client area, language, theme) no longer fit on
-     one row at phone widths — let them wrap onto a second line instead
-     of overflowing past the edge of the screen. Needs an explicit
-     width: without it this flex item (flex-shrink: 0 on desktop) just
-     grows to fit all four controls on one line, pushing the last one
-     (the theme toggle) past the viewport edge where the landing root's
-     overflow-x: hidden silently clips it instead of wrapping it. */
-  .slp-navbar-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    row-gap: 8px;
-    width: 100%;
+     one row at phone widths. Rather than let them wrap wherever they
+     happen to break (logo / 2-3 buttons / 1-2 buttons across three
+     ragged lines), pull the language + theme icons up onto the logo's
+     row and drop the CTA + client-area buttons to their own full-width
+     second row. `display: contents` unwraps slp-navbar-actions so its
+     two children (slp-navbar-icons, slp-navbar-buttons) become direct
+     flex items of slp-navbar itself and can be reordered/re-wrapped
+     independently of the logo and of each other. */
+  .slp-navbar-actions { display: contents; }
+
+  .slp-logo { order: 1; }
+
+  .slp-navbar-icons {
+    order: 2;
+    flex-shrink: 0;
   }
+
+  .slp-navbar-buttons {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  .slp-navbar-buttons .slp-btn-accent,
+  .slp-navbar-buttons .slp-espace-wrap,
+  .slp-navbar-buttons .slp-btn-white {
+    flex: 1;
+  }
+  .slp-navbar-buttons .slp-btn-accent { justify-content: center; }
+  .slp-navbar-buttons .slp-btn-white { justify-content: center; width: 100%; }
 
   /* The hero title's clamp() bottoms out at its 2.1rem floor on narrow
      viewports regardless of vw, which is still tall across 2-3 wrapped

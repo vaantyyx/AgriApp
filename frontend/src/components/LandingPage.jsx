@@ -216,45 +216,53 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
         </div>
 
         <div className="slp-navbar-actions">
-          <button className="slp-btn-accent slp-pulse" onClick={goRegister}>
-            <Gavel size={14} /> {t('landingNavLaunchAuction')}
-          </button>
-
-          <div className="slp-espace-wrap" ref={espaceRef}>
-            <button className="slp-btn-white" onClick={() => setEspaceOpen(o => !o)}>
-              {t('landingNavClientArea')} <ChevronDown size={13} />
+          {/* Grouped separately from slp-navbar-icons so the mobile layout
+              (see landing.css) can pull the icons up onto the logo's row
+              and drop just this button pair to a second, full-width row —
+              instead of all 4 controls wrapping wherever they happen to fit. */}
+          <div className="slp-navbar-buttons">
+            <button className="slp-btn-accent slp-pulse" onClick={goRegister}>
+              <Gavel size={14} /> {t('landingNavLaunchAuction')}
             </button>
-            {espaceOpen && (
-              <div className="slp-dropdown">
-                <button onClick={onNavigateToLogin}>{t('landingNavLogin')}</button>
-                <button onClick={onNavigateToRegister}>{t('landingNavRegister')}</button>
-              </div>
-            )}
+
+            <div className="slp-espace-wrap" ref={espaceRef}>
+              <button className="slp-btn-white" onClick={() => setEspaceOpen(o => !o)}>
+                {t('landingNavClientArea')} <ChevronDown size={13} />
+              </button>
+              {espaceOpen && (
+                <div className="slp-dropdown">
+                  <button onClick={onNavigateToLogin}>{t('landingNavLogin')}</button>
+                  <button onClick={onNavigateToRegister}>{t('landingNavRegister')}</button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="slp-espace-wrap" ref={langRef}>
-            <button className="slp-globe-btn" onClick={() => setLangOpen(o => !o)} title={t('languageLabel')}>
-              {currentLang.flag ? <img src={currentLang.flag} alt="" className="slp-flag-icon" /> : <UKFlag size={18} />}
-            </button>
-            {langOpen && (
-              <div className="slp-dropdown">
-                {LANGS.map(l => (
-                  <button
-                    key={l.code}
-                    onClick={() => { setLocale(l.code); setLangOpen(false); }}
-                    className="slp-dropdown-item"
-                  >
-                    {l.flag ? <img src={l.flag} alt="" className="slp-flag-icon-sm" /> : <UKFlag size={18} />}
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="slp-navbar-icons">
+            <div className="slp-espace-wrap" ref={langRef}>
+              <button className="slp-globe-btn" onClick={() => setLangOpen(o => !o)} title={t('languageLabel')}>
+                {currentLang.flag ? <img src={currentLang.flag} alt="" className="slp-flag-icon" /> : <UKFlag size={18} />}
+              </button>
+              {langOpen && (
+                <div className="slp-dropdown">
+                  {LANGS.map(l => (
+                    <button
+                      key={l.code}
+                      onClick={() => { setLocale(l.code); setLangOpen(false); }}
+                      className="slp-dropdown-item"
+                    >
+                      {l.flag ? <img src={l.flag} alt="" className="slp-flag-icon-sm" /> : <UKFlag size={18} />}
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <button className="slp-globe-btn" onClick={toggleTheme} title={theme === 'dark' ? t('lightMode') : t('darkMode')}>
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+            <button className="slp-globe-btn" onClick={toggleTheme} title={theme === 'dark' ? t('lightMode') : t('darkMode')}>
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
         </div>
       </nav>
 
