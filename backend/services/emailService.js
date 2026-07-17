@@ -171,7 +171,48 @@ function getFromAddress() {
 let testTransporter = null;
 let testAccountInfo = null;
 
+// Brevo's HTTP API (port 443) is used instead of raw SMTP when configured —
+// several free hosting platforms (e.g. Render's free tier) block outbound
+// SMTP ports entirely, which makes nodemailer's SMTP transport time out
+// even with correct credentials. HTTPS to an email API is never blocked.
+function createBrevoTransporter(apiKey) {
+  return {
+    sendMail: async ({ from, to, subject, html, replyTo }) => {
+      const fromMatch = /^"?(.*?)"?\s*<(.+)>$/.exec(from) || [];
+      const senderName = fromMatch[1] || process.env.MAIL_FROM_NAME || 'Sougra';
+      const senderEmail = fromMatch[2] || process.env.MAIL_FROM_ADDRESS || process.env.MAIL_USERNAME;
+
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html,
+          ...(replyTo ? { replyTo: { email: replyTo } } : {}),
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Brevo API error ${res.status}: ${body}`);
+      }
+      return {};
+    },
+  };
+}
+
 async function createTransporter() {
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (brevoApiKey) {
+    return createBrevoTransporter(brevoApiKey);
+  }
+
   const host = process.env.MAIL_HOST || process.env.EMAIL_HOST;
   const port = parseInt(process.env.MAIL_PORT || process.env.EMAIL_PORT || '587', 10);
   const user = process.env.MAIL_USERNAME || process.env.EMAIL_USER;
