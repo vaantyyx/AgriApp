@@ -77,10 +77,10 @@ export default function AiAssistant() {
 
           <div className="ai-assistant-messages">
             {messages.length === 0 && (
-              <div className="ai-assistant-msg assistant">{t('aiAssistantGreeting')}</div>
+              <div className="ai-assistant-msg assistant" dir="auto">{t('aiAssistantGreeting')}</div>
             )}
             {messages.map((m, i) => (
-              <div key={i} className={`ai-assistant-msg ${m.role}`}>{m.content}</div>
+              <div key={i} className={`ai-assistant-msg ${m.role}`} dir="auto">{m.content}</div>
             ))}
             {loading && (
               <div className="ai-assistant-msg assistant ai-assistant-typing">
@@ -94,6 +94,7 @@ export default function AiAssistant() {
           <form className="ai-assistant-input-row" onSubmit={sendMessage}>
             <input
               type="text"
+              dir="auto"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t('aiAssistantPlaceholder')}
