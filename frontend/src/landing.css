@@ -405,6 +405,25 @@
     margin: 32px 0 -48px;
   }
   .slp-pills-section { padding-top: 70px; }
+
+  /* The desktop left-to-right fade assumes the text column leaves the
+     right side of the photo uncovered — on mobile the content spans the
+     full width, so that fade would hide the photo almost entirely.
+     Swap to a top-to-bottom scrim instead so the photo stays visible
+     behind the text. */
+  .slp-hero::before,
+  [dir="rtl"] .slp-hero::before {
+    background: linear-gradient(180deg, rgba(6,32,17,0.55) 0%, rgba(6,32,17,0.88) 100%);
+  }
+
+  /* Four controls (CTA, client area, language, theme) no longer fit on
+     one row at phone widths — let them wrap onto a second line instead
+     of overflowing past the edge of the screen. */
+  .slp-navbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 8px;
+  }
 }
 
 /* ── SECTION HEAD (shared) ──────────────────────────────────── */
