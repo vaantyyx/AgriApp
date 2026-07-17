@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { Children, useEffect, useRef, useState } from 'react';
+import { motion, MotionConfig, useInView, useScroll, useSpring, useTransform } from 'motion/react';
 import {
   Leaf, Info, Users, HelpCircle, ShieldCheck, LayoutGrid, Phone,
   ChevronDown, Search, Wheat, ShoppingBag, Droplet,
@@ -76,50 +77,75 @@ const HOW_STEPS = [
   { n: 4, titleKey: 'landingHowStep4Title', descKey: 'landingHowStep4Desc' },
 ];
 
-/* ─── Scroll-reveal wrapper ─────────────────────────────────────────────── */
-function Reveal({ children, className = '', stagger = false, ...rest }) {
-  const ref = useRef(null);
-  const [inView, setInView] = useState(false);
+/* ─── Shared scroll-triggered animation curves ──────────────────────────── */
+const EASE_OUT = [0.16, 1, 0.3, 1];
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setInView(true);
-        observer.disconnect();
-      }
-    }, { threshold: 0.15 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+const revealVariants = {
+  hidden: { opacity: 0, y: 32 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_OUT } },
+};
 
-  const cls = ['slp-reveal', stagger ? 'slp-stagger' : '', inView ? 'slp-in-view' : '', className].filter(Boolean).join(' ');
-  return <div ref={ref} className={cls} {...rest}>{children}</div>;
+const staggerContainerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.09, delayChildren: 0.04 } },
+};
+
+/* ─── Fixed top bar that fills with page scroll progress ───────────────── */
+function ScrollProgressBar() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 26, restDelta: 0.001 });
+  return <motion.div className="slp-scroll-progress" style={{ scaleX }} />;
 }
 
-/* ─── Image reveal on scroll (clip-path wipe + zoom settle) ────────────── */
-function ImageReveal({ src, alt, className = '' }) {
-  const ref = useRef(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setInView(true);
-        observer.disconnect();
-      }
-    }, { threshold: 0.2 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const cls = ['slp-img-reveal', inView ? 'slp-img-in-view' : '', className].filter(Boolean).join(' ');
+/* ─── Scroll-triggered reveal wrapper (Motion whileInView) ──────────────── */
+function Reveal({ children, className = '', stagger = false, ...rest }) {
+  if (!stagger) {
+    return (
+      <motion.div
+        className={className}
+        variants={revealVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.15 }}
+        {...rest}
+      >
+        {children}
+      </motion.div>
+    );
+  }
   return (
-    <div ref={ref} className={cls}>
-      <img src={src} alt={alt} />
+    <motion.div
+      className={className}
+      variants={staggerContainerVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.15 }}
+      {...rest}
+    >
+      {Children.map(children, (child, i) => (
+        <motion.div key={i} variants={revealVariants} style={{ height: '100%' }}>
+          {child}
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+}
+
+/* ─── Image reveal scrubbed by the element's own scroll position ───────── */
+function ImageReveal({ src, alt, className = '', dir = 'ltr' }) {
+  const ref = useRef(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start 88%', 'start 45%'] });
+  const progress = useSpring(scrollYProgress, { stiffness: 130, damping: 26, mass: 0.4 });
+  const clipPath = useTransform(
+    progress,
+    [0, 1],
+    dir === 'rtl' ? ['inset(0 0% 0 100%)', 'inset(0 0% 0 0%)'] : ['inset(0 100% 0 0%)', 'inset(0 0% 0 0%)']
+  );
+  const scale = useTransform(progress, [0, 1], [1.15, 1]);
+
+  return (
+    <div ref={ref} className={`slp-img-reveal ${className}`}>
+      <motion.img src={src} alt={alt} style={{ clipPath, scale }} />
     </div>
   );
 }
@@ -131,29 +157,23 @@ function AnimatedStat({ value }) {
   const suffix = match ? match[2] : value;
   const [display, setDisplay] = useState(0);
   const ref = useRef(null);
-  const started = useRef(false);
+  const inView = useInView(ref, { once: true, amount: 0.4 });
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !started.current) {
-        started.current = true;
-        const duration = 1600;
-        const start = performance.now();
-        const tick = (now) => {
-          const t = Math.min((now - start) / duration, 1);
-          const ease = 1 - Math.pow(1 - t, 3);
-          setDisplay(Math.floor(ease * target));
-          if (t < 1) requestAnimationFrame(tick);
-          else setDisplay(target);
-        };
-        requestAnimationFrame(tick);
-      }
-    }, { threshold: 0.4 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [target]);
+    if (!inView) return;
+    const duration = 1600;
+    const start = performance.now();
+    let raf;
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.floor(ease * target));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else setDisplay(target);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [inView, target]);
 
   return <strong ref={ref}>{display.toLocaleString('fr-FR')}{suffix}</strong>;
 }
@@ -166,6 +186,15 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
   const [showScrollTop, setShowScrollTop] = useState(false);
   const espaceRef = useRef(null);
   const langRef = useRef(null);
+  const heroRef = useRef(null);
+
+  /* Hero parallax: background drifts and the text column fades/rises
+     as the hero section itself scrolls past, driven directly by scroll
+     position rather than a fixed-duration animation. */
+  const { scrollYProgress: heroProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+  const heroBgY = useTransform(heroProgress, [0, 1], ['0%', '22%']);
+  const heroContentY = useTransform(heroProgress, [0, 1], ['0%', '30%']);
+  const heroContentOpacity = useTransform(heroProgress, [0, 0.7], [1, 0]);
 
   useEffect(() => {
     function onClickOutside(e) {
@@ -195,7 +224,9 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
   const TRUST_LOGOS = ['MADAR', 'Cevital', 'GROUPE SMA', trustLogoAghtia, 'Tchin-Lait'];
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="landing-root" dir={dir}>
+      <ScrollProgressBar />
 
       {/* ══════════════ NAVBAR ══════════════ */}
       <nav className="slp-navbar">
@@ -267,29 +298,40 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
       </nav>
 
       {/* ══════════════ HERO (full-bleed, content centered as a column) ══════════════ */}
-      <section className="slp-hero" id="slp-about">
-        <div className="slp-hero-inner">
-          <div className="slp-hero-content">
-            <h1 className="slp-hero-title">
-              {t('landingHeroTitleMain')}<em>{t('landingHeroTitleAccent')}</em>
-            </h1>
-            <p className="slp-hero-sub">{t('landingHeroSub')}</p>
+      <section className="slp-hero" id="slp-about" ref={heroRef}>
+        <div className="slp-hero-bg-clip">
+          <motion.div className="slp-hero-bg" style={{ y: heroBgY }} />
+        </div>
 
-            <div className="slp-hero-trust">
-              <div className="slp-hero-trust-item">
-                <span className="slp-hero-trust-icon"><ShieldCheck size={18} /></span>
-                <div><strong>{t('landingTrustSecureTitle')}</strong><span>{t('landingTrustSecureSub')}</span></div>
+        <div className="slp-hero-inner">
+          <motion.div
+            className="slp-hero-content"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, ease: EASE_OUT }}
+          >
+            <motion.div style={{ y: heroContentY, opacity: heroContentOpacity }}>
+              <h1 className="slp-hero-title">
+                {t('landingHeroTitleMain')}<em>{t('landingHeroTitleAccent')}</em>
+              </h1>
+              <p className="slp-hero-sub">{t('landingHeroSub')}</p>
+
+              <div className="slp-hero-trust">
+                <div className="slp-hero-trust-item">
+                  <span className="slp-hero-trust-icon"><ShieldCheck size={18} /></span>
+                  <div><strong>{t('landingTrustSecureTitle')}</strong><span>{t('landingTrustSecureSub')}</span></div>
+                </div>
+                <div className="slp-hero-trust-item">
+                  <span className="slp-hero-trust-icon"><Scale size={18} /></span>
+                  <div><strong>{t('landingTrustFairTitle')}</strong><span>{t('landingTrustFairSub')}</span></div>
+                </div>
+                <div className="slp-hero-trust-item">
+                  <span className="slp-hero-trust-icon"><Eye size={18} /></span>
+                  <div><strong>{t('landingTrustTransparentTitle')}</strong><span>{t('landingTrustTransparentSub')}</span></div>
+                </div>
               </div>
-              <div className="slp-hero-trust-item">
-                <span className="slp-hero-trust-icon"><Scale size={18} /></span>
-                <div><strong>{t('landingTrustFairTitle')}</strong><span>{t('landingTrustFairSub')}</span></div>
-              </div>
-              <div className="slp-hero-trust-item">
-                <span className="slp-hero-trust-icon"><Eye size={18} /></span>
-                <div><strong>{t('landingTrustTransparentTitle')}</strong><span>{t('landingTrustTransparentSub')}</span></div>
-              </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           <div className="slp-search-card">
             <div className="slp-search-field">
@@ -346,7 +388,7 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
           <Reveal stagger className="slp-categories-grid">
             {CATEGORIES.map((cat, i) => (
               <div key={i} className="slp-cat-card" onClick={goRegister}>
-                <ImageReveal className="slp-cat-card-img" src={cat.img} alt={t(cat.nameKey)} />
+                <ImageReveal className="slp-cat-card-img" src={cat.img} alt={t(cat.nameKey)} dir={dir} />
                 <div className="slp-cat-card-body">
                   <div>
                     <h4>{t(cat.nameKey)}</h4>
@@ -528,5 +570,6 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
         </button>
       )}
     </div>
+    </MotionConfig>
   );
 }
