@@ -155,6 +155,7 @@ const CaptchaGrid = forwardRef(function CaptchaGrid(_props, ref) {
                       loading="lazy"
                       decoding="async"
                       draggable={false}
+                      crossOrigin="anonymous"
                     />
                     {selected.has(index) && (
                       <span className="captcha-tile-check"><Check size={14} strokeWidth={3} /></span>
