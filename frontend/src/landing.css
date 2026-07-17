@@ -418,11 +418,16 @@
 
   /* Four controls (CTA, client area, language, theme) no longer fit on
      one row at phone widths — let them wrap onto a second line instead
-     of overflowing past the edge of the screen. */
+     of overflowing past the edge of the screen. Needs an explicit
+     width: without it this flex item (flex-shrink: 0 on desktop) just
+     grows to fit all four controls on one line, pushing the last one
+     (the theme toggle) past the viewport edge where the landing root's
+     overflow-x: hidden silently clips it instead of wrapping it. */
   .slp-navbar-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
     row-gap: 8px;
+    width: 100%;
   }
 
   /* The hero title's clamp() bottoms out at its 2.1rem floor on narrow
