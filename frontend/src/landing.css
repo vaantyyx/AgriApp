@@ -424,6 +424,42 @@
     justify-content: flex-end;
     row-gap: 8px;
   }
+
+  /* The hero title's clamp() bottoms out at its 2.1rem floor on narrow
+     viewports regardless of vw, which is still tall across 2-3 wrapped
+     lines — shrink it further and tighten the line-height/margin so the
+     hero doesn't dominate the whole first screen on a phone. */
+  .slp-hero-title {
+    font-size: 1.6rem;
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+  .slp-hero-sub { margin-bottom: 16px; }
+  .slp-hero-trust { margin-bottom: 20px; gap: 14px; }
+
+  /* At 130px min-width per field, the 3 search fields (category, region,
+     product) no longer fit on one row and each wraps onto its own line,
+     making the card very tall. Force them into a compact 3-column grid
+     instead, with the search button on its own full-width row below. */
+  .slp-search-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    gap: 10px 8px;
+    padding: 16px 14px;
+  }
+  .slp-search-field { min-width: 0; }
+  .slp-search-field select {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .slp-search-divider { display: none; }
+  .slp-search-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ── SECTION HEAD (shared) ──────────────────────────────────── */
