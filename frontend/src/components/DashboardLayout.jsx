@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { LayoutDashboard, Gavel, User, MapPin, ChevronRight, ChevronLeft, CloudSun, Map as MapIcon, Calendar, BarChart3, Receipt, Bell, HelpCircle } from 'lucide-react';
+import AiAssistant from './AiAssistant';
 
 export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, onCloseMobile, children }) {
   const { t, dir } = useTranslation();
@@ -150,6 +151,8 @@ export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, on
       <div className="dash-content-wrap">
         {children}
       </div>
+
+      <AiAssistant />
     </>
   );
 }

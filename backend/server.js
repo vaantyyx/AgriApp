@@ -20,6 +20,7 @@ import parcellesRoutes from './routes/parcelles.js';
 import captchaRoutes from './routes/captcha.js';
 import supportRoutes from './routes/support.js';
 import adminRoutes from './routes/admin.js';
+import aiRoutes from './routes/ai.js';
 import { CAPTCHA_CATEGORIES } from './services/captchaCategories.js';
 import { logger } from './utils/logger.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -145,6 +146,7 @@ app.use('/api/parcelles', parcellesRoutes);
 app.use('/api/captcha', captchaRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {

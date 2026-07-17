@@ -512,6 +512,15 @@ export const translations = {
     exportCsvBtn: "تصدير CSV",
     printBtn: "طباعة",
 
+    // AI Assistant widget
+    aiAssistantButtonLabel: "المساعد الذكي",
+    aiAssistantTitle: "المساعد الذكي",
+    aiAssistantGreeting: "مرحباً! أنا المساعد الذكي لسوقرة. كيف يمكنني مساعدتك اليوم؟",
+    aiAssistantPlaceholder: "اكتب رسالتك...",
+    aiAssistantSend: "إرسال",
+    aiAssistantClose: "إغلاق",
+    aiAssistantError: "حدث خطأ. حاول مرة أخرى.",
+
     // Help page
     helpPageTitle: "المساعدة والدعم",
     helpPageDesc: "أسئلة شائعة وطرق التواصل معنا.",
@@ -1172,6 +1181,15 @@ export const translations = {
     exportCsvBtn: "Exporter en CSV",
     printBtn: "Imprimer",
 
+    // AI Assistant widget
+    aiAssistantButtonLabel: "Assistant IA",
+    aiAssistantTitle: "Assistant IA",
+    aiAssistantGreeting: "Bonjour ! Je suis l'assistant IA de Sougra. Comment puis-je vous aider aujourd'hui ?",
+    aiAssistantPlaceholder: "Écrivez votre message...",
+    aiAssistantSend: "Envoyer",
+    aiAssistantClose: "Fermer",
+    aiAssistantError: "Une erreur est survenue. Veuillez réessayer.",
+
     // Help page
     helpPageTitle: "Aide & Support",
     helpPageDesc: "Questions fréquentes et moyens de nous contacter.",
@@ -1831,6 +1849,15 @@ export const translations = {
     transactionsEmpty: "No transactions yet.",
     exportCsvBtn: "Export CSV",
     printBtn: "Print",
+
+    // AI Assistant widget
+    aiAssistantButtonLabel: "AI Assistant",
+    aiAssistantTitle: "AI Assistant",
+    aiAssistantGreeting: "Hi! I'm Sougra's AI assistant. How can I help you today?",
+    aiAssistantPlaceholder: "Type your message...",
+    aiAssistantSend: "Send",
+    aiAssistantClose: "Close",
+    aiAssistantError: "Something went wrong. Please try again.",
 
     // Help page
     helpPageTitle: "Help & Support",
