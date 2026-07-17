@@ -207,7 +207,54 @@ function createBrevoTransporter(apiKey) {
   };
 }
 
+// EmailJS is normally called from a browser, but its REST API also accepts
+// server-side calls (HTTPS, so unaffected by Render's SMTP port block) when
+// given the private key as accessToken. Requires a single generic template
+// (see setup notes) whose body is just {{message_html}} so this can carry
+// the fully pre-rendered HTML from the templates below.
+function createEmailJsTransporter({ serviceId, templateId, publicKey, privateKey }) {
+  return {
+    sendMail: async ({ from, to, subject, html }) => {
+      const fromMatch = /^"?(.*?)"?\s*<(.+)>$/.exec(from) || [];
+      const senderName = fromMatch[1] || process.env.MAIL_FROM_NAME || 'Sougra';
+
+      const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: serviceId,
+          template_id: templateId,
+          user_id: publicKey,
+          accessToken: privateKey,
+          template_params: {
+            to_email: to,
+            from_name: senderName,
+            subject,
+            message_html: html,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`EmailJS API error ${res.status}: ${body}`);
+      }
+      return {};
+    },
+  };
+}
+
 async function createTransporter() {
+  const emailJsPublicKey = process.env.EMAILJS_PUBLIC_KEY;
+  if (emailJsPublicKey) {
+    return createEmailJsTransporter({
+      serviceId: process.env.EMAILJS_SERVICE_ID,
+      templateId: process.env.EMAILJS_TEMPLATE_ID,
+      publicKey: emailJsPublicKey,
+      privateKey: process.env.EMAILJS_PRIVATE_KEY,
+    });
+  }
+
   const brevoApiKey = process.env.BREVO_API_KEY;
   if (brevoApiKey) {
     return createBrevoTransporter(brevoApiKey);
