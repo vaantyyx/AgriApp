@@ -4,6 +4,7 @@ import authMiddleware from '../middleware/authMiddleware.js';
 import { sendSupportMessage } from '../services/emailService.js';
 import { resolveLocale } from '../utils/locale.js';
 import { logger } from '../utils/logger.js';
+import { getRateLimitStore } from '../utils/rateLimitStore.js';
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -15,6 +16,7 @@ const supportLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de messages envoyés. Réessayez plus tard.' },
+  store: getRateLimitStore('rl:support:'),
 });
 
 // ─── POST /api/support/contact ─────────────────────────────────────────────

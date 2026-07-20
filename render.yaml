@@ -1,0 +1,78 @@
+# Render Blueprint — captures the backend service's configuration as code so
+# it's reproducible/auditable instead of living only in the dashboard.
+#
+# This does NOT retroactively change an already-existing dashboard-configured
+# service. To adopt it: Render dashboard → New → Blueprint → point at this
+# repo. Review `plan` below against whatever the current service is actually
+# on before applying, and fill in the `sync: false` secrets in the dashboard
+# afterward (Blueprints never read/write secret values from/into git).
+services:
+  - type: web
+    name: sougra-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: "1"
+      # Secrets and deployment-specific values — set these in the Render
+      # dashboard; Blueprints intentionally don't store secret values in git.
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: Sougra
+      # Email transporter fallback chain (see emailService.js#createTransporter):
+      # EmailJS is tried first, then Brevo's API, then MAIL_* (SMTP) last.
+      # EMAILJS_PUBLIC_KEY being set makes EmailJS the one actually in use —
+      # BREVO_API_KEY and MAIL_* above are configured but currently dormant.
+      - key: EMAILJS_PUBLIC_KEY
+        sync: false
+      - key: EMAILJS_PRIVATE_KEY
+        sync: false
+      - key: EMAILJS_SERVICE_ID
+        sync: false
+      - key: EMAILJS_TEMPLATE_ID
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      # Cloudinary — required in production so profile photos/documents
+      # survive redeploys (Render's filesystem is ephemeral). See
+      # backend/.env.example for where to get these.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      # Optional — leave unset to run without error tracking.
+      - key: SENTRY_DSN
+        sync: false

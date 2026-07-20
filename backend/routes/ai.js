@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { logger } from '../utils/logger.js';
+import { getRateLimitStore } from '../utils/rateLimitStore.js';
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -13,6 +14,7 @@ const aiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de messages envoyés. Réessayez dans une minute.' },
+  store: getRateLimitStore('rl:ai:'),
 });
 
 // Keyed by the app's UI locale (not detected from the user's message) so the

@@ -38,6 +38,9 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # Fails the build on newly-introduced high/critical vulnerabilities without
+      # blocking on pre-existing low/moderate ones in transitive deps we don't control.
+      - run: npm audit --audit-level=high
 
   frontend:
     runs-on: ubuntu-latest
@@ -56,3 +59,4 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm audit --audit-level=high

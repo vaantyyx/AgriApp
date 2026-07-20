@@ -4,15 +4,17 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { randomBytes } from 'crypto';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
+import helmet from 'helmet';
 import jwt from 'jsonwebtoken';
 import pinoHttp from 'pino-http';
+import * as Sentry from '@sentry/node';
 import { createClient } from 'redis';
 import { createAdapter } from '@socket.io/redis-adapter';
-import { connectToDatabase, getDb } from './db.js';
+import { connectToDatabase, getDb, closeConnection } from './db.js';
+import { readFile } from './services/storage.js';
+import { getRateLimitStore } from './utils/rateLimitStore.js';
 import authRoutes from './routes/auth.js';
 import profileRoutes from './routes/profile.js';
 import notificationsRoutes from './routes/notifications.js';
@@ -35,8 +37,6 @@ import {
   wilayaRoomName,
   getEligibleWilayaRooms,
 } from './services/auctionMatching.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── JWT Secret bootstrap ──────────────────────────────────────────────────
 if (!process.env.JWT_SECRET) {
@@ -83,6 +83,15 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 // ─── Security Headers ─────────────────────────────────────────────────────
+// helmet() adds the headers the manual block below doesn't already cover
+// (CSP, Cross-Origin-Opener-Policy, X-DNS-Prefetch-Control, etc.) — it runs
+// first so the manual setHeader calls after it keep the final say on every
+// header they already tune by hand, with zero behavior change there.
+// crossOriginResourcePolicy is relaxed to 'cross-origin': the frontend
+// (Netlify) and this API live on different origins by design, and captcha
+// tile images / uploaded profile photos are loaded cross-origin via <img> —
+// helmet's 'same-origin' default would silently block those loads.
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -103,6 +112,7 @@ const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes. Veuillez réessayer plus tard.' },
+  store: getRateLimitStore('rl:general:'),
 });
 app.use('/api', generalLimiter);
 
@@ -112,15 +122,18 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez dans une minute.' },
+  store: getRateLimitStore('rl:auth:'),
 });
 app.use('/api/auth', authLimiter);
 
-// ─── Static File Serving (uploads) ────────────────────────────────────────
+// ─── Uploaded File Serving ─────────────────────────────────────────────────
 // Profile photos and identity/legal documents (RC, fiche signalétique, carte
 // agriculteur) live here — UUID filenames alone aren't access control, so require
 // a valid session. <img>/<a> tags can't set an Authorization header, so a token
-// query param is accepted as a fallback.
-app.use('/uploads', (req, res, next) => {
+// query param is accepted as a fallback. Bytes are fetched through storage.js
+// (Cloudinary when configured, local disk otherwise) rather than served
+// directly off disk, so this route's behavior is identical either way.
+app.get('/uploads/:key', async (req, res) => {
   const authHeader = req.headers['authorization'];
   const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const token = headerToken || req.query.token;
@@ -132,11 +145,26 @@ app.use('/uploads', (req, res, next) => {
   } catch {
     return res.status(401).json({ error: 'Token invalide.' });
   }
-  res.setHeader('Content-Disposition', 'inline');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('Cache-Control', 'private, max-age=3600');
-  next();
-}, express.static(path.join(__dirname, 'uploads')));
+
+  // Only the "<uuid><ext>" shape storeFile() produces is ever valid — rejects
+  // path traversal and any other unexpected input before it reaches storage.js.
+  const { key } = req.params;
+  if (!/^[a-f0-9-]{36}\.(jpg|jpeg|png|webp|pdf)$/i.test(key)) {
+    return res.status(404).end();
+  }
+
+  try {
+    const { buffer, contentType } = await readFile(key);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(buffer);
+  } catch (err) {
+    logger.error({ err }, 'UPLOADS READ ERROR');
+    res.status(404).end();
+  }
+});
 
 // ─── Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -1143,17 +1171,77 @@ async function startServer() {
     }
 
     // Setup periodic scheduler (every 30 seconds) — fallback safety net only
-    setInterval(checkPendingAuctions, 30000);
+    const schedulerInterval = setInterval(checkPendingAuctions, 30000);
     // Run once immediately on startup
     checkPendingAuctions().catch(err => logger.error({ err }, 'Scheduler start error'));
 
     httpServer.listen(PORT, HOST, () => {
       logger.info({ host: HOST, port: PORT }, 'Server running');
     });
+
+    setupGracefulShutdown(schedulerInterval);
   } catch (error) {
     logger.error({ err: error }, 'Failed to start server');
     process.exit(1);
   }
 }
+
+// Render (and most PaaS hosts) send SIGTERM before killing a container on
+// every redeploy/restart/scale-down — without handling it, in-flight HTTP
+// requests and Socket.IO connections get dropped mid-response instead of
+// finishing cleanly, and the Mongo connection is never closed.
+let shuttingDown = false;
+function setupGracefulShutdown(schedulerInterval) {
+  const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ signal }, 'Shutting down gracefully...');
+    clearInterval(schedulerInterval);
+
+    // Safety net: if closing sockets/connections hangs, exit anyway rather
+    // than leaving the platform to hard-kill the process after its own
+    // (usually longer, less clean) timeout.
+    const forceExitTimer = setTimeout(() => {
+      logger.warn('Graceful shutdown timed out — forcing exit.');
+      process.exit(1);
+    }, 10000);
+    forceExitTimer.unref();
+
+    io.close(() => {
+      httpServer.close(async () => {
+        clearTimeout(forceExitTimer);
+        try {
+          await closeConnection();
+        } catch (err) {
+          logger.error({ err }, 'Error closing MongoDB connection during shutdown');
+        }
+        logger.info('Shutdown complete.');
+        process.exit(0);
+      });
+    });
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+// Catches what try/catch and logger.error's Sentry hook (see utils/logger.js)
+// can't: errors thrown outside any request handler (timers, event listeners).
+// Per Node's own guidance, the process is in an undefined state after an
+// uncaughtException — report it, then exit and let the platform restart us,
+// rather than limping on. unhandledRejection is logged but not fatal, since
+// unlike uncaughtException it doesn't leave the process in a known-broken state.
+process.on('uncaughtException', (err) => {
+  logger.error({ err }, 'UNCAUGHT EXCEPTION');
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err);
+    Sentry.close(2000).finally(() => process.exit(1));
+  } else {
+    process.exit(1);
+  }
+});
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'UNHANDLED REJECTION');
+});
 
 startServer();

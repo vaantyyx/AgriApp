@@ -1,7 +1,6 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 import { getDb } from '../db.js';
@@ -10,30 +9,25 @@ import { sendOtpEmail, sendAccountDeactivationEmail } from '../services/emailSer
 import { createOtp, verifyOtp } from '../services/otpService.js';
 import { resolveLocale } from '../utils/locale.js';
 import { logger } from '../utils/logger.js';
+import { storeFile } from '../services/storage.js';
 
 const router = express.Router();
 
 // All profile routes require authentication
 router.use(authMiddleware);
 
-// Multer storage — UUID filenames to prevent path traversal and enumeration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, './uploads/');
-  },
-  filename: (req, file, cb) => {
-    // Never use original filename — generate a random UUID name
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uuidv4()}${ext}`);
-  },
-});
+// Buffered in memory (not written to disk here) — storeFile() persists to
+// Cloudinary when configured, or local disk as a dev-only fallback. See
+// services/storage.js for why: Render's filesystem is wiped on every
+// redeploy/restart, so disk was never a safe place to keep these files.
+const memoryStorage = multer.memoryStorage();
 
 // File validation: allow-list of MIME types and extension
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 const ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.webp'];
 
 const upload = multer({
-  storage,
+  storage: memoryStorage,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB max
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -49,7 +43,7 @@ const DOC_ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/
 const DOC_ALLOWED_EXT = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
 
 const uploadDoc = multer({
-  storage,
+  storage: memoryStorage,
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -151,8 +145,9 @@ router.post('/photo', upload.single('photo'), async (req, res) => {
       return res.status(400).json({ error: 'Aucun fichier fourni.' });
     }
 
-    // Use only the UUID filename — never the original path
-    const photoFilename = req.file.filename;
+    // Never use the original filename — store() generates an opaque UUID key
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const photoFilename = await storeFile(req.file.buffer, ext);
 
     const db = getDb();
     await db.collection('users').updateOne(
@@ -183,7 +178,8 @@ router.post('/rc-document', uploadDoc.single('rcDocument'), async (req, res) => 
       return res.status(400).json({ error: 'Aucun fichier fourni.' });
     }
 
-    const documentFilename = req.file.filename;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const documentFilename = await storeFile(req.file.buffer, ext);
     const isPdf = req.file.mimetype === 'application/pdf';
 
     const db = getDb();
@@ -216,7 +212,8 @@ router.post('/upload-fiche-signaletique', uploadDoc.single('ficheSignaletique'),
       return res.status(400).json({ error: 'Aucun fichier fourni.' });
     }
 
-    const documentFilename = req.file.filename;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const documentFilename = await storeFile(req.file.buffer, ext);
 
     const db = getDb();
     await db.collection('users').updateOne(
@@ -247,7 +244,8 @@ router.post('/upload-carte-agriculteur', uploadDoc.single('carteAgriculteur'), a
       return res.status(400).json({ error: 'Aucun fichier fourni.' });
     }
 
-    const documentFilename = req.file.filename;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const documentFilename = await storeFile(req.file.buffer, ext);
 
     const db = getDb();
     await db.collection('users').updateOne(

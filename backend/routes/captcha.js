@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { generateChallenge, getTile, renderTileSvg, verifySelection } from '../services/captchaService.js';
 import { logger } from '../utils/logger.js';
+import { getRateLimitStore } from '../utils/rateLimitStore.js';
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ const challengeLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de tentatives. Réessayez dans une minute.' },
+  store: getRateLimitStore('rl:captcha-challenge:'),
 });
 
 // A single grid render fires 9 of these (one per tile), so this needs a much
@@ -29,6 +31,7 @@ const imageLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Trop de requêtes.' },
+  store: getRateLimitStore('rl:captcha-image:'),
 });
 
 // ─── GET /api/captcha/challenge ─────────────────────────────────────────────
