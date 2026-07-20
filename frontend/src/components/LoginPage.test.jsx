@@ -41,7 +41,10 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(screen.getByText(FIELDS_REQUIRED_AR)).toBeInTheDocument();
     });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    // The mount-time backend warm-up ping (see LoginPage's useEffect) is the
+    // only expected call here — validation must bail out before any login request.
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:3001/health');
   });
 
   test('blocks submission with a captcha-required error when the captcha has not been solved', async () => {
@@ -58,6 +61,8 @@ describe('LoginPage', () => {
     await waitFor(() => {
       expect(screen.getByText(CAPTCHA_REQUIRED_AR)).toBeInTheDocument();
     });
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    // Same warm-up ping as above — captcha check must bail out before login/verify calls.
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:3001/health');
   });
 });
