@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
       if (!res.ok) {
         setError(data.error || t('resetGenericError'));
       } else {
-        setMessage(data.message || t('forgotSuccessMessage'));
+        setMessage(t('forgotSuccessMessage'));
         setEmail('');
       }
     } catch {

@@ -23,7 +23,7 @@ export default function VerifyEmailPage({ onNavigateToLogin }) {
           setMessage(data.error);
         } else {
           setStatus('success');
-          setMessage(data.message || t('verifSuccessSub'));
+          setMessage(t('verifSuccessSub'));
         }
       })
       .catch(() => {

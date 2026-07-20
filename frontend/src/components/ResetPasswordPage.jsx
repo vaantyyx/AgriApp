@@ -46,7 +46,7 @@ export default function ResetPasswordPage() {
       if (!res.ok) {
         setError(data.error || t('resetGenericError'));
       } else {
-        setMessage(data.message || t('resetSuccessMessage'));
+        setMessage(t('resetSuccessMessage'));
         setPassword('');
         setConfirmPassword('');
       }
