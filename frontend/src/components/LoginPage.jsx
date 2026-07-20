@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Leaf, Mail, Lock, Eye, EyeOff, ShieldAlert, AlertCircle, Zap, Users, TrendingUp, ShieldCheck, RefreshCw, KeyRound } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
@@ -70,6 +70,15 @@ export default function LoginPage({ onLoginSuccess, onNavigateToRegister }) {
   const captchaRef = useRef(null);
 
   const { t, dir, locale } = useTranslation();
+
+  // Render's free tier spins the backend down after idle periods, and the
+  // captcha challenge request is usually the first one to hit it — fire a
+  // throwaway wake-up call as soon as this page mounts so the cold start
+  // happens in the background while the user is still typing, not when
+  // they open the captcha modal.
+  useEffect(() => {
+    fetch(`${BACKEND_URL}/health`).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
