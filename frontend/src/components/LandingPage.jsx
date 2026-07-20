@@ -541,8 +541,8 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
 
           <div>
             <h6>{t('landingFooterContactTitle')}</h6>
-            <div className="slp-footer-contact-item"><Mail size={14} /><span>contact@sougra.dz</span></div>
-            <div className="slp-footer-contact-item"><Phone size={14} /><span>+213 661 27 19 97</span></div>
+            <div className="slp-footer-contact-item"><Mail size={14} /><a href="https://mail.google.com/mail/?view=cm&fs=1&to=achikh200@gmail.com" target="_blank" rel="noopener noreferrer">achikh200@gmail.com</a></div>
+            <div className="slp-footer-contact-item"><Phone size={14} /><a href="tel:+213661271997" dir="ltr">+213 661 27 19 97</a></div>
             <div className="slp-footer-contact-item"><MapPin size={14} /><span>{t('landingFooterAddress')}</span></div>
             <div className="slp-social-row">
               {SOCIALS.map(s => (

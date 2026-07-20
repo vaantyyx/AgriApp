@@ -8,7 +8,7 @@ function getStoredToken() {
 }
 
 export default function AiAssistant() {
-  const { t, dir } = useTranslation();
+  const { t, dir, locale } = useTranslation();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -39,7 +39,7 @@ export default function AiAssistant() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ messages: nextMessages.slice(-20) }),
+        body: JSON.stringify({ messages: nextMessages.slice(-20), locale }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('aiAssistantError'));
