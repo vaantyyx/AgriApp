@@ -1,13 +1,89 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
+import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 function StatTile({ label, value }) {
   return (
     <div className="glass-panel" style={{ padding: '16px 20px' }}>
       <div style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{label}</div>
       <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: 4 }}>{value}</div>
+    </div>
+  );
+}
+
+function ChangePasswordModal({ user, onSubmit, onClose }) {
+  const { t } = useTranslation();
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const cardRef = useRef(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(cardRef, true);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (password.length < 8) { setError(t('passwordMinChar')); return; }
+    if (password !== confirmPassword) { setError(t('passwordMismatch')); return; }
+    setError('');
+    setSubmitting(true);
+    await onSubmit(password);
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }} role="dialog" aria-modal="true" aria-label={t('adminChangePasswordTitle')}>
+        <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🔑</div>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 6, color: 'var(--text-main)' }}>{t('adminChangePasswordTitle')}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{t('adminChangePasswordDesc', { name: user.name })}</p>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="admin-new-password">{t('passwordLabel')}</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="admin-new-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder={t('passwordHelpPlaceholder')}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoFocus
+              />
+              <button type="button" onClick={() => setShowPassword(p => !p)}
+                aria-label={showPassword ? t('hidePasswordLabel') : t('showPasswordLabel')}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <div className="form-group">
+            <label htmlFor="admin-confirm-password">{t('confirmPasswordLabel')}</label>
+            <input
+              id="admin-confirm-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder={t('confirmPasswordPlaceholder')}
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+            />
+          </div>
+          {error && <div className="inline-alert-danger" style={{ marginBottom: 16 }}>{error}</div>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>{t('cancelBtn')}</button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting || !password || !confirmPassword}>
+              {t('confirmBtn')}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -25,6 +101,7 @@ export default function AdminDashboardPage({ token }) {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [changingPasswordUser, setChangingPasswordUser] = useState(null);
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -112,8 +189,34 @@ export default function AdminDashboardPage({ token }) {
     }
   };
 
+  const handleSetPassword = async (password) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/users/${changingPasswordUser.id}/set-password`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+        setChangingPasswordUser(null);
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    }
+  };
+
   return (
     <div dir={dir} style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
+      {changingPasswordUser && (
+        <ChangePasswordModal
+          user={changingPasswordUser}
+          onSubmit={handleSetPassword}
+          onClose={() => setChangingPasswordUser(null)}
+        />
+      )}
       <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 28 }}>
@@ -186,15 +289,26 @@ export default function AdminDashboardPage({ token }) {
                     </td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString(localeTag) : '-'}</td>
                     <td style={{ padding: '10px 16px' }}>
-                      {u.role !== 'admin' && (
+                      <div style={{ display: 'flex', gap: 6 }}>
                         <button
-                          onClick={() => toggleUserActive(u)}
+                          onClick={() => setChangingPasswordUser(u)}
                           className="btn btn-secondary"
-                          style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+                          title={t('adminChangePasswordBtn')}
+                          aria-label={t('adminChangePasswordBtn')}
+                          style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 5 }}
                         >
-                          {u.isActive ? t('adminDeactivateBtn') : t('adminReactivateBtn')}
+                          <KeyRound size={13} /> {t('adminChangePasswordBtn')}
                         </button>
-                      )}
+                        {u.role !== 'admin' && (
+                          <button
+                            onClick={() => toggleUserActive(u)}
+                            className="btn btn-secondary"
+                            style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+                          >
+                            {u.isActive ? t('adminDeactivateBtn') : t('adminReactivateBtn')}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

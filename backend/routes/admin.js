@@ -1,4 +1,5 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
 import { ObjectId } from 'mongodb';
 import { getDb } from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
@@ -111,6 +112,36 @@ router.post('/users/:id/reactivate', async (req, res) => {
     res.json({ message: 'Compte réactivé.' });
   } catch (err) {
     logger.error({ err }, 'ADMIN REACTIVATE USER ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/admin/users/:id/set-password ─────────────────────────────────
+router.post('/users/:id/set-password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID invalide.' });
+
+    const { password } = req.body;
+    if (typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au minimum 8 caractères.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await getDb().collection('users').updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: { password: hashedPassword },
+        // A pending self-service reset link for this user, if any, must not
+        // survive an admin-set password — it would otherwise let the old link
+        // silently overwrite the password the admin just set.
+        $unset: { resetPasswordToken: '', resetPasswordExpires: '' },
+      }
+    );
+    if (result.matchedCount === 0) return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    res.json({ message: 'Mot de passe modifié.' });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN SET PASSWORD ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
