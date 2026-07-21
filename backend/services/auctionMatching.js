@@ -186,6 +186,49 @@ export async function hasProducerProduct(producerId, requestedProductNames, db) 
   return false;
 }
 
+// ─── Progressive (round-based) bidding helpers ────────────────────────────
+// "Enchère dégressive contrôlée": producers may only lower their price by a
+// capped percentage each round, so a price never crashes in a single step.
+// Round 1 is a free choice within [initialMinPercent%, 100%] of the auction's
+// reference price (targetPrice); every later round caps the drop relative to
+// the producer's own last submitted price, not the reference price, so
+// repeated rounds compound instead of stacking off the same baseline.
+
+/** Clamps and defaults a raw roundConfig payload from the client. Returns { enabled: false } when disabled/absent. */
+export function normalizeRoundConfig(raw) {
+  if (!raw || !raw.enabled) return { enabled: false };
+  return {
+    enabled: true,
+    totalRounds: Math.min(Math.max(parseInt(raw.totalRounds, 10) || 3, 2), 5),
+    roundDurationHours: Math.min(Math.max(parseFloat(raw.roundDurationHours) || 8, 8), 24),
+    maxDecreasePercent: Math.min(Math.max(parseFloat(raw.maxDecreasePercent) || 5, 1), 20),
+    initialMinPercent: Math.min(Math.max(parseFloat(raw.initialMinPercent) || 80, 50), 99),
+  };
+}
+
+/**
+ * Returns the { min, max, round } price window a producer's next bid must
+ * fall within for a progressive auction, or null if progressive mode isn't
+ * enabled or the auction has no reference price yet. `existingBid` is the
+ * producer's own current bid document (or null/undefined for a first bid).
+ */
+export function computeRoundPriceBounds(auction, existingBid) {
+  const cfg = auction.roundConfig;
+  if (!cfg?.enabled) return null;
+  const referencePrice = auction.targetPrice;
+  if (!referencePrice || referencePrice <= 0) return null;
+  const currentRound = auction.currentRound || 1;
+
+  if (!existingBid || currentRound === 1) {
+    return { min: referencePrice * (cfg.initialMinPercent / 100), max: referencePrice, round: currentRound };
+  }
+
+  const priorEntries = (existingBid.roundHistory || []).filter(h => h.round < currentRound);
+  const lastPriorEntry = priorEntries[priorEntries.length - 1];
+  const baseline = lastPriorEntry ? lastPriorEntry.price : referencePrice;
+  return { min: baseline * (1 - cfg.maxDecreasePercent / 100), max: baseline, round: currentRound };
+}
+
 export async function canProducerParticipate(auction, producerId, pCoords, db) {
   if (!isProducerInZone(auction, pCoords)) return false;
 
@@ -258,6 +301,8 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
       producerRating: bid.producerRating ?? null,
       producerRatingCount: bid.producerRatingCount ?? 0,
       timestamp: bid.timestamp,
+      // Round-by-round price trail is only meaningful to the producer who set it.
+      roundHistory: bid.producerId === requestingUserId ? (bid.roundHistory || null) : null,
       lines: (bid.lines || []).map(line => ({
         id: line.id,
         price: (requestingRole === 'producer' && bid.producerId !== requestingUserId) ? null : line.price,
@@ -290,6 +335,14 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
       targetPrice: auction.targetPrice,
       status: auction.status,
       createdAt: auction.createdAt,
+      roundConfig: auction.roundConfig?.enabled ? auction.roundConfig : null,
+      currentRound: auction.currentRound || null,
+      roundStartedAt: auction.roundStartedAt || null,
+      // Price window the requesting producer's next bid must fall within — null for buyers
+      // and for non-progressive auctions (see computeRoundPriceBounds()).
+      myRoundBounds: requestingRole === 'producer'
+        ? computeRoundPriceBounds(auction, (auction.bids || []).find(b => b.producerId === requestingUserId))
+        : null,
       bids: sanitizedBids,
       acceptedBidId: auction.acceptedBidId,
       acceptedLineId: auction.acceptedLineId || null,

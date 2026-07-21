@@ -11,6 +11,8 @@ import {
   wilayaRoomName,
   getAllWilayaRoomNames,
   getEligibleWilayaRooms,
+  normalizeRoundConfig,
+  computeRoundPriceBounds,
 } from '../services/auctionMatching.js';
 
 /** Minimal fake of the MongoDB driver surface these functions actually use. */
@@ -243,5 +245,111 @@ describe('sanitizeAuctions', () => {
     // producerB bid 80 < producerA bid 100, so producerB should rank 1st.
     assert.equal(sanitized.myRank, 1);
     assert.equal(sanitized.totalBidders, 2);
+  });
+
+  test('exposes roundConfig/currentRound/myRoundBounds for a progressive auction, null otherwise', () => {
+    const progressiveAuction = {
+      ...auction,
+      targetPrice: 100,
+      roundConfig: { enabled: true, totalRounds: 3, roundDurationHours: 8, maxDecreasePercent: 5, initialMinPercent: 80 },
+      currentRound: 1,
+      roundStartedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const [asProducer] = sanitizeAuctions([progressiveAuction], 'producerA', 'producer');
+    assert.equal(asProducer.currentRound, 1);
+    assert.deepEqual(asProducer.myRoundBounds, { min: 80, max: 100, round: 1 });
+
+    const [asBuyer] = sanitizeAuctions([progressiveAuction], 'buyer1', 'buyer');
+    assert.equal(asBuyer.myRoundBounds, null);
+
+    const [nonProgressive] = sanitizeAuctions([auction], 'producerA', 'producer');
+    assert.equal(nonProgressive.roundConfig, null);
+    assert.equal(nonProgressive.myRoundBounds, null);
+  });
+
+  test('only exposes roundHistory on the requesting producer\'s own bid', () => {
+    const withHistory = {
+      ...auction,
+      bids: [
+        { ...auction.bids[0], roundHistory: [{ round: 1, price: 100, timestamp: 't1' }] },
+        { ...auction.bids[1], roundHistory: [{ round: 1, price: 80, timestamp: 't1' }] },
+      ],
+    };
+    const [sanitized] = sanitizeAuctions([withHistory], 'producerA', 'producer');
+    const mine = sanitized.bids.find(b => b.id === 'bid_a');
+    const other = sanitized.bids.find(b => b.id === 'bid_b');
+    assert.deepEqual(mine.roundHistory, [{ round: 1, price: 100, timestamp: 't1' }]);
+    assert.equal(other.roundHistory, null);
+  });
+});
+
+describe('normalizeRoundConfig', () => {
+  test('returns { enabled: false } for missing/disabled input', () => {
+    assert.deepEqual(normalizeRoundConfig(undefined), { enabled: false });
+    assert.deepEqual(normalizeRoundConfig(null), { enabled: false });
+    assert.deepEqual(normalizeRoundConfig({ enabled: false }), { enabled: false });
+  });
+
+  test('fills in defaults when enabled with no other fields', () => {
+    assert.deepEqual(normalizeRoundConfig({ enabled: true }), {
+      enabled: true,
+      totalRounds: 3,
+      roundDurationHours: 8,
+      maxDecreasePercent: 5,
+      initialMinPercent: 80,
+    });
+  });
+
+  test('clamps out-of-range values instead of trusting the client', () => {
+    const cfg = normalizeRoundConfig({
+      enabled: true,
+      totalRounds: 99,
+      roundDurationHours: 1,
+      maxDecreasePercent: 999,
+      initialMinPercent: 1,
+    });
+    assert.equal(cfg.totalRounds, 5);
+    assert.equal(cfg.roundDurationHours, 8);
+    assert.equal(cfg.maxDecreasePercent, 20);
+    assert.equal(cfg.initialMinPercent, 50);
+  });
+});
+
+describe('computeRoundPriceBounds', () => {
+  const roundConfig = { enabled: true, totalRounds: 3, roundDurationHours: 8, maxDecreasePercent: 5, initialMinPercent: 80 };
+
+  test('returns null when progressive mode is disabled or reference price is missing', () => {
+    assert.equal(computeRoundPriceBounds({ roundConfig: { enabled: false }, targetPrice: 100 }, null), null);
+    assert.equal(computeRoundPriceBounds({ roundConfig, targetPrice: null }, null), null);
+  });
+
+  test('round 1 (first bid) is a free choice within [initialMinPercent%, 100%] of the reference price', () => {
+    const auction = { roundConfig, targetPrice: 1000, currentRound: 1 };
+    assert.deepEqual(computeRoundPriceBounds(auction, null), { min: 800, max: 1000, round: 1 });
+  });
+
+  test('round 1 resubmission is still bound to the reference price, not the prior submission', () => {
+    const auction = { roundConfig, targetPrice: 1000, currentRound: 1 };
+    const existingBid = { roundHistory: [{ round: 1, price: 850, timestamp: 't1' }] };
+    assert.deepEqual(computeRoundPriceBounds(auction, existingBid), { min: 800, max: 1000, round: 1 });
+  });
+
+  test('round 2 caps the drop relative to the producer\'s own last price, not the reference price', () => {
+    const auction = { roundConfig, targetPrice: 1000, currentRound: 2 };
+    const existingBid = { roundHistory: [{ round: 1, price: 900, timestamp: 't1' }] };
+    // 900 * (1 - 5/100) = 855
+    assert.deepEqual(computeRoundPriceBounds(auction, existingBid), { min: 855, max: 900, round: 2 });
+  });
+
+  test('a late joiner (no prior bid) at round 2+ still gets the free round-1 range', () => {
+    const auction = { roundConfig, targetPrice: 1000, currentRound: 2 };
+    assert.deepEqual(computeRoundPriceBounds(auction, null), { min: 800, max: 1000, round: 2 });
+  });
+
+  test('a producer who skipped a round is capped relative to their last actual submission', () => {
+    const auction = { roundConfig, targetPrice: 1000, currentRound: 3 };
+    // Only bid in round 1; round 2 was skipped.
+    const existingBid = { roundHistory: [{ round: 1, price: 900, timestamp: 't1' }] };
+    assert.deepEqual(computeRoundPriceBounds(auction, existingBid), { min: 855, max: 900, round: 3 });
   });
 });

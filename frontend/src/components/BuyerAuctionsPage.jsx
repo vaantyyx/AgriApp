@@ -6,7 +6,7 @@ import {
   ClipboardList, Layers, CalendarClock, FileSearch,
   ChevronRight, ChevronLeft, AlertTriangle,
   Gavel, Clock, Repeat2, TrendingDown, TrendingUp, Hash,
-  Eye, Pencil, Trash2,
+  Eye, Pencil, Trash2, Percent,
 } from 'lucide-react';
 import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName } from '../utils/wilayaCoordinates.js';
 import { cultureTypes, products } from '../utils/referenceData.js';
@@ -246,6 +246,11 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
   const [autoProlongate, setAutoProlongate] = useState(false);
   const [prolongationMinutes, setProlongationMinutes] = useState(10);
   const [maxProlongations, setMaxProlongations] = useState(3);
+  const [roundModeEnabled, setRoundModeEnabled] = useState(false);
+  const [roundTotalRounds, setRoundTotalRounds] = useState(3);
+  const [roundDurationHours, setRoundDurationHours] = useState(8);
+  const [roundMaxDecreasePercent, setRoundMaxDecreasePercent] = useState(5);
+  const [roundInitialMinPercent, setRoundInitialMinPercent] = useState(80);
   const [stepError, setStepError] = useState('');
 
   const [producerCount, setProducerCount] = useState(0);
@@ -305,6 +310,12 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
       if (!startDatetime) { setStepError('La date de début est obligatoire.'); return false; }
       if (!endDatetime) { setStepError('La date de fin est obligatoire.'); return false; }
       if (new Date(endDatetime) <= new Date(startDatetime)) { setStepError('La date de fin doit être après le début.'); return false; }
+      if (roundModeEnabled) {
+        if (!roundTotalRounds || !roundDurationHours || !roundMaxDecreasePercent || !roundInitialMinPercent) {
+          setStepError(locale === 'ar' ? 'يرجى تعبئة إعدادات المزاد التنازلي.' : (locale === 'en' ? 'Please fill in the progressive auction settings.' : 'Veuillez remplir les paramètres de l’enchère dégressive.'));
+          return false;
+        }
+      }
     }
     return true;
   };
@@ -316,7 +327,9 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
     setTitle(''); setAuctionType('open'); setDeliveryLocation(''); setGeneralDescription('');
     setLots([newLot(1)]); setRadiusKm(100); setIsSearchZoneChanged(false);
     setStartDatetime(''); setEndDatetime(''); setAutoProlongate(false);
-    setProlongationMinutes(10); setMaxProlongations(3); setStepError('');
+    setProlongationMinutes(10); setMaxProlongations(3);
+    setRoundModeEnabled(false); setRoundTotalRounds(3); setRoundDurationHours(8);
+    setRoundMaxDecreasePercent(5); setRoundInitialMinPercent(80); setStepError('');
   };
 
   const openWizard = () => {
@@ -339,6 +352,11 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
     setAutoProlongate(auction.autoProlongate || false);
     setProlongationMinutes(auction.prolongationMinutes || 10);
     setMaxProlongations(auction.maxProlongations || 3);
+    setRoundModeEnabled(auction.roundConfig?.enabled || false);
+    setRoundTotalRounds(auction.roundConfig?.totalRounds || 3);
+    setRoundDurationHours(auction.roundConfig?.roundDurationHours || 8);
+    setRoundMaxDecreasePercent(auction.roundConfig?.maxDecreasePercent || 5);
+    setRoundInitialMinPercent(auction.roundConfig?.initialMinPercent || 80);
     setStepError('');
     setWizardStep(1);
     setWizardOpen(true);
@@ -364,6 +382,11 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
     setAutoProlongate(auction.autoProlongate || false);
     setProlongationMinutes(auction.prolongationMinutes || 10);
     setMaxProlongations(auction.maxProlongations || 3);
+    setRoundModeEnabled(auction.roundConfig?.enabled || false);
+    setRoundTotalRounds(auction.roundConfig?.totalRounds || 3);
+    setRoundDurationHours(auction.roundConfig?.roundDurationHours || 8);
+    setRoundMaxDecreasePercent(auction.roundConfig?.maxDecreasePercent || 5);
+    setRoundInitialMinPercent(auction.roundConfig?.initialMinPercent || 80);
     setStepError('');
     setWizardStep(1);
     setWizardOpen(true);
@@ -393,6 +416,13 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
       autoProlongate, prolongationMinutes: autoProlongate ? parseInt(prolongationMinutes) : null,
       maxProlongations: autoProlongate ? parseInt(maxProlongations) : null,
       product: lots[0]?.designation || title, quantity: lots[0]?.quantity || 1, unit: lots[0]?.unit || 'tonnes',
+      roundConfig: roundModeEnabled ? {
+        enabled: true,
+        totalRounds: parseInt(roundTotalRounds, 10),
+        roundDurationHours: parseFloat(roundDurationHours),
+        maxDecreasePercent: parseFloat(roundMaxDecreasePercent),
+        initialMinPercent: parseFloat(roundInitialMinPercent),
+      } : { enabled: false },
     };
     if (editingAuctionId) {
       onUpdateAuction(editingAuctionId, payload);
@@ -689,6 +719,49 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                       </div>
                     )}
                   </div>
+
+                  <div className="bordered-card" style={{ padding: '18px 22px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: viewingAuctionId ? 'default' : 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={roundModeEnabled}
+                        disabled={!!viewingAuctionId}
+                        onChange={() => setRoundModeEnabled(p => !p)}
+                      />
+                      <div className={`toggle-switch-track ${roundModeEnabled ? 'on' : ''}`}>
+                        <div className={`toggle-switch-knob ${roundModeEnabled ? 'on' : ''}`} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                          <Percent size={16} style={{ color: 'var(--primary)' }} /> {t('roundModeToggleTitle')}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                          {t('roundModeToggleDesc')}
+                        </div>
+                      </div>
+                    </label>
+                    {roundModeEnabled && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px', marginTop: 20 }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label htmlFor="round-total"><Hash size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundTotalRoundsLabel')}</label>
+                          <input id="round-total" type="number" min="2" max="5" value={roundTotalRounds} disabled={!!viewingAuctionId} onChange={e => setRoundTotalRounds(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label htmlFor="round-duration"><Clock size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundDurationLabel')}</label>
+                          <input id="round-duration" type="number" min="8" max="24" value={roundDurationHours} disabled={!!viewingAuctionId} onChange={e => setRoundDurationHours(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label htmlFor="round-decrease"><TrendingDown size={13} style={{ color: 'var(--danger)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundMaxDecreaseLabel')}</label>
+                          <input id="round-decrease" type="number" min="1" max="20" value={roundMaxDecreasePercent} disabled={!!viewingAuctionId} onChange={e => setRoundMaxDecreasePercent(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label htmlFor="round-initial-min"><TrendingUp size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundInitialMinLabel')}</label>
+                          <input id="round-initial-min" type="number" min="50" max="99" value={roundInitialMinPercent} disabled={!!viewingAuctionId} onChange={e => setRoundInitialMinPercent(e.target.value)} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -729,13 +802,25 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                       <SummaryRow label={locale === 'ar' ? 'منتجون في المنطقة' : (locale === 'en' ? 'Producers in zone' : 'Producteurs dans la zone')} value={`${producerCount}`} />
                       <SummaryRow label={locale === 'ar' ? 'بداية' : (locale === 'en' ? 'Start' : 'Début')} value={startDatetime ? new Date(startDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ') : '—'} />
                       <SummaryRow label={locale === 'ar' ? 'نهاية' : (locale === 'en' ? 'End' : 'Fin')} value={endDatetime ? new Date(endDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ') : '—'} />
+                      {roundModeEnabled && (
+                        <>
+                          <SummaryRow label={t('roundModeToggleTitle')} value={`${roundTotalRounds} × ${roundDurationHours}h, -${roundMaxDecreasePercent}%/tour`} />
+                        </>
+                      )}
                     </div>
 
                     {/* Active auction offers list */}
                     {activeAuction && (
                       <div className="bordered-card mt-8">
-                        <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 16, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Gavel size={18} style={{ color: 'var(--primary)' }} /> {t('proposalsProducers')} ({activeAuction.bids.length})
+                        <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 16, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Gavel size={18} style={{ color: 'var(--primary)' }} /> {t('proposalsProducers')} ({activeAuction.bids.length})
+                          </span>
+                          {activeAuction.roundConfig?.enabled && activeAuction.currentRound && (
+                            <span className="badge badge-open" style={{ fontSize: '0.72rem', padding: '3px 10px' }}>
+                              {t('roundBadge', { current: activeAuction.currentRound, total: activeAuction.roundConfig.totalRounds })}
+                            </span>
+                          )}
                         </h4>
                         {activeAuction.bids.length === 0 ? (
                           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>{t('waitingProposals')}</p>

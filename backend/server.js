@@ -36,6 +36,8 @@ import {
   sanitizeAuctions,
   wilayaRoomName,
   getEligibleWilayaRooms,
+  normalizeRoundConfig,
+  computeRoundPriceBounds,
 } from './services/auctionMatching.js';
 
 // ─── JWT Secret bootstrap ──────────────────────────────────────────────────
@@ -443,6 +445,55 @@ function clearAuctionTimers(auctionId) {
   }
 }
 
+// Map of auctionId → Timeout[] for progressive-auction round transitions.
+const auctionRoundTimers = new Map();
+
+function clearAuctionRoundTimers(auctionId) {
+  const timers = auctionRoundTimers.get(auctionId);
+  if (timers) {
+    timers.forEach(t => clearTimeout(t));
+    auctionRoundTimers.delete(auctionId);
+  }
+}
+
+/** Advances an open progressive auction to `roundNumber` and broadcasts the change — called exactly when that round's timer fires. */
+async function advanceAuctionRound(auctionId, roundNumber) {
+  try {
+    const db = getDb();
+    const auction = await db.collection('auctions').findOne({ id: auctionId });
+    if (!auction || auction.status !== 'open' || !auction.roundConfig?.enabled) return;
+    if ((auction.currentRound || 1) >= roundNumber) return; // already advanced (e.g. by the fallback poll)
+
+    await db.collection('auctions').updateOne({ id: auctionId }, { $set: { currentRound: roundNumber } });
+    const updated = await db.collection('auctions').findOne({ id: auctionId });
+    await broadcastAuction(updated, db, 'auction_updated');
+  } catch (err) {
+    logger.error({ err, auctionId, roundNumber }, 'Error advancing auction round');
+  }
+}
+
+/** Schedules precise timers for every remaining round transition of a progressive auction that is currently open. */
+function scheduleRoundTransitions(auction) {
+  clearAuctionRoundTimers(auction.id);
+  if (!auction.roundConfig?.enabled || auction.status !== 'open' || !auction.roundStartedAt) return;
+
+  const { totalRounds, roundDurationHours } = auction.roundConfig;
+  const startMs = new Date(auction.roundStartedAt).getTime();
+  const now = Date.now();
+  const timers = [];
+
+  for (let r = (auction.currentRound || 1) + 1; r <= totalRounds; r++) {
+    const targetMs = startMs + (r - 1) * roundDurationHours * 3600 * 1000;
+    const delay = targetMs - now;
+    if (delay > 0 && delay <= MAX_TIMEOUT_MS) {
+      timers.push(setTimeout(() => advanceAuctionRound(auction.id, r), delay));
+    }
+    // Delays beyond MAX_TIMEOUT_MS or already past are caught by checkAuctionRounds() below.
+  }
+
+  if (timers.length) auctionRoundTimers.set(auction.id, timers);
+}
+
 /** Flips a pending auction to open, notifies matching producers, and broadcasts — called exactly at startAt. */
 async function openAuction(auctionId) {
   try {
@@ -450,10 +501,14 @@ async function openAuction(auctionId) {
     const auction = await db.collection('auctions').findOne({ id: auctionId });
     if (!auction || auction.status !== 'pending') return;
 
-    await db.collection('auctions').updateOne({ id: auctionId }, { $set: { status: 'open' } });
-    auction.status = 'open';
+    const roundFields = auction.roundConfig?.enabled
+      ? { currentRound: 1, roundStartedAt: new Date().toISOString() }
+      : {};
+    await db.collection('auctions').updateOne({ id: auctionId }, { $set: { status: 'open', ...roundFields } });
+    Object.assign(auction, { status: 'open', ...roundFields });
 
     clearAuctionTimers(auctionId);
+    if (auction.roundConfig?.enabled) scheduleRoundTransitions(auction);
     await notifyMatchingProducers(auction, db, 'new_auction');
     await broadcastAuction(auction, db, 'auction_updated');
   } catch (err) {
@@ -585,7 +640,8 @@ io.on('connection', async (socket) => {
       endAt,
       autoProlongate,
       prolongationMinutes,
-      maxProlongations
+      maxProlongations,
+      roundConfig: rawRoundConfig,
     } = data;
 
     const firstLot = Array.isArray(lots) && lots.length > 0 ? lots[0] : null;
@@ -595,6 +651,12 @@ io.on('connection', async (socket) => {
 
     if (!title || (!lotProduct && !firstLot?.designation) || !lotQuantity || !lotUnit) {
       socket.emit('error', { message: 'Champs obligatoires manquants (Titre, Produit, Quantité, Unité).' });
+      return;
+    }
+
+    const roundConfig = normalizeRoundConfig(rawRoundConfig);
+    if (roundConfig.enabled && !(firstLot?.priceCeiling > 0)) {
+      socket.emit('error', { message: "Un prix plafond (prix de référence) est requis pour une enchère dégressive." });
       return;
     }
 
@@ -617,6 +679,11 @@ io.on('connection', async (socket) => {
       const now = new Date();
       const isFuture = startAt && new Date(startAt) > now;
       const initialStatus = isFuture ? 'pending' : 'open';
+      // Progressive rounds only start ticking once the auction is actually open —
+      // a 'pending' (scheduled) auction gets its round 1 set by openAuction() instead.
+      const roundFields = roundConfig.enabled && initialStatus === 'open'
+        ? { currentRound: 1, roundStartedAt: now.toISOString() }
+        : { currentRound: null, roundStartedAt: null };
 
       const newAuction = {
         id: `auc_${Date.now()}_${randomBytes(4).toString('hex')}`,
@@ -654,9 +721,14 @@ io.on('connection', async (socket) => {
         acceptedBidId: null,
         acceptedLineId: null,
         alreadyRated: false,
+        roundConfig,
+        ...roundFields,
       };
 
       await db.collection('auctions').insertOne(newAuction);
+      if (newAuction.status === 'open' && newAuction.roundConfig.enabled) {
+        scheduleRoundTransitions(newAuction);
+      }
 
       if (newAuction.status === 'open') {
         // Immediate auction — notify matching producers right away.
@@ -696,7 +768,8 @@ io.on('connection', async (socket) => {
       endAt,
       autoProlongate,
       prolongationMinutes,
-      maxProlongations
+      maxProlongations,
+      roundConfig: rawRoundConfig,
     } = data;
 
     if (!auctionId) {
@@ -714,6 +787,12 @@ io.on('connection', async (socket) => {
       return;
     }
 
+    const roundConfig = normalizeRoundConfig(rawRoundConfig);
+    if (roundConfig.enabled && !(firstLot?.priceCeiling > 0)) {
+      socket.emit('error', { message: "Un prix plafond (prix de référence) est requis pour une enchère dégressive." });
+      return;
+    }
+
     try {
       const db = getDb();
       const auction = await db.collection('auctions').findOne({ id: auctionId });
@@ -728,6 +807,11 @@ io.on('connection', async (socket) => {
       const now = new Date();
       const isFuture = startAt && new Date(startAt) > now;
       const newStatus = isFuture ? 'pending' : 'open';
+      // Editing is only allowed while still 'pending' (checked above), so rounds
+      // can never already be running here — either they start now, or wait for openAuction().
+      const roundFields = roundConfig.enabled && newStatus === 'open'
+        ? { currentRound: 1, roundStartedAt: now.toISOString() }
+        : { currentRound: null, roundStartedAt: null };
 
       const updates = {
         radiusKm,
@@ -747,14 +831,18 @@ io.on('connection', async (socket) => {
         unit: String(lotUnit).slice(0, 50),
         targetPrice: firstLot?.priceCeiling ? parseFloat(firstLot.priceCeiling) : null,
         status: newStatus,
+        roundConfig,
+        ...roundFields,
       };
 
       await db.collection('auctions').updateOne({ id: auctionId }, { $set: updates });
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
 
       clearAuctionTimers(auctionId);
+      clearAuctionRoundTimers(auctionId);
       if (updatedAuction.status === 'open') {
         await notifyMatchingProducers(updatedAuction, db, 'new_auction');
+        if (updatedAuction.roundConfig?.enabled) scheduleRoundTransitions(updatedAuction);
       } else {
         scheduleAuctionNotifications(updatedAuction);
       }
@@ -867,6 +955,35 @@ io.on('connection', async (socket) => {
 
       // Consolidate: exactly one active bid document per producer on an auction
       const existingBidIndex = (auction.bids || []).findIndex(b => b.producerId === uid);
+      const existingBid = existingBidIndex >= 0 ? auction.bids[existingBidIndex] : null;
+
+      // Progressive ("enchère dégressive contrôlée") auctions track a single price
+      // through rounds capped at roundConfig.maxDecreasePercent per round — multiple
+      // simultaneous price options don't fit that model.
+      let roundHistory;
+      if (auction.roundConfig?.enabled) {
+        if (validatedLines.length !== 1) {
+          socket.emit('error', { message: "Cette enchère dégressive n'accepte qu'un seul prix par offre." });
+          return;
+        }
+        const bounds = computeRoundPriceBounds(auction, existingBid);
+        if (!bounds) {
+          socket.emit('error', { message: "Configuration de l'enchère dégressive invalide." });
+          return;
+        }
+        const price = validatedLines[0].price;
+        const EPSILON = 0.01;
+        if (price < bounds.min - EPSILON || price > bounds.max + EPSILON) {
+          socket.emit('error', {
+            message: `Le prix doit être compris entre ${bounds.min.toFixed(2)} et ${bounds.max.toFixed(2)} DA pour le tour ${bounds.round}.`,
+          });
+          return;
+        }
+        roundHistory = existingBid ? [...(existingBid.roundHistory || [])] : [];
+        const idx = roundHistory.findIndex(h => h.round === bounds.round);
+        const entry = { round: bounds.round, price, timestamp: new Date().toISOString() };
+        if (idx >= 0) roundHistory[idx] = entry; else roundHistory.push(entry);
+      }
 
       const newBid = {
         id: `bid_${Date.now()}_${randomBytes(4).toString('hex')}`,
@@ -875,6 +992,7 @@ io.on('connection', async (socket) => {
         producerRating: producerUser?.averageRating ?? null,
         producerRatingCount: producerUser?.ratingCount ?? 0,
         timestamp: new Date().toISOString(),
+        ...(roundHistory ? { roundHistory } : {}),
       };
 
       if (existingBidIndex >= 0) {
@@ -1132,6 +1250,31 @@ async function checkPendingAuctions() {
   }
 }
 
+// Safety-net fallback for progressive-auction round transitions, mirroring checkPendingAuctions()
+// above: the exact-time work is done by the per-auction timers in scheduleRoundTransitions().
+async function checkAuctionRounds() {
+  try {
+    const db = getDb();
+    const openRoundAuctions = await db.collection('auctions').find({
+      status: 'open',
+      'roundConfig.enabled': true,
+      roundStartedAt: { $ne: null },
+    }).toArray();
+
+    const now = Date.now();
+    for (const auction of openRoundAuctions) {
+      const { totalRounds, roundDurationHours } = auction.roundConfig;
+      const startMs = new Date(auction.roundStartedAt).getTime();
+      const expectedRound = Math.min(totalRounds, Math.floor((now - startMs) / (roundDurationHours * 3600 * 1000)) + 1);
+      if (expectedRound > (auction.currentRound || 1)) {
+        await advanceAuctionRound(auction.id, expectedRound);
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, 'Error checking auction rounds');
+  }
+}
+
 // ─── Start Server ─────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 // Default to all interfaces so the app is reachable once deployed behind a reverse
@@ -1154,6 +1297,8 @@ async function startServer() {
     // Backs the checkPendingAuctions scheduler, which runs every 30s against the
     // whole collection filtered by status+startAt for as long as the server is up.
     await db.collection('auctions').createIndex({ status: 1, startAt: 1 });
+    // Backs the checkAuctionRounds scheduler (same 30s-poll pattern, for progressive auctions).
+    await db.collection('auctions').createIndex({ status: 1, 'roundConfig.enabled': 1 });
     await db.collection('notifications').createIndex({ userId: 1, read: 1 });
     await db.collection('ratings').createIndex({ auctionId: 1, buyerId: 1 }, { unique: true });
     // Looked up on every producer connection/auction broadcast for smart-auction
@@ -1169,17 +1314,24 @@ async function startServer() {
     for (const auction of pendingAuctions) {
       scheduleAuctionNotifications(auction);
     }
+    // Recover precise round-transition timers for progressive auctions already open before a restart
+    const openRoundAuctions = await db.collection('auctions').find({ status: 'open', 'roundConfig.enabled': true }).toArray();
+    for (const auction of openRoundAuctions) {
+      scheduleRoundTransitions(auction);
+    }
 
-    // Setup periodic scheduler (every 30 seconds) — fallback safety net only
+    // Setup periodic schedulers (every 30 seconds) — fallback safety nets only
     const schedulerInterval = setInterval(checkPendingAuctions, 30000);
+    const roundSchedulerInterval = setInterval(checkAuctionRounds, 30000);
     // Run once immediately on startup
     checkPendingAuctions().catch(err => logger.error({ err }, 'Scheduler start error'));
+    checkAuctionRounds().catch(err => logger.error({ err }, 'Round scheduler start error'));
 
     httpServer.listen(PORT, HOST, () => {
       logger.info({ host: HOST, port: PORT }, 'Server running');
     });
 
-    setupGracefulShutdown(schedulerInterval);
+    setupGracefulShutdown([schedulerInterval, roundSchedulerInterval]);
   } catch (error) {
     logger.error({ err: error }, 'Failed to start server');
     process.exit(1);
@@ -1191,12 +1343,12 @@ async function startServer() {
 // requests and Socket.IO connections get dropped mid-response instead of
 // finishing cleanly, and the Mongo connection is never closed.
 let shuttingDown = false;
-function setupGracefulShutdown(schedulerInterval) {
+function setupGracefulShutdown(schedulerIntervals) {
   const shutdown = (signal) => {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'Shutting down gracefully...');
-    clearInterval(schedulerInterval);
+    schedulerIntervals.forEach(clearInterval);
 
     // Safety net: if closing sockets/connections hangs, exit anyway rather
     // than leaving the platform to hard-kill the process after its own

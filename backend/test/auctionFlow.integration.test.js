@@ -210,6 +210,84 @@ test('create_auction -> place_bid -> accept_bid end-to-end flow', async () => {
   }
 });
 
+test('progressive ("enchère dégressive contrôlée") auction caps each round\'s price drop', async () => {
+  const buyerToken = jwt.sign({ userId: String(buyerId), email: 'integration.buyer@test.local', role: 'buyer' }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
+  const producerToken = jwt.sign({ userId: String(producerId), email: 'integration.producer@test.local', role: 'producer' }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
+
+  const buyerSocket = await connectSocket(buyerToken);
+  const producerSocket = await connectSocket(producerToken);
+
+  try {
+    await buyerSocket._auctionsListPromise;
+    await producerSocket._auctionsListPromise;
+
+    const auctionTitle = `Progressive auction ${Date.now()}`;
+    const producerSeesCreated = waitForEvent(producerSocket, 'auction_created', (a) => a.title === auctionTitle);
+    buyerSocket.emit('create_auction', {
+      title: auctionTitle,
+      auctionType: 'open',
+      deliveryLocation: TEST_WILAYA,
+      description: 'Progressive auction test',
+      // priceCeiling (1000 DA) becomes targetPrice, the reference price for round 1's [80%,100%] window.
+      lots: [{ designation: 'Ble test', quantity: 10, unit: 'tonnes', priceCeiling: 1000 }],
+      radius: 100,
+      roundConfig: { enabled: true, totalRounds: 3, roundDurationHours: 8, maxDecreasePercent: 5, initialMinPercent: 80 },
+    });
+    const [createdAuction] = await producerSeesCreated;
+    const auctionId = createdAuction.id;
+    assert.equal(createdAuction.status, 'open');
+    assert.equal(createdAuction.roundConfig.enabled, true);
+    assert.equal(createdAuction.currentRound, 1);
+
+    // Round 1: a price below 80% of the 1000 DA reference (i.e. < 800) must be rejected.
+    const round1RejectedError = waitForEvent(producerSocket, 'error');
+    producerSocket.emit('place_bid', { auctionId, lines: [{ price: 700, quantity: 10, unit: 'tonnes' }] });
+    const [round1RejectedPayload] = await round1RejectedError;
+    assert.match(round1RejectedPayload.message, /tour 1/i);
+
+    // Round 1: a price within [800, 1000] is accepted.
+    const buyerSeesRound1Bid = waitForEvent(buyerSocket, 'auction_updated', (a) => a.id === auctionId && (a.bids || []).length > 0);
+    producerSocket.emit('place_bid', { auctionId, lines: [{ price: 900, quantity: 10, unit: 'tonnes' }] });
+    const [auctionAfterRound1] = await buyerSeesRound1Bid;
+    assert.equal(auctionAfterRound1.bids[0].lines[0].price, 900);
+
+    // Round 1: submitting more than one price option is rejected outright in progressive mode.
+    const multiOptionError = waitForEvent(producerSocket, 'error');
+    producerSocket.emit('place_bid', {
+      auctionId,
+      lines: [{ price: 900, quantity: 5, unit: 'tonnes' }, { price: 850, quantity: 5, unit: 'tonnes' }],
+    });
+    const [multiOptionPayload] = await multiOptionError;
+    assert.match(multiOptionPayload.message, /seul prix/i);
+
+    // Advance to round 2 directly in the DB (mirrors what the server's own round timer/poll would do).
+    await db.collection('auctions').updateOne({ id: auctionId }, { $set: { currentRound: 2 } });
+
+    // Round 2: dropping more than 5% below the round-1 price of 900 (i.e. below 855) must be rejected.
+    const round2RejectedError = waitForEvent(producerSocket, 'error');
+    producerSocket.emit('place_bid', { auctionId, lines: [{ price: 800, quantity: 10, unit: 'tonnes' }] });
+    const [round2RejectedPayload] = await round2RejectedError;
+    assert.match(round2RejectedPayload.message, /tour 2/i);
+
+    // Round 2: a price within [855, 900] is accepted, and the round-by-round trail is recorded.
+    const buyerSeesRound2Bid = waitForEvent(buyerSocket, 'auction_updated', (a) => a.id === auctionId && a.bids?.[0]?.lines?.[0]?.price === 870);
+    producerSocket.emit('place_bid', { auctionId, lines: [{ price: 870, quantity: 10, unit: 'tonnes' }] });
+    await buyerSeesRound2Bid;
+
+    const persisted = await db.collection('auctions').findOne({ id: auctionId });
+    assert.equal(persisted.bids.length, 1);
+    assert.deepEqual(
+      persisted.bids[0].roundHistory.map(h => ({ round: h.round, price: h.price })),
+      [{ round: 1, price: 900 }, { round: 2, price: 870 }],
+    );
+
+    await db.collection('auctions').updateOne({ id: auctionId }, { $set: { integrationTest: true } });
+  } finally {
+    buyerSocket.disconnect();
+    producerSocket.disconnect();
+  }
+});
+
 test('a producer outside the auction zone cannot bid', async () => {
   const buyerToken = jwt.sign({ userId: String(buyerId), email: 'integration.buyer@test.local', role: 'buyer' }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
   const outsiderResult = await db.collection('users').insertOne({

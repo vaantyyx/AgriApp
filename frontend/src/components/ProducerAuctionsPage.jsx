@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../context/LanguageContext';
-import { Inbox, MessageSquare, Check, Trophy, X, Image as ImageIcon, Send, Eye, ChevronLeft, ChevronRight, ClipboardList, Layers, CalendarClock, Hash, FileSearch } from 'lucide-react';
+import { Inbox, MessageSquare, Check, Trophy, X, Image as ImageIcon, Send, Eye, ChevronLeft, ChevronRight, ClipboardList, Layers, CalendarClock, Hash, FileSearch, Percent } from 'lucide-react';
 import { getWinnerCongratsMessage, getBidClosedWinnerMessage, isBidLineAccepted } from '../utils/auctionHelpers';
 import { cultureTypes, products } from '../utils/referenceData.js';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
@@ -124,6 +124,14 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
     const validLines = lines.filter(l => l.price && parseFloat(l.price) > 0);
     if (validLines.length === 0) { alert(t('enterValidPrice')); return; }
     const auction = auctions.find(a => a.id === auctionId);
+    const bounds = auction?.myRoundBounds;
+    if (bounds) {
+      const price = parseFloat(validLines[0].price);
+      if (price < bounds.min - 0.01 || price > bounds.max + 0.01) {
+        alert(t('roundPriceBoundsHint', { min: bounds.min.toFixed(2), max: bounds.max.toFixed(2), round: bounds.round }));
+        return;
+      }
+    }
     onPlaceBid({
       auctionId,
       lines: validLines.map(line => ({
@@ -442,6 +450,9 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                           <SummaryRow label={locale === 'ar' ? 'الكمية الإجمالية' : (locale === 'en' ? 'Total quantity' : 'Quantité totale')} value={`${auction.quantity || 0} ${t('unit_' + auction.unit)}`} />
                           <SummaryRow label={locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} value={auction.deliveryLocation || '-'} />
                           <SummaryRow label={locale === 'ar' ? 'الحد الأقصى للسعر' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')} value={auction.targetPrice ? `${auction.targetPrice} DA` : (locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not set' : 'Non défini'))} />
+                          {auction.roundConfig?.enabled && auction.currentRound && (
+                            <SummaryRow label={t('roundModeToggleTitle')} value={t('roundBadge', { current: auction.currentRound, total: auction.roundConfig.totalRounds })} />
+                          )}
                         </div>
                       </div>
                       <div className="metadata-box">
@@ -504,10 +515,29 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                         <form onSubmit={(e) => handleSubmitBid(e, auction.id)} style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)', marginBottom: '16px', marginTop: '16px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                             <h4 style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t('makeOfferTitle')}</h4>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--primary-soft)', padding: '2px 8px', borderRadius: '999px' }}>{lines.length} {lines.length > 1 ? 'options' : 'option'}</span>
+                            {auction.roundConfig?.enabled && auction.currentRound ? (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--primary)', background: 'var(--primary-soft)', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
+                                {t('roundBadge', { current: auction.currentRound, total: auction.roundConfig.totalRounds })}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--primary-soft)', padding: '2px 8px', borderRadius: '999px' }}>{lines.length} {lines.length > 1 ? 'options' : 'option'}</span>
+                            )}
                           </div>
-                          
-                          {lines.length === 1 && (
+
+                          {auction.roundConfig?.enabled ? (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px', padding: '8px 12px', background: 'rgba(244,160,28,0.07)', border: '1px solid rgba(244,160,28,0.2)', borderRadius: '8px' }}>
+                              <div>{t('roundSingleOptionNotice')}</div>
+                              {auction.myRoundBounds && (
+                                <div style={{ marginTop: 4, fontWeight: 700, color: 'var(--text-main)' }}>
+                                  {t('roundPriceBoundsHint', {
+                                    min: auction.myRoundBounds.min.toFixed(2),
+                                    max: auction.myRoundBounds.max.toFixed(2),
+                                    round: auction.myRoundBounds.round,
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ) : lines.length === 1 && (
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px', padding: '8px 12px', background: 'rgba(244,160,28,0.07)', border: '1px solid rgba(244,160,28,0.2)', borderRadius: '8px' }}>{t('proposeMultipleOptionsTip')}</div>
                           )}
 
@@ -534,7 +564,7 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                                   </div>
                                   <div className="form-group" style={{ marginBottom: 0 }}>
                                     <label style={{ fontSize: '0.72rem', textAlign: 'start' }}>{t('priceDAOnly')}</label>
-                                    <input type="number" step="0.01" placeholder={t('pricePlaceholder')} value={line.price} onChange={e => setLine(auction.id, lineIdx, 'price', e.target.value)} required={lineIdx === 0} style={{ textAlign: 'start', fontSize: '0.85rem', padding: '8px 10px' }} />
+                                    <input type="number" step="0.01" min={auction.myRoundBounds?.min} max={auction.myRoundBounds?.max} placeholder={t('pricePlaceholder')} value={line.price} onChange={e => setLine(auction.id, lineIdx, 'price', e.target.value)} required={lineIdx === 0} style={{ textAlign: 'start', fontSize: '0.85rem', padding: '8px 10px' }} />
                                   </div>
                                   <div className="form-group" style={{ marginBottom: 0 }}>
                                     <label style={{ fontSize: '0.72rem', textAlign: 'start' }}>{t('unitLabel')}</label>
@@ -575,9 +605,11 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                           </div>
 
                           <div style={{ display: 'flex', gap: '10px', marginTop: '14px', alignItems: 'center' }}>
-                            <button type="button" onClick={() => addLine(auction.id)} className="btn btn-secondary" style={{ fontSize: '0.82rem', padding: '8px 14px', gap: '5px' }} disabled={lines.length >= 5}>
-                              + {t('addOptionBtn')}
-                            </button>
+                            {!auction.roundConfig?.enabled && (
+                              <button type="button" onClick={() => addLine(auction.id)} className="btn btn-secondary" style={{ fontSize: '0.82rem', padding: '8px 14px', gap: '5px' }} disabled={lines.length >= 5}>
+                                + {t('addOptionBtn')}
+                              </button>
+                            )}
                             <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={lines.some(l => l.isUploading)}>
                               <Send size={15} /> {lines.length > 1 ? t('submitMultipleBidsBtn', { count: lines.filter(l => l.price && parseFloat(l.price) > 0).length }) : t('submitBidBtn')}
                             </button>
@@ -646,6 +678,18 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                                     );
                                   })}
                                 </div>
+                                {isMe && bid.roundHistory?.length > 0 && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingTop: '6px', borderTop: '1px dotted var(--border)' }}>
+                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                      <Percent size={10} style={{ verticalAlign: 'middle', marginRight: 3 }} />{t('roundHistoryTitle')} :
+                                    </span>
+                                    {[...bid.roundHistory].sort((a, b) => a.round - b.round).map(h => (
+                                      <span key={h.round} style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', padding: '1px 7px', borderRadius: '999px', color: 'var(--text-body)' }}>
+                                        {t('roundBadge', { current: h.round, total: auction.roundConfig?.totalRounds || h.round })}: {h.price} DA
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}

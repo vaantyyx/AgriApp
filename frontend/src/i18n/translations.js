@@ -263,6 +263,18 @@ export const translations = {
     winnerLabel: "الفائز",
     enterValidPrice: "يجب إدخال سعر صالح.",
 
+    // Progressive (round-based) auction — "enchère dégressive contrôlée"
+    roundModeToggleTitle: "مزاد تنازلي بجولات محكومة",
+    roundModeToggleDesc: "يمكن للمنتجين خفض سعرهم عبر عدة جولات، بحد أقصى للخفض في كل جولة، لتجنب انهيار الأسعار في آخر لحظة.",
+    roundTotalRoundsLabel: "عدد الجولات",
+    roundDurationLabel: "مدة الجولة (ساعات)",
+    roundMaxDecreaseLabel: "أقصى خفض لكل جولة (%)",
+    roundInitialMinLabel: "أدنى سعر انطلاق (% من السعر المرجعي)",
+    roundBadge: "الجولة {current}/{total}",
+    roundPriceBoundsHint: "السعر المسموح به: بين {min} و {max} د.ج (الجولة {round})",
+    roundSingleOptionNotice: "هذا المزاد التنازلي يقبل سعرًا واحدًا فقط لكل عرض.",
+    roundHistoryTitle: "أسعارك عبر الجولات",
+
     // Units
     unit_tonnes: "طن",
     unit_kg: "كغ",
@@ -932,6 +944,18 @@ export const translations = {
     winnerLabel: "Gagnant",
     enterValidPrice: "Veuillez entrer un prix valide.",
 
+    // Progressive (round-based) auction — "enchère dégressive contrôlée"
+    roundModeToggleTitle: "Enchère dégressive contrôlée",
+    roundModeToggleDesc: "Les producteurs peuvent baisser leur prix sur plusieurs tours, avec une baisse maximale par tour, pour éviter une chute brutale en fin d'enchère.",
+    roundTotalRoundsLabel: "Nombre de tours",
+    roundDurationLabel: "Durée d'un tour (heures)",
+    roundMaxDecreaseLabel: "Baisse max par tour (%)",
+    roundInitialMinLabel: "Prix de départ minimum (% du prix de référence)",
+    roundBadge: "Tour {current}/{total}",
+    roundPriceBoundsHint: "Prix autorisé : entre {min} et {max} DA (Tour {round})",
+    roundSingleOptionNotice: "Cette enchère dégressive n'accepte qu'un seul prix par offre.",
+    roundHistoryTitle: "Vos prix par tour",
+
     // Units
     unit_tonnes: "Tonnes",
     unit_kg: "Kilogrammes (kg)",
@@ -1600,6 +1624,18 @@ export const translations = {
     youLabel: "(You)",
     winnerLabel: "Winner",
     enterValidPrice: "Please enter a valid price.",
+
+    // Progressive (round-based) auction — "enchère dégressive contrôlée"
+    roundModeToggleTitle: "Controlled progressive auction",
+    roundModeToggleDesc: "Producers may lower their price over several rounds, capped at a maximum drop per round, to avoid a sudden price collapse at the end.",
+    roundTotalRoundsLabel: "Number of rounds",
+    roundDurationLabel: "Round duration (hours)",
+    roundMaxDecreaseLabel: "Max decrease per round (%)",
+    roundInitialMinLabel: "Minimum starting price (% of reference price)",
+    roundBadge: "Round {current}/{total}",
+    roundPriceBoundsHint: "Allowed price: between {min} and {max} DA (Round {round})",
+    roundSingleOptionNotice: "This progressive auction accepts only a single price per bid.",
+    roundHistoryTitle: "Your prices per round",
 
     // Units
     unit_tonnes: "Tons",
