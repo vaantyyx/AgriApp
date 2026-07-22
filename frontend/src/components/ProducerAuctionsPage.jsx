@@ -23,10 +23,12 @@ function ReferencePriceHint({ productId, wilayaId, unit, onLookup }) {
   const [reference, setReference] = useState(null);
   const [checked, setChecked] = useState(false);
 
+  // Reset (checked/reference) is handled by remounting this component via a
+  // `key` prop keyed on (productId, wilayaId, unit) at the call site, rather
+  // than a synchronous setState here — avoids an extra render pass per change.
   useEffect(() => {
     let cancelled = false;
-    setChecked(false);
-    if (!productId || !wilayaId || !onLookup) { setReference(null); return; }
+    if (!productId || !wilayaId || !onLookup) return;
     onLookup(productId, wilayaId, unit).then(ref => {
       if (!cancelled) { setReference(ref); setChecked(true); }
     });
@@ -543,6 +545,7 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, onLookupRef
                     {!isClosed ? (
                       <>
                         <ReferencePriceHint
+                          key={`${auction.lots?.[0]?.productId}-${auction.lots?.[0]?.wilayaId}-${auction.unit}`}
                           productId={auction.lots?.[0]?.productId}
                           wilayaId={auction.lots?.[0]?.wilayaId}
                           unit={auction.unit}
