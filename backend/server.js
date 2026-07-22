@@ -38,7 +38,12 @@ import {
   getEligibleWilayaRooms,
   normalizeRoundConfig,
   computeRoundPriceBounds,
+  getWilayaNameById,
 } from './services/auctionMatching.js';
+import { validateTender } from './services/tenderValidation.js';
+import { recomputeReferencePrices, getReferencePrice } from './services/referenceEngine.js';
+import { recordCommission, generateWeeklyStatements } from './services/commissionEngine.js';
+import { checkForCollusion } from './services/collusionDetection.js';
 
 // ─── JWT Secret bootstrap ──────────────────────────────────────────────────
 if (!process.env.JWT_SECRET) {
@@ -239,6 +244,31 @@ app.get('/api/producers/count', async (req, res) => {
   }
 });
 
+// Bloc A — live reference-price lookup, for both the buyer's create/edit form
+// (a hint while choosing a price ceiling, before the tender even exists) and
+// the producer's bid view (the *current* reference, unlike the snapshot on
+// auction.validation.referenceUsed which is frozen at tender-creation time).
+app.get('/api/reference-prices/lookup', authMiddleware, async (req, res) => {
+  try {
+    const { productId, wilayaId, unit } = req.query;
+    const wilayaName = getWilayaNameById(wilayaId);
+    if (!productId || !wilayaName) {
+      return res.status(400).json({ error: 'productId et wilayaId (valide) sont requis.' });
+    }
+
+    const db = getDb();
+    const reference = await getReferencePrice(String(productId), wilayaName, unit ? String(unit) : 'tonnes', db);
+    res.json({
+      reference: reference
+        ? { price: reference.price, sampleSize: reference.sampleSize, computedAt: reference.computedAt }
+        : null,
+    });
+  } catch (err) {
+    logger.error({ err }, 'Error looking up reference price');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // Older auctions, paginated — the initial Socket.IO snapshot only sends the
 // most recent INITIAL_AUCTIONS_LIMIT; the frontend calls this to "load more".
 app.get('/api/auctions/older', authMiddleware, async (req, res) => {
@@ -252,8 +282,10 @@ app.get('/api/auctions/older', authMiddleware, async (req, res) => {
     const db = getDb();
     const { userId: uid, role } = req.user;
 
+    // Bloc B — a 'rejected' tender is only ever visible to the buyer who
+    // created it (audit trail) and to admins; everyone else must never see it.
     let auctions = await db.collection('auctions')
-      .find({ createdAt: { $lt: before.toISOString() } })
+      .find({ createdAt: { $lt: before.toISOString() }, $or: [{ status: { $ne: 'rejected' } }, { buyerId: uid }] })
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray();
@@ -606,8 +638,11 @@ io.on('connection', async (socket) => {
 
     // Send initial auctions list — producers only see demands matching their zone & product if smart.
     // Capped to the most recent page; older auctions are fetched on demand via GET /api/auctions/older.
-    const totalAuctionsCount = await db.collection('auctions').countDocuments({});
-    let auctions = await db.collection('auctions').find({}).sort({ createdAt: -1 }).limit(INITIAL_AUCTIONS_LIMIT).toArray();
+    // Bloc B — a 'rejected' tender is only ever visible to the buyer who
+    // created it (audit trail) and to admins; everyone else must never see it.
+    const visibilityFilter = { $or: [{ status: { $ne: 'rejected' } }, { buyerId: uid }] };
+    const totalAuctionsCount = await db.collection('auctions').countDocuments(visibilityFilter);
+    let auctions = await db.collection('auctions').find(visibilityFilter).sort({ createdAt: -1 }).limit(INITIAL_AUCTIONS_LIMIT).toArray();
     if (role === 'producer') {
       const checks = await Promise.all(auctions.map(async a =>
         (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.data.producerCoords, db)) ? a : null
@@ -667,7 +702,7 @@ io.on('connection', async (socket) => {
       const { ObjectId } = await import('mongodb');
       const buyer = await db.collection('users').findOne(
         { _id: new ObjectId(uid) },
-        { projection: { name: 1, wilaya: 1, commune: 1 } }
+        { projection: { name: 1, phone: 1, wilaya: 1, commune: 1 } }
       );
 
       // Resolve buyer's approximate coordinates
@@ -689,6 +724,9 @@ io.on('connection', async (socket) => {
         id: `auc_${Date.now()}_${randomBytes(4).toString('hex')}`,
         buyerId: uid,
         buyerName: buyer?.name || 'Acheteur',
+        // Bloc C anonymity lift: only ever surfaced by sanitizeAuctions to the
+        // winning producer, once the auction is closed (see auctionMatching.js).
+        buyerPhone: buyer?.phone || '',
         buyerWilaya: buyer?.wilaya || '',
         buyerCommune: buyer?.commune || '',
         buyerLat: buyerCoords?.lat ?? null,
@@ -716,6 +754,7 @@ io.on('connection', async (socket) => {
 
         targetPrice: firstLot?.priceCeiling ? parseFloat(firstLot.priceCeiling) : null,
         status: initialStatus,
+        channel: 'app',
         createdAt: new Date().toISOString(),
         bids: [],
         acceptedBidId: null,
@@ -725,7 +764,24 @@ io.on('connection', async (socket) => {
         ...roundFields,
       };
 
+      // Bloc B gate — a tender that fails never reaches producers; it's kept
+      // as 'rejected' (audit trail) and only pushed back to the buyer's own
+      // sessions, not broadcast like a normal auction.
+      newAuction.validation = await validateTender(newAuction, db);
+      if (!newAuction.validation.fair) {
+        newAuction.status = 'rejected';
+        newAuction.currentRound = null;
+        newAuction.roundStartedAt = null;
+      }
+
       await db.collection('auctions').insertOne(newAuction);
+
+      if (newAuction.status === 'rejected') {
+        const [sanitized] = sanitizeAuctions([newAuction], uid, role);
+        io.to(userRoom(uid)).emit('auction_created', sanitized);
+        return;
+      }
+
       if (newAuction.status === 'open' && newAuction.roundConfig.enabled) {
         scheduleRoundTransitions(newAuction);
       }
@@ -835,11 +891,28 @@ io.on('connection', async (socket) => {
         ...roundFields,
       };
 
+      // Bloc B gate — re-validate on every edit, since a buyer could lower
+      // the price ceiling (or otherwise invalidate the tender) after creation.
+      const validation = await validateTender({ ...auction, ...updates }, db);
+      updates.validation = validation;
+      if (!validation.fair) {
+        updates.status = 'rejected';
+        updates.currentRound = null;
+        updates.roundStartedAt = null;
+      }
+
       await db.collection('auctions').updateOne({ id: auctionId }, { $set: updates });
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
 
       clearAuctionTimers(auctionId);
       clearAuctionRoundTimers(auctionId);
+
+      if (updatedAuction.status === 'rejected') {
+        const [sanitized] = sanitizeAuctions([updatedAuction], uid, role);
+        io.to(userRoom(uid)).emit('auction_updated', sanitized);
+        return;
+      }
+
       if (updatedAuction.status === 'open') {
         await notifyMatchingProducers(updatedAuction, db, 'new_auction');
         if (updatedAuction.roundConfig?.enabled) scheduleRoundTransitions(updatedAuction);
@@ -914,16 +987,29 @@ io.on('connection', async (socket) => {
         return;
       }
 
-      // Fetch producer's current rating averages and coordinates
+      // Fetch producer's current rating/quality averages, contact info and coordinates
       const { ObjectId } = await import('mongodb');
       const producerUser = await db.collection('users').findOne(
         { _id: new ObjectId(uid) },
-        { projection: { wilaya: 1, commune: 1, averageRating: 1, ratingCount: 1 } }
+        {
+          projection: {
+            name: 1, phone: 1, wilaya: 1, commune: 1,
+            averageRating: 1, ratingCount: 1,
+            averageQualityScore: 1, qualityScoreCount: 1,
+            possede_chambre_froide: 1,
+          },
+        }
       );
 
       const pCoords = producerUser?.commune
         ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
         : getWilayaCoords(producerUser?.wilaya || '');
+
+      // Bloc C composite score's logistics criterion — null when either side's
+      // coordinates can't be resolved, which normalizeLogisticsScore treats as neutral.
+      const producerDistanceKm = (pCoords && auction.buyerLat != null && auction.buyerLng != null)
+        ? haversineKm(auction.buyerLat, auction.buyerLng, pCoords.lat, pCoords.lng)
+        : null;
 
       const allowed = await canProducerParticipate(auction, uid, pCoords, db);
       if (!allowed) {
@@ -991,6 +1077,16 @@ io.on('connection', async (socket) => {
         lines: validatedLines,
         producerRating: producerUser?.averageRating ?? null,
         producerRatingCount: producerUser?.ratingCount ?? 0,
+        // Bloc C composite score inputs (quality/logistics), denormalized at bid
+        // time like producerRating above — avoids making sanitizeAuctions async.
+        producerQualityScore: producerUser?.averageQualityScore ?? null,
+        producerQualityScoreCount: producerUser?.qualityScoreCount ?? 0,
+        producerHasColdChain: !!producerUser?.possede_chambre_froide,
+        producerDistanceKm,
+        // Bloc C anonymity lift: only ever surfaced by sanitizeAuctions for the
+        // winning bid, and only once the auction is closed (see auctionMatching.js).
+        producerName: producerUser?.name || '',
+        producerPhone: producerUser?.phone || '',
         timestamp: new Date().toISOString(),
         ...(roundHistory ? { roundHistory } : {}),
       };
@@ -1069,10 +1165,16 @@ io.on('connection', async (socket) => {
       const bid = auction.bids.find(b => b.id === bidId);
       if (!bid) { socket.emit('error', { message: 'Offre introuvable.' }); return; }
 
+      // Bloc C anti-collusion — cheap heuristic, flag-only (see collusionDetection.js):
+      // does this producer win an unusually large share of this buyer's recent auctions?
+      const collusionFlag = await checkForCollusion(db, {
+        buyerId: auction.buyerId, producerId: bid.producerId, excludeAuctionId: auctionId,
+      });
+
       // Accept the whole bid (all quality lines as a package)
       await db.collection('auctions').updateOne(
         { id: auctionId },
-        { $set: { status: 'closed', acceptedBidId: bidId, acceptedLineId: null } }
+        { $set: { status: 'closed', acceptedBidId: bidId, acceptedLineId: null, collusionFlag } }
       );
 
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
@@ -1117,18 +1219,32 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // ── Rate Producer (Buyer, after accepting bid) ──────────────────────
-  socket.on('rate_producer', async (data) => {
+  // ── Submit Inspection (Buyer, after accepting bid) — Bloc D ──────────
+  // Replaces the old single 1-5 "rate_producer": the buyer now confirms
+  // conformity first, then gives two separate ratings — reliability (extends
+  // averageRating, i.e. the Souk Score Producteur) and, only if the delivery
+  // conforms, a quality rating (feeds the producer's quality score for their
+  // *next* auctions, per decision #6 — never the current one). A conforming
+  // inspection also books the Sougra commission to the buyer's account.
+  socket.on('submit_inspection', async (data) => {
     if (role !== 'buyer') {
-      socket.emit('error', { message: 'Seuls les acheteurs peuvent noter les producteurs.' });
+      socket.emit('error', { message: 'Seuls les acheteurs peuvent inspecter une livraison.' });
       return;
     }
 
-    const { auctionId, rating } = data;
-    const ratingNum = parseFloat(rating);
-    if (!auctionId || isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
-      socket.emit('error', { message: 'Données de notation invalides.' });
+    const { auctionId, conforms, reliabilityRating, qualityRating } = data;
+    const reliabilityNum = parseFloat(reliabilityRating);
+    if (!auctionId || typeof conforms !== 'boolean' || isNaN(reliabilityNum) || reliabilityNum < 1 || reliabilityNum > 5) {
+      socket.emit('error', { message: 'Données d\'inspection invalides.' });
       return;
+    }
+    let qualityNum = null;
+    if (conforms) {
+      qualityNum = parseFloat(qualityRating);
+      if (isNaN(qualityNum) || qualityNum < 1 || qualityNum > 5) {
+        socket.emit('error', { message: 'Note de qualité invalide.' });
+        return;
+      }
     }
 
     try {
@@ -1139,42 +1255,63 @@ io.on('connection', async (socket) => {
       if (!auction) { socket.emit('error', { message: 'Enchère introuvable.' }); return; }
       if (auction.buyerId !== uid) { socket.emit('error', { message: 'Non autorisé.' }); return; }
       if (auction.status !== 'closed' || !auction.acceptedBidId) {
-        socket.emit('error', { message: 'L\'enchère doit être clôturée pour noter.' });
+        socket.emit('error', { message: 'L\'enchère doit être clôturée pour inspecter la livraison.' });
         return;
       }
-      if (auction.alreadyRated) {
-        socket.emit('error', { message: 'Vous avez déjà noté ce producteur pour cette enchère.' });
+      if (auction.inspection) {
+        socket.emit('error', { message: 'Cette livraison a déjà été inspectée.' });
         return;
       }
 
-      // Find accepted bid to identify the producer
+      // Find accepted bid to identify the producer and the accepted price
       const acceptedBid = auction.bids.find(b => b.id === auction.acceptedBidId);
       if (!acceptedBid) { socket.emit('error', { message: 'Offre acceptée introuvable.' }); return; }
 
       const producerId = acceptedBid.producerId;
+      const acceptedLine = acceptedBid.lines?.length === 1
+        ? acceptedBid.lines[0]
+        : (acceptedBid.lines || []).find(l => l.id === auction.acceptedLineId) || acceptedBid.lines?.[0] || null;
 
-      // Update producer's average rating using $inc for atomic update
+      // Reliability always updates the producer's Souk Score (existing averageRating fields).
       await db.collection('users').updateOne(
         { _id: new ObjectId(producerId) },
         [
           {
             $set: {
-              ratingSum: { $add: [{ $ifNull: ['$ratingSum', 0] }, ratingNum] },
+              ratingSum: { $add: [{ $ifNull: ['$ratingSum', 0] }, reliabilityNum] },
               ratingCount: { $add: [{ $ifNull: ['$ratingCount', 0] }, 1] },
             },
           },
-          {
-            $set: {
-              averageRating: { $divide: ['$ratingSum', '$ratingCount'] },
-            },
-          },
+          { $set: { averageRating: { $divide: ['$ratingSum', '$ratingCount'] } } },
         ]
       );
 
-      // Mark auction as rated so buyer cannot rate twice
+      // Quality only counts on a conforming delivery — feeds the producer's
+      // *next* auctions (Bloc C composite score), never this one.
+      if (conforms) {
+        await db.collection('users').updateOne(
+          { _id: new ObjectId(producerId) },
+          [
+            {
+              $set: {
+                qualityScoreSum: { $add: [{ $ifNull: ['$qualityScoreSum', 0] }, qualityNum] },
+                qualityScoreCount: { $add: [{ $ifNull: ['$qualityScoreCount', 0] }, 1] },
+              },
+            },
+            { $set: { averageQualityScore: { $divide: ['$qualityScoreSum', '$qualityScoreCount'] } } },
+          ]
+        );
+      }
+
+      const inspection = {
+        conforms,
+        inspectedAt: new Date().toISOString(),
+        reliabilityRating: reliabilityNum,
+        qualityRating: qualityNum,
+      };
       await db.collection('auctions').updateOne(
         { id: auctionId },
-        { $set: { alreadyRated: true } }
+        { $set: { inspection, alreadyRated: true } }
       );
 
       // Store individual rating in ratings collection for audit
@@ -1182,9 +1319,21 @@ io.on('connection', async (socket) => {
         auctionId,
         buyerId: uid,
         producerId,
-        rating: ratingNum,
+        rating: reliabilityNum,
+        qualityRating: qualityNum,
+        conforms,
         createdAt: new Date().toISOString(),
       });
+
+      // A conforming delivery books the Sougra commission to the buyer's account.
+      if (conforms && acceptedLine?.price > 0) {
+        await recordCommission(db, {
+          auctionId,
+          buyerId: uid,
+          producerId,
+          acceptedPrice: parseFloat(acceptedLine.price),
+        });
+      }
 
       // Fetch updated producer rating
       const updatedProducer = await db.collection('users').findOne(
@@ -1192,13 +1341,14 @@ io.on('connection', async (socket) => {
         { projection: { averageRating: 1, ratingCount: 1 } }
       );
 
-      socket.emit('rating_submitted', {
+      socket.emit('inspection_submitted', {
         auctionId,
-        averageRating: updatedProducer?.averageRating ?? ratingNum,
+        conforms,
+        averageRating: updatedProducer?.averageRating ?? reliabilityNum,
         ratingCount: updatedProducer?.ratingCount ?? 1,
       });
 
-      // Update auction's alreadyRated flag across all connections
+      // Update auction's inspection status across all connections
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
       // Fetch buyers (always eligible) plus only the producers in wilaya
       // rooms that could plausibly be in range — see broadcastAuction() above.
@@ -1214,8 +1364,8 @@ io.on('connection', async (socket) => {
         s.emit('auction_updated', sanitized);
       }));
     } catch (err) {
-      logger.error({ err }, 'Error rating producer');
-      socket.emit('error', { message: 'Échec de la notation.' });
+      logger.error({ err }, 'Error submitting inspection');
+      socket.emit('error', { message: 'Échec de l\'inspection.' });
     }
   });
 
@@ -1299,6 +1449,15 @@ async function startServer() {
     await db.collection('auctions').createIndex({ status: 1, startAt: 1 });
     // Backs the checkAuctionRounds scheduler (same 30s-poll pattern, for progressive auctions).
     await db.collection('auctions').createIndex({ status: 1, 'roundConfig.enabled': 1 });
+    // Backs the daily recomputeReferencePrices job (Bloc A), which scans closed/settled
+    // auctions within a rolling window.
+    await db.collection('auctions').createIndex({ status: 1, createdAt: -1 });
+    await db.collection('referencePrices').createIndex({ productId: 1, wilaya: 1, unit: 1 }, { unique: true });
+    // Bloc D — commission ledger. Backs the weekly statement job (groups
+    // 'pending' entries per buyer) and the buyer-standing overdue check.
+    await db.collection('commissionEntries').createIndex({ status: 1, buyerId: 1 });
+    await db.collection('weeklyStatements').createIndex({ buyerId: 1, status: 1 });
+    await db.collection('buyerAccounts').createIndex({ buyerId: 1 }, { unique: true });
     await db.collection('notifications').createIndex({ userId: 1, read: 1 });
     await db.collection('ratings').createIndex({ auctionId: 1, buyerId: 1 }, { unique: true });
     // Looked up on every producer connection/auction broadcast for smart-auction
@@ -1327,11 +1486,32 @@ async function startServer() {
     checkPendingAuctions().catch(err => logger.error({ err }, 'Scheduler start error'));
     checkAuctionRounds().catch(err => logger.error({ err }, 'Round scheduler start error'));
 
+    // Bloc A — daily reference-price recompute. Unlike the two pollers above
+    // (fallback safety nets for precise per-auction timers), this has no
+    // real-time counterpart: it's the only thing that ever refreshes
+    // referencePrices, so it must run once on startup and then every 24h.
+    const REFERENCE_RECOMPUTE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+    const referenceRecomputeInterval = setInterval(() => {
+      recomputeReferencePrices(db).catch(err => logger.error({ err }, 'Reference price recompute error'));
+    }, REFERENCE_RECOMPUTE_INTERVAL_MS);
+    recomputeReferencePrices(db).catch(err => logger.error({ err }, 'Reference price recompute error'));
+
+    // Bloc D — weekly commission statements. Same pattern as the reference
+    // recompute above: runs once on startup, then every 7 days. Note this
+    // means a server that restarts more often than weekly (frequent redeploys)
+    // will issue smaller, more-frequent statements rather than strictly
+    // weekly ones — acceptable for now, same tradeoff as the Bloc A job.
+    const WEEKLY_STATEMENT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+    const weeklyStatementInterval = setInterval(() => {
+      generateWeeklyStatements(db).catch(err => logger.error({ err }, 'Weekly statement generation error'));
+    }, WEEKLY_STATEMENT_INTERVAL_MS);
+    generateWeeklyStatements(db).catch(err => logger.error({ err }, 'Weekly statement generation error'));
+
     httpServer.listen(PORT, HOST, () => {
       logger.info({ host: HOST, port: PORT }, 'Server running');
     });
 
-    setupGracefulShutdown([schedulerInterval, roundSchedulerInterval]);
+    setupGracefulShutdown([schedulerInterval, roundSchedulerInterval, referenceRecomputeInterval, weeklyStatementInterval]);
   } catch (error) {
     logger.error({ err: error }, 'Failed to start server');
     process.exit(1);

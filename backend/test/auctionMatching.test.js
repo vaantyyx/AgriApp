@@ -281,6 +281,64 @@ describe('sanitizeAuctions', () => {
     assert.deepEqual(mine.roundHistory, [{ round: 1, price: 100, timestamp: 't1' }]);
     assert.equal(other.roundHistory, null);
   });
+
+  test('a cheaper bid can rank below a pricier one with a stronger composite score', () => {
+    const withQuality = {
+      ...auction,
+      bids: [
+        { id: 'bid_a', producerId: 'producerA', lines: [{ id: 'l1', price: 100 }], timestamp: 't1', producerRating: 5, producerRatingCount: 20, producerQualityScore: 5, producerQualityScoreCount: 20 },
+        { id: 'bid_b', producerId: 'producerB', lines: [{ id: 'l2', price: 80 }], timestamp: 't2', producerRating: 1, producerRatingCount: 20, producerQualityScore: 1, producerQualityScoreCount: 20 },
+      ],
+    };
+    const [asProducerA] = sanitizeAuctions([withQuality], 'producerA', 'producer');
+    assert.equal(asProducerA.myRank, 1, 'producerA is pricier but wins on quality+souk');
+  });
+
+  test('exposes the composite score breakdown to the buyer for every bid, and to each producer only for their own', () => {
+    const [asBuyer] = sanitizeAuctions([auction], 'buyer1', 'buyer');
+    assert.ok(asBuyer.bids.every(b => b.compositeScore != null && b.scoreBreakdown != null));
+
+    const [asProducerA] = sanitizeAuctions([auction], 'producerA', 'producer');
+    const mine = asProducerA.bids.find(b => b.id === 'bid_a');
+    const other = asProducerA.bids.find(b => b.id === 'bid_b');
+    assert.ok(mine.compositeScore != null);
+    assert.equal(other.compositeScore, null);
+    assert.equal(other.scoreBreakdown, null);
+  });
+
+  test('anonymity lift: the buyer sees the real name/phone only for the winning bid, once closed', () => {
+    const closedAuction = {
+      ...auction,
+      status: 'closed',
+      acceptedBidId: 'bid_b',
+      bids: [
+        { ...auction.bids[0], producerName: 'Farmer A', producerPhone: '0555000001' },
+        { ...auction.bids[1], producerName: 'Farmer B', producerPhone: '0555000002' },
+      ],
+    };
+    const [asBuyer] = sanitizeAuctions([closedAuction], 'buyer1', 'buyer');
+    const winner = asBuyer.bids.find(b => b.id === 'bid_b');
+    const loser = asBuyer.bids.find(b => b.id === 'bid_a');
+    assert.equal(winner.producerName, 'Farmer B');
+    assert.equal(winner.producerContact, '0555000002');
+    assert.equal(loser.producerName, null);
+    assert.equal(loser.producerContact, null);
+  });
+
+  test('anonymity lift: stays blind while the auction is still open, even for what will be the eventual winner', () => {
+    const [asBuyer] = sanitizeAuctions([auction], 'buyer1', 'buyer');
+    assert.ok(asBuyer.bids.every(b => b.producerName === null));
+  });
+
+  test('anonymity lift: the winning producer sees the buyer\'s real name/phone once closed', () => {
+    const closedAuction = { ...auction, status: 'closed', acceptedBidId: 'bid_b', buyerPhone: '0666000000' };
+    const [asWinner] = sanitizeAuctions([closedAuction], 'producerB', 'producer');
+    const [asLoser] = sanitizeAuctions([closedAuction], 'producerA', 'producer');
+    assert.equal(asWinner.buyerDisplay, 'Real Buyer Name');
+    assert.equal(asWinner.buyerContact, '0666000000');
+    assert.equal(asLoser.buyerDisplay, 'Acheteur Anonyme');
+    assert.equal(asLoser.buyerContact, null);
+  });
 });
 
 describe('normalizeRoundConfig', () => {
@@ -351,5 +409,18 @@ describe('computeRoundPriceBounds', () => {
     // Only bid in round 1; round 2 was skipped.
     const existingBid = { roundHistory: [{ round: 1, price: 900, timestamp: 't1' }] };
     assert.deepEqual(computeRoundPriceBounds(auction, existingBid), { min: 855, max: 900, round: 3 });
+  });
+
+  test('the 72.2% hard floor holds even with a looser config that would otherwise dip below it', () => {
+    // initialMinPercent 70% + a 10% cut would put round 2's min at 63 — below
+    // the 72.2% hard floor, which must win regardless of these settings.
+    const looseConfig = { enabled: true, totalRounds: 3, roundDurationHours: 8, maxDecreasePercent: 10, initialMinPercent: 70 };
+    const round1 = { roundConfig: looseConfig, targetPrice: 1000, currentRound: 1 };
+    assert.deepEqual(computeRoundPriceBounds(round1, null), { min: 722, max: 1000, round: 1 });
+
+    const round2 = { roundConfig: looseConfig, targetPrice: 1000, currentRound: 2 };
+    const existingBid = { roundHistory: [{ round: 1, price: 700, timestamp: 't1' }] };
+    // 700 * 0.90 = 630, which is below the 722 floor — floor wins.
+    assert.deepEqual(computeRoundPriceBounds(round2, existingBid), { min: 722, max: 700, round: 2 });
   });
 });

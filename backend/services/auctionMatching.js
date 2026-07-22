@@ -3,6 +3,8 @@
 // only reachable by running the whole Socket.IO server) can be unit tested
 // directly.
 
+import { computeCompositeScore } from './compositeScoring.js';
+
 // ─── Geographic Helpers (Haversine) ───────────────────────────────────────
 // Approximate centers of Algeria's 69 wilayas
 export const WILAYA_COORDS = {
@@ -47,6 +49,19 @@ export const WILAYA_NAME_TO_ID = {
   'barika':63,'bou saada':64,'bir el ater':65,'ksar el boukhari':66,
   'ksar chellala':67,'ain oussara':68,'messaad':69,
 };
+
+// Reverse of WILAYA_NAME_TO_ID — resolves a lot's numeric wilayaId (the
+// produce's *origin* wilaya, as picked in the buyer's create-auction form)
+// back to the lowercase name string the Bloc A reference engine keys off of.
+export const WILAYA_ID_TO_NAME = Object.fromEntries(
+  Object.entries(WILAYA_NAME_TO_ID).map(([name, id]) => [id, name])
+);
+
+/** Returns the lowercase wilaya name for a numeric/string wilayaId, or null if unresolved. */
+export function getWilayaNameById(wilayaId) {
+  if (wilayaId == null || wilayaId === '') return null;
+  return WILAYA_ID_TO_NAME[parseInt(wilayaId, 10)] || null;
+}
 
 function toRad(d) { return d * Math.PI / 180; }
 
@@ -206,11 +221,20 @@ export function normalizeRoundConfig(raw) {
   };
 }
 
+// Hard floor protecting the producer, independent of whatever totalRounds/
+// initialMinPercent/maxDecreasePercent an admin or buyer configures. With the
+// *defaults* (80% round-1 floor, -5%/round over 3 rounds), 80% x 0.95 x 0.95
+// already lands here (72.2%) — but that was only ever an emergent property
+// of those particular defaults. Clamping explicitly means the floor holds
+// even if someone configures looser rounds (more rounds, bigger cuts).
+export const HARD_FLOOR_RATIO = 0.722;
+
 /**
  * Returns the { min, max, round } price window a producer's next bid must
  * fall within for a progressive auction, or null if progressive mode isn't
  * enabled or the auction has no reference price yet. `existingBid` is the
  * producer's own current bid document (or null/undefined for a first bid).
+ * `min` is never allowed below HARD_FLOOR_RATIO of the reference price.
  */
 export function computeRoundPriceBounds(auction, existingBid) {
   const cfg = auction.roundConfig;
@@ -218,15 +242,16 @@ export function computeRoundPriceBounds(auction, existingBid) {
   const referencePrice = auction.targetPrice;
   if (!referencePrice || referencePrice <= 0) return null;
   const currentRound = auction.currentRound || 1;
+  const hardFloor = referencePrice * HARD_FLOOR_RATIO;
 
   if (!existingBid || currentRound === 1) {
-    return { min: referencePrice * (cfg.initialMinPercent / 100), max: referencePrice, round: currentRound };
+    return { min: Math.max(referencePrice * (cfg.initialMinPercent / 100), hardFloor), max: referencePrice, round: currentRound };
   }
 
   const priorEntries = (existingBid.roundHistory || []).filter(h => h.round < currentRound);
   const lastPriorEntry = priorEntries[priorEntries.length - 1];
   const baseline = lastPriorEntry ? lastPriorEntry.price : referencePrice;
-  return { min: baseline * (1 - cfg.maxDecreasePercent / 100), max: baseline, round: currentRound };
+  return { min: Math.max(baseline * (1 - cfg.maxDecreasePercent / 100), hardFloor), max: baseline, round: currentRound };
 }
 
 export async function canProducerParticipate(auction, producerId, pCoords, db) {
@@ -247,16 +272,23 @@ export async function canProducerParticipate(auction, producerId, pCoords, db) {
 // ─── Anonymization helper ─────────────────────────────────────────────────
 /**
  * Strips real names from auction/bid data for a given requesting user.
- * - Buyer requesting: sees their own name, all producers are anonymized.
- * - Producer requesting: sees anonymous buyer, own bids labelled "(Vous)", competitors anonymized.
- * Also injects per-producer average rating from bids metadata.
+ * - Buyer requesting: sees their own name, all producers are anonymized —
+ *   except the winning producer once the auction is closed (anonymity lift).
+ * - Producer requesting: sees anonymous buyer, own bids labelled "(Vous)",
+ *   competitors anonymized — except the buyer, once *this* producer has won.
+ * Also computes the Bloc C composite score (price/quality/souk/logistics)
+ * for ranking; only the requester's own rank is exposed, never competitors'.
  */
 export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
   return auctions.map(auction => {
-    // Sanitize buyer name
-    const buyerDisplay = requestingUserId === auction.buyerId
-      ? auction.buyerName
-      : 'Acheteur Anonyme';
+    const isOwnerBuyer = requestingUserId === auction.buyerId;
+    const isClosedWithWinner = auction.status === 'closed' && !!auction.acceptedBidId;
+    const acceptedBid = isClosedWithWinner ? (auction.bids || []).find(b => b.id === auction.acceptedBidId) : null;
+    const isWinningProducer = requestingRole === 'producer' && acceptedBid?.producerId === requestingUserId;
+
+    // Sanitize buyer name — lifted for the winning producer once closed (Bloc C anonymity lift).
+    const buyerDisplay = isOwnerBuyer || isWinningProducer ? auction.buyerName : 'Acheteur Anonyme';
+    const buyerContact = isOwnerBuyer || isWinningProducer ? (auction.buyerPhone || '') : null;
 
     // Build a stable anonymous alias per producer within this auction
     const producerAliasMap = {};
@@ -271,52 +303,78 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
       }
     });
 
-    // Calculate rankings for all bids on this auction (based on average price of lines)
-    const bidComparisonPrices = (auction.bids || []).map(bid => {
+    // Bloc C composite score (SAW pondéré: Prix 35 / Qualité 25 / Souk 25 / Logistique 15).
+    // Price is normalized against every bid on this same auction.
+    const allPrices = (auction.bids || []).map(bid => {
       const sum = (bid.lines || []).reduce((acc, line) => acc + (parseFloat(line.price) || 0), 0);
-      const avgPrice = (bid.lines || []).length > 0 ? (sum / bid.lines.length) : 0;
-      return {
-        producerId: bid.producerId,
-        avgPrice,
-      };
+      return (bid.lines || []).length > 0 ? (sum / bid.lines.length) : 0;
     });
 
-    // Sort bids by average price ascending (lowest price first)
-    bidComparisonPrices.sort((a, b) => a.avgPrice - b.avgPrice);
+    const scoredBids = (auction.bids || []).map((bid, i) => {
+      const { score, breakdown } = computeCompositeScore({
+        price: allPrices[i],
+        allPrices,
+        qualityAverage: bid.producerQualityScore,
+        qualityCount: bid.producerQualityScoreCount,
+        soukAverage: bid.producerRating,
+        soukCount: bid.producerRatingCount,
+        distanceKm: bid.producerDistanceKm,
+        radiusKm: auction.radiusKm,
+        hasColdChain: bid.producerHasColdChain,
+      });
+      return { producerId: bid.producerId, score, breakdown };
+    });
 
-    // Create a map of producerId -> rank (1-based index)
+    // Rank descending (higher composite score = better) — "le moins cher peut perdre"
+    // if it's weaker on quality/reliability/logistics.
+    const rankedByScore = [...scoredBids].sort((a, b) => b.score - a.score);
     const rankMap = {};
-    bidComparisonPrices.forEach((item, index) => {
-      rankMap[item.producerId] = index + 1;
-    });
+    rankedByScore.forEach((item, index) => { rankMap[item.producerId] = index + 1; });
+    const scoreByProducerId = Object.fromEntries(scoredBids.map(s => [s.producerId, s]));
 
     const myBid = (auction.bids || []).find(b => b.producerId === requestingUserId);
     const myRank = myBid ? rankMap[requestingUserId] : null;
     const totalBidders = (auction.bids || []).length;
 
-    const sanitizedBids = (auction.bids || []).map(bid => ({
-      id: bid.id,
-      producerAlias: producerAliasMap[bid.producerId] || 'Producteur Anonyme',
-      // Rating info is safe to expose (anonymous average)
-      producerRating: bid.producerRating ?? null,
-      producerRatingCount: bid.producerRatingCount ?? 0,
-      timestamp: bid.timestamp,
-      // Round-by-round price trail is only meaningful to the producer who set it.
-      roundHistory: bid.producerId === requestingUserId ? (bid.roundHistory || null) : null,
-      lines: (bid.lines || []).map(line => ({
-        id: line.id,
-        price: (requestingRole === 'producer' && bid.producerId !== requestingUserId) ? null : line.price,
-        quantity: line.quantity || null,
-        optionName: line.optionName || '',
-        unit: line.unit || auction.unit,
-        comments: line.comments || '',
-        images: line.images || [],
-      }))
-    }));
+    const sanitizedBids = (auction.bids || []).map(bid => {
+      const isSelf = bid.producerId === requestingUserId;
+      const isWinningBid = isClosedWithWinner && bid.id === auction.acceptedBidId;
+      // Full breakdown only for the buyer (sees everyone) or a producer's own bid
+      // (never a competitor's) — "classement aveugle" stays blind between producers.
+      const showScoreBreakdown = (requestingRole === 'buyer' && isOwnerBuyer) || isSelf;
+      const myScore = scoreByProducerId[bid.producerId];
+
+      return {
+        id: bid.id,
+        producerAlias: producerAliasMap[bid.producerId] || 'Producteur Anonyme',
+        // Anonymity lift: the buyer sees the real producer name/phone for the
+        // winning bid only, once the auction is closed.
+        producerName: (requestingRole === 'buyer' && isOwnerBuyer && isWinningBid) ? (bid.producerName || '') : null,
+        producerContact: (requestingRole === 'buyer' && isOwnerBuyer && isWinningBid) ? (bid.producerPhone || '') : null,
+        // Rating info is safe to expose (anonymous average)
+        producerRating: bid.producerRating ?? null,
+        producerRatingCount: bid.producerRatingCount ?? 0,
+        timestamp: bid.timestamp,
+        // Round-by-round price trail is only meaningful to the producer who set it.
+        roundHistory: isSelf ? (bid.roundHistory || null) : null,
+        compositeScore: showScoreBreakdown ? myScore?.score ?? null : null,
+        scoreBreakdown: showScoreBreakdown ? myScore?.breakdown ?? null : null,
+        lines: (bid.lines || []).map(line => ({
+          id: line.id,
+          price: (requestingRole === 'producer' && bid.producerId !== requestingUserId) ? null : line.price,
+          quantity: line.quantity || null,
+          optionName: line.optionName || '',
+          unit: line.unit || auction.unit,
+          comments: line.comments || '',
+          images: line.images || [],
+        }))
+      };
+    });
 
     return {
       id: auction.id,
       buyerDisplay,
+      buyerContact,
       // Only buyer sees their own real demand location context, except producers who need it to bid
       deliveryLocation: (requestingUserId === auction.buyerId || requestingRole === 'producer') ? auction.deliveryLocation : 'Zone de livraison',
       title: auction.title || auction.product,
@@ -334,6 +392,12 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
       maxProlongations: auction.maxProlongations || null,
       targetPrice: auction.targetPrice,
       status: auction.status,
+      // Bloc B — channel is always 'app' today; the field exists so a future
+      // USSD/voice intake path can be told apart without a schema change.
+      channel: auction.channel || 'app',
+      // Bloc B — result of validateTender(); null only for auctions created
+      // before this gate existed.
+      validation: auction.validation || null,
       createdAt: auction.createdAt,
       roundConfig: auction.roundConfig?.enabled ? auction.roundConfig : null,
       currentRound: auction.currentRound || null,
@@ -354,6 +418,8 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
         : null,
       // Buyer: already rated flag
       alreadyRated: auction.alreadyRated || false,
+      // Bloc D — conformity + reliability/quality ratings captured at inspection time.
+      inspection: auction.inspection || null,
       myRank: requestingRole === 'producer' ? myRank : null,
       totalBidders: requestingRole === 'producer' ? totalBidders : null,
     };

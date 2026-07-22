@@ -1192,9 +1192,22 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
   const [expandedId, setExpandedId] = useState(null);
 
   const statusColors = {
-    open:    { cls: 'status-pill-open', label: (locale) => locale === 'ar' ? 'مفتوح' : (locale === 'en' ? 'Open' : 'Ouvert') },
-    closed:  { cls: 'status-pill-closed', label: (locale) => locale === 'ar' ? 'مغلق' : (locale === 'en' ? 'Closed' : 'Clôturé') },
-    pending: { cls: 'status-pill-pending', label: (locale) => locale === 'ar' ? 'معلق' : (locale === 'en' ? 'Pending' : 'En attente') },
+    open:     { cls: 'status-pill-open', label: (locale) => locale === 'ar' ? 'مفتوح' : (locale === 'en' ? 'Open' : 'Ouvert') },
+    closed:   { cls: 'status-pill-closed', label: (locale) => locale === 'ar' ? 'مغلق' : (locale === 'en' ? 'Closed' : 'Clôturé') },
+    pending:  { cls: 'status-pill-pending', label: (locale) => locale === 'ar' ? 'معلق' : (locale === 'en' ? 'Pending' : 'En attente') },
+    rejected: { cls: 'status-pill-rejected', label: (locale) => locale === 'ar' ? 'مرفوض' : (locale === 'en' ? 'Rejected' : 'Refusée') },
+  };
+
+  // Bloc B — human-readable reason shown next to a rejected tender's status pill.
+  const rejectionReasonLabel = (reason, l) => {
+    const labels = {
+      invalid_price: { ar: 'سعر غير صالح', en: 'Invalid price ceiling', fr: 'Prix plafond invalide' },
+      invalid_quantity: { ar: 'كمية غير صالحة', en: 'Invalid quantity', fr: 'Quantité invalide' },
+      invalid_dates: { ar: 'تواريخ غير متوافقة', en: 'Invalid date range', fr: 'Dates incohérentes' },
+    };
+    const entry = labels[reason];
+    if (!entry) return null;
+    return entry[l] || entry.fr;
   };
 
   useEffect(() => {
@@ -1272,6 +1285,11 @@ function AuctionsTable({ auctions, locale, t, newBidFlashIds, onAcceptBid, onRat
                 <span className={`status-pill ${status.cls}`}>
                   {status.label(locale)}
                 </span>
+                {auction.status === 'rejected' && auction.validation?.reason && (
+                  <span className="data-table-cell-sub" style={{ display: 'block', marginTop: 4 }}>
+                    {rejectionReasonLabel(auction.validation.reason, locale)}
+                  </span>
+                )}
               </div>
 
               {/* Expand chevron */}
