@@ -180,11 +180,11 @@ function AuctionMap({ centerLat, centerLng, radiusKm, onRadiusChange, producerCo
         <div className="map-radius-row">
           <MapPin size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{locale === 'ar' ? 'نطاق البحث :' : (locale === 'en' ? 'Search radius:' : 'Rayon de recherche :')}</span>
-          <strong style={{ color: 'var(--primary)', fontSize: '0.9rem' }}>{radiusKm} km</strong>
+          <strong style={{ color: 'var(--primary)', fontSize: '0.9rem' }}>{radiusKm} {locale === 'ar' ? 'كم' : 'km'}</strong>
         </div>
         <input type="range" min="10" max="2000" step="10" value={radiusKm} onChange={e => onRadiusChange(Number(e.target.value))} className="radius-slider" />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          <span>10 km</span><span>2 000 km</span>
+          <span>10 {locale === 'ar' ? 'كم' : 'km'}</span><span>2 000 {locale === 'ar' ? 'كم' : 'km'}</span>
         </div>
         <div className="map-producer-count">
           <span style={{ fontSize: '1.1rem' }}>🌱</span>
@@ -632,14 +632,14 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                             <label><TrendingDown size={13} style={{ color: 'var(--danger)' }} /> {locale === 'ar' ? 'السعر الأقصى (سقف)' : (locale === 'en' ? 'Maximum price (ceiling)' : 'Prix plafond (max)')} <span className="required-asterisk">*</span></label>
                             <div className="input-suffix-wrap">
                               <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 50000' : (locale === 'en' ? 'E.g. 50000' : 'Ex: 50000')} value={lot.priceCeiling} onChange={e => updateLot(idx, 'priceCeiling', e.target.value)} className="input-with-suffix" />
-                              <span className="input-suffix-label">DA</span>
+                              <span className="input-suffix-label">{t('currencyDA')}</span>
                             </div>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label><TrendingUp size={13} style={{ color: 'var(--primary)' }} /> {locale === 'ar' ? 'سعر الاحتياط (حد أدنى)' : (locale === 'en' ? 'Reserve price (min)' : 'Prix de réserve (min)')}</label>
                             <div className="input-suffix-wrap">
                               <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 30000' : (locale === 'en' ? 'E.g. 30000' : 'Ex: 30000')} value={lot.priceReserve} onChange={e => updateLot(idx, 'priceReserve', e.target.value)} className="input-with-suffix" />
-                              <span className="input-suffix-label">DA</span>
+                              <span className="input-suffix-label">{t('currencyDA')}</span>
                             </div>
                           </div>
                         </div>
@@ -791,14 +791,14 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                             <span>🌿 {getCultureName(lot.cultureTypeId)} / {getProductName(lot.productId)}</span>
                             <span>📍 {getWilayaName(lot.wilayaId)}</span>
                             <span>📦 {lot.quantity} {t('unit_' + lot.unit)}</span>
-                            <span style={{ color: 'var(--danger)' }}>⬆ {lot.priceCeiling} DA</span>
+                            <span style={{ color: 'var(--danger)' }}>⬆ {lot.priceCeiling} {t('currencyDA')}</span>
                           </div>
                         </div>
                       ))}
                     </div>
                     <div className="bordered-card-sm">
                       <div className="summary-box-title">{locale === 'ar' ? 'المنطقة والتواريخ' : (locale === 'en' ? 'Zone & Dates' : 'Zone & Dates')}</div>
-                      <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${radiusKm} km`} />
+                      <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${radiusKm} ${t('unitKm')}`} />
                       <SummaryRow label={locale === 'ar' ? 'منتجون في المنطقة' : (locale === 'en' ? 'Producers in zone' : 'Producteurs dans la zone')} value={`${producerCount}`} />
                       <SummaryRow label={locale === 'ar' ? 'بداية' : (locale === 'en' ? 'Start' : 'Début')} value={startDatetime ? new Date(startDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ') : '—'} />
                       <SummaryRow label={locale === 'ar' ? 'نهاية' : (locale === 'en' ? 'End' : 'Fin')} value={endDatetime ? new Date(endDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ') : '—'} />
@@ -845,7 +845,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                             {line.optionName && <strong className="mini-bid-option-tag">{line.optionName}</strong>}
                                             {line.quantity && <span style={{ fontSize: '0.82rem', color: 'var(--text-body)' }}>{line.quantity} {t('unit_' + (line.unit || activeAuction.unit))}</span>}
-                                            <span className="mini-bid-price">{line.price} DA</span>
+                                            <span className="mini-bid-price">{line.price} {t('currencyDA')}</span>
                                           </div>
                                           {line.comments && <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: '0.78rem', color: 'var(--text-body)' }}><MessageSquare size={12} /><span>{line.comments}</span></div>}
                                           {line.images?.length > 0 && (

@@ -259,11 +259,11 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label>{locale === 'ar' ? 'سعر السقف' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')}</label>
-                            <input type="text" value={lot.priceCeiling ? `${lot.priceCeiling} DA` : '-'} disabled />
+                            <input type="text" value={lot.priceCeiling ? `${lot.priceCeiling} ${t('currencyDA')}` : '-'} disabled />
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label>{locale === 'ar' ? 'سعر الاحتياط' : (locale === 'en' ? 'Reserve price' : 'Prix de réserve')}</label>
-                            <input type="text" value={lot.priceReserve ? `${lot.priceReserve} DA` : '-'} disabled />
+                            <input type="text" value={lot.priceReserve ? `${lot.priceReserve} ${t('currencyDA')}` : '-'} disabled />
                           </div>
                         </div>
                       </div>
@@ -281,7 +281,7 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                     {locale === 'ar' ? 'المنطقة الجغرافية' : (locale === 'en' ? 'Geographic zone' : 'Zone géographique')}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                    <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${a.radiusKm || 0} km`} />
+                    <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${a.radiusKm || 0} ${t('unitKm')}`} />
                   </div>
                 </div>
               )}
@@ -449,7 +449,7 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                           <SummaryRow label={locale === 'ar' ? 'المنتج الرئيس' : (locale === 'en' ? 'Main product' : 'Produit principal')} value={auction.product || '-'} />
                           <SummaryRow label={locale === 'ar' ? 'الكمية الإجمالية' : (locale === 'en' ? 'Total quantity' : 'Quantité totale')} value={`${auction.quantity || 0} ${t('unit_' + auction.unit)}`} />
                           <SummaryRow label={locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} value={auction.deliveryLocation || '-'} />
-                          <SummaryRow label={locale === 'ar' ? 'الحد الأقصى للسعر' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')} value={auction.targetPrice ? `${auction.targetPrice} DA` : (locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not set' : 'Non défini'))} />
+                          <SummaryRow label={locale === 'ar' ? 'الحد الأقصى للسعر' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')} value={auction.targetPrice ? `${auction.targetPrice} ${t('currencyDA')}` : (locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not set' : 'Non défini'))} />
                           {auction.roundConfig?.enabled && auction.currentRound && (
                             <SummaryRow label={t('roundModeToggleTitle')} value={t('roundBadge', { current: auction.currentRound, total: auction.roundConfig.totalRounds })} />
                           )}
@@ -461,7 +461,7 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                           <SummaryRow label={locale === 'ar' ? 'تاريخ البدء' : (locale === 'en' ? 'Start' : 'Début')} value={auction.startAt ? new Date(auction.startAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
                           <SummaryRow label={locale === 'ar' ? 'تاريخ الانتهاء' : (locale === 'en' ? 'End' : 'Fin')} value={auction.endAt ? new Date(auction.endAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
                           <SummaryRow label={locale === 'ar' ? 'تمديد تلقائي' : (locale === 'en' ? 'Auto extension' : 'Prolongation auto')} value={auction.autoProlongate ? `${auction.prolongationMinutes || 0} min, ${auction.maxProlongations || 0} ${locale === 'en' ? 'times' : 'fois'}` : (locale === 'ar' ? 'لا' : (locale === 'en' ? 'No' : 'Non'))} />
-                          <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${auction.radiusKm || 0} km`} />
+                          <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${auction.radiusKm || 0} ${t('unitKm')}`} />
                           <SummaryRow label={locale === 'ar' ? 'عدد الأقسام' : (locale === 'en' ? 'Number of lots' : 'Nombre de lots')} value={`${(auction.lots || []).length}`} />
                         </div>
                       </div>
@@ -482,8 +482,8 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                                 {lot.cultureTypeId && <div>🌿 {locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')} : <strong>{getCultureName(lot.cultureTypeId)}</strong></div>}
                                 {lot.productId && <div>📦 {locale === 'ar' ? 'المنتج' : (locale === 'en' ? 'Product' : 'Produit')} : <strong>{getProductName(lot.productId)}</strong></div>}
                                 {lot.wilayaId && <div>📍 {locale === 'ar' ? 'الولاية الأصلية' : (locale === 'en' ? 'Origin wilaya' : 'Wilaya d’origine')} : <strong>{getWilayaName(lot.wilayaId)}</strong></div>}
-                                {lot.priceCeiling && <div style={{ color: 'var(--danger)' }}>⬇ {locale === 'ar' ? 'سعر السقف' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')} : <strong>{lot.priceCeiling} DA</strong></div>}
-                                {lot.priceReserve && <div style={{ color: 'var(--primary)' }}>⬆ {locale === 'ar' ? 'سعر الاحتياط' : (locale === 'en' ? 'Reserve price' : 'Prix de réserve')} : <strong>{lot.priceReserve} DA</strong></div>}
+                                {lot.priceCeiling && <div style={{ color: 'var(--danger)' }}>⬇ {locale === 'ar' ? 'سعر السقف' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')} : <strong>{lot.priceCeiling} {t('currencyDA')}</strong></div>}
+                                {lot.priceReserve && <div style={{ color: 'var(--primary)' }}>⬆ {locale === 'ar' ? 'سعر الاحتياط' : (locale === 'en' ? 'Reserve price' : 'Prix de réserve')} : <strong>{lot.priceReserve} {t('currencyDA')}</strong></div>}
                               </div>
                             </div>
                           ))}
@@ -660,7 +660,7 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             {line.optionName && <span style={{ fontSize: '0.75rem', fontWeight: 'bold', background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>{line.optionName}</span>}
                                             <span style={{ fontWeight: '800', color: 'var(--secondary)', fontSize: '0.85rem' }}>
-                                              {line.price !== null && line.price !== undefined ? `${line.price} DA/${t('unit_' + (line.unit || auction.unit))}` : `— DA/${t('unit_' + (line.unit || auction.unit))} (${locale === 'ar' ? 'مخفي' : (locale === 'en' ? 'Hidden' : 'Masqué')})`}
+                                              {line.price !== null && line.price !== undefined ? `${line.price} ${t('currencyDA')}/${t('unit_' + (line.unit || auction.unit))}` : `— ${t('currencyDA')}/${t('unit_' + (line.unit || auction.unit))} (${locale === 'ar' ? 'مخفي' : (locale === 'en' ? 'Hidden' : 'Masqué')})`}
                                             </span>
                                           </div>
                                           {line.comments && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}><MessageSquare size={10} /> {line.comments}</div>}
@@ -685,7 +685,7 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                                     </span>
                                     {[...bid.roundHistory].sort((a, b) => a.round - b.round).map(h => (
                                       <span key={h.round} style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', padding: '1px 7px', borderRadius: '999px', color: 'var(--text-body)' }}>
-                                        {t('roundBadge', { current: h.round, total: auction.roundConfig?.totalRounds || h.round })}: {h.price} DA
+                                        {t('roundBadge', { current: h.round, total: auction.roundConfig?.totalRounds || h.round })}: {h.price} {t('currencyDA')}
                                       </span>
                                     ))}
                                   </div>
