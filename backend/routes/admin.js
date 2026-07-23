@@ -114,6 +114,11 @@ router.get('/users/:id', async (req, res) => {
       { $sort: { lastSeen: -1 } },
     ]).toArray();
 
+    // Just the count here — the full history is its own paginated endpoint
+    // (GET /users/:id/ai-chats) so this detail view stays fast and short;
+    // the count alone is enough to show "Conversations IA (12)" as a link into it.
+    const aiChatCount = await db.collection('aiChatLogs').countDocuments({ userId: id });
+
     res.json({
       id: user._id.toString(),
       name: user.name,
@@ -155,9 +160,42 @@ router.get('/users/:id', async (req, res) => {
         longitude: p.longitude ?? null,
       })),
       loginIps: loginIps.map(h => ({ ip: h._id, count: h.count, firstSeen: h.firstSeen, lastSeen: h.lastSeen })),
+      aiChatCount,
     });
   } catch (err) {
     logger.error({ err }, 'ADMIN GET USER ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── GET /api/admin/users/:id/ai-chats ───────────────────────────────────────
+// Paginated, fetched on demand from its own sub-view — kept out of GET
+// /users/:id so viewing a profile never pays for a chat-history query it
+// didn't ask for.
+router.get('/users/:id/ai-chats', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID invalide.' });
+
+    const db = getDb();
+    const { page, limit } = parsePagination(req.query);
+
+    const [chats, total] = await Promise.all([
+      db.collection('aiChatLogs')
+        .find({ userId: id })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection('aiChatLogs').countDocuments({ userId: id }),
+    ]);
+
+    res.json({
+      chats: chats.map(c => ({ userMessage: c.userMessage, assistantReply: c.assistantReply, createdAt: c.createdAt })),
+      page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN GET USER AI CHATS ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

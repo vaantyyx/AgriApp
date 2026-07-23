@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { logger } from '../utils/logger.js';
 import { getRateLimitStore } from '../utils/rateLimitStore.js';
+import { getDb } from '../db.js';
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -29,6 +30,18 @@ const SYSTEM_PROMPTS = {
 
 function resolveLocale(raw) {
   return Object.prototype.hasOwnProperty.call(SYSTEM_PROMPTS, raw) ? raw : 'fr';
+}
+
+// Fire-and-forget — called only AFTER the reply is already sent to the user,
+// so a slow/failed write here can never add latency to the chat response.
+async function logAiChat(userId, userMessage, assistantReply, locale) {
+  try {
+    await getDb().collection('aiChatLogs').insertOne({
+      userId, userMessage, assistantReply, locale, createdAt: new Date(),
+    });
+  } catch (err) {
+    logger.error({ err, userId }, 'Failed to log AI chat exchange');
+  }
 }
 
 // ─── POST /api/ai/chat ──────────────────────────────────────────────────────
@@ -88,6 +101,10 @@ router.post('/chat', aiLimiter, async (req, res) => {
     }
 
     res.json({ reply });
+
+    // Logged after the response is already on the wire — see logAiChat().
+    const lastUserMessage = safeMessages[safeMessages.length - 1];
+    logAiChat(req.user.userId, lastUserMessage.content, reply, resolveLocale(locale));
   } catch (err) {
     logger.error({ err }, 'AI CHAT ERROR');
     res.status(502).json({ error: "Échec de la connexion à l'assistant IA." });

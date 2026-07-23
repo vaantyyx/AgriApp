@@ -63,9 +63,18 @@ const app = express();
 // Behind a reverse proxy (Nginx, a cloud load balancer), Express otherwise
 // sees the proxy's own IP for every request — express-rate-limit would key
 // every visitor's rate limit off that single shared IP instead of their
-// real one. TRUST_PROXY=1 opts into trusting the first hop's X-Forwarded-*
-// headers; leave it unset for direct/local (no proxy in front) deployments.
-if (process.env.TRUST_PROXY) app.set('trust proxy', 1);
+// real one, and req.ip (used for the site-visit/login-IP tracking) would
+// record the proxy's IP instead of the visitor's. TRUST_PROXY opts into
+// trusting X-Forwarded-* headers; leave it unset for direct/local (no proxy
+// in front) deployments.
+// `true` (not a hop count like `1`) because PaaS hosts (Render, Heroku,
+// Railway...) route through more than one internal proxy hop before
+// reaching the app — a fixed hop count of 1 only strips the closest one and
+// leaves an internal 10.x/172.x address as req.ip instead of the real client
+// IP. Trusting the whole chain is safe here because the platform's own edge
+// is the only party that can set X-Forwarded-For from outside; it always
+// overwrites (never appends to) whatever a client sends.
+if (process.env.TRUST_PROXY) app.set('trust proxy', true);
 app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health' } }));
 // Gzip/brotli response compression — cuts bandwidth for JSON payloads (auction
 // lists, notifications) and static uploads, which matters most once traffic
@@ -1491,6 +1500,8 @@ async function startServer() {
     await db.collection('siteVisits').createIndex({ ip: 1 });
     // Backs GET /api/admin/users/:id's per-user IP history lookup.
     await db.collection('userLoginHistory').createIndex({ userId: 1, createdAt: -1 });
+    // Backs GET /api/admin/users/:id's per-user AI chat history lookup.
+    await db.collection('aiChatLogs').createIndex({ userId: 1, createdAt: -1 });
 
     // Recover precise timers for auctions still pending from before a restart
     const pendingAuctions = await db.collection('auctions').find({ status: 'pending' }).toArray();

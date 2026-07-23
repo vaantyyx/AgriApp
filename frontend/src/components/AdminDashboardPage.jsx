@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw } from 'lucide-react';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -230,6 +230,7 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showAiChats, setShowAiChats] = useState(false);
   const cardRef = useRef(null);
   useEscapeKey(true, onClose);
   useFocusTrap(cardRef, true);
@@ -303,6 +304,16 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
                     </div>
                   ))}
                 </div>
+              )}
+            </DetailSection>
+
+            <DetailSection title={t('adminAiChatsTitle')}>
+              {detail.aiChatCount > 0 ? (
+                <button type="button" className="btn btn-secondary" style={{ fontSize: '0.82rem', padding: '8px 14px', gap: 8 }} onClick={() => setShowAiChats(true)}>
+                  <MessageSquare size={14} /> {t('adminViewAiChatsBtn', { count: detail.aiChatCount })}
+                </button>
+              ) : (
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('adminNoAiChats')}</p>
               )}
             </DetailSection>
 
@@ -395,6 +406,72 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
                   </div>
                 )}
               </DetailSection>
+            )}
+          </div>
+        )}
+      </div>
+      {showAiChats && (
+        <AiChatHistoryModal userId={userId} userName={detail?.name} authHeaders={authHeaders} onClose={() => setShowAiChats(false)} />
+      )}
+    </div>
+  );
+}
+
+function AiChatHistoryModal({ userId, userName, authHeaders, onClose }) {
+  const { t, locale, dir } = useTranslation();
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
+  const [chats, setChats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const cardRef = useRef(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(cardRef, true);
+
+  useEffect(() => {
+    let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    const params = new URLSearchParams({ page, limit: 10 });
+    fetch(`${BACKEND_URL}/api/admin/users/${userId}/ai-chats?${params}`, { headers: authHeaders })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!active || !data) return;
+        setChats(data.chats);
+        setTotalPages(data.totalPages);
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [userId, page, authHeaders]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 600 }}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 560, maxHeight: '85vh', overflowY: 'auto' }} role="dialog" aria-modal="true" aria-label={t('adminAiChatsTitle')}>
+        <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }} dir={dir}>{t('adminAiChatsTitle')} — {userName}</h3>
+        {loading ? (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>{t('adminLoading')}</p>
+        ) : (
+          <div dir={dir}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              {chats.map((c, i) => (
+                <div key={i} style={{ padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 6 }}>{new Date(c.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: 4 }}>{c.userMessage}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>{c.assistantReply}</div>
+                </div>
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                <button onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page <= 1} className="btn btn-secondary" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {dir === 'rtl' ? <ChevronRight size={14} /> : <ChevronLeft size={14} />} {t('adminPrevPage')}
+                </button>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('adminPageOf', { page, totalPages })}</span>
+                <button onClick={() => setPage(p => Math.min(p + 1, totalPages))} disabled={page >= totalPages} className="btn btn-secondary" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {t('adminNextPage')} {dir === 'rtl' ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+                </button>
+              </div>
             )}
           </div>
         )}
