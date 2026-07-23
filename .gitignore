@@ -26,3 +26,7 @@ server_err.txt
 *.sw?
 .DS_Store
 Thumbs.db
+
+# Working documents/reports (not part of the codebase)
+*.xlsx
+~$*

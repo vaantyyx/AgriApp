@@ -162,7 +162,7 @@ test('create_auction -> place_bid -> accept_bid end-to-end flow', async () => {
       auctionType: 'open',
       deliveryLocation: TEST_WILAYA,
       description: 'Integration test',
-      lots: [{ designation: 'Tomate test', quantity: 10, unit: 'tonnes' }],
+      lots: [{ designation: 'Tomate test', quantity: 10, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 100,
     });
     const [createdAuction] = await producerSeesCreated;
@@ -229,7 +229,7 @@ test('progressive ("enchère dégressive contrôlée") auction caps each round\'
       deliveryLocation: TEST_WILAYA,
       description: 'Progressive auction test',
       // priceCeiling (1000 DA) becomes targetPrice, the reference price for round 1's [80%,100%] window.
-      lots: [{ designation: 'Ble test', quantity: 10, unit: 'tonnes', priceCeiling: 1000 }],
+      lots: [{ designation: 'Ble test', quantity: 10, unit: 'tonnes', priceCeiling: 1000, calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 100,
       roundConfig: { enabled: true, totalRounds: 3, roundDurationHours: 8, maxDecreasePercent: 5, initialMinPercent: 80 },
     });
@@ -318,7 +318,7 @@ test('a producer outside the auction zone cannot bid', async () => {
       auctionType: 'open',
       deliveryLocation: TEST_WILAYA,
       description: 'Zone test',
-      lots: [{ designation: 'Orge test', quantity: 5, unit: 'tonnes' }],
+      lots: [{ designation: 'Orge test', quantity: 5, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 10,
     });
     const [createdAuction] = await waitForEvent(buyerSocket, 'auction_created', (a) => a.title === auctionTitle);

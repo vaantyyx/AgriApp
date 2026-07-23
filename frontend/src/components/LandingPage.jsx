@@ -220,8 +220,6 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
   const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   const currentLang = LANGS.find(l => l.code === locale) || LANGS[0];
-  const trustLogoAghtia = locale === 'ar' ? 'أغذية' : 'Aghtia';
-  const TRUST_LOGOS = ['MADAR', 'Cevital', 'GROUPE SMA', trustLogoAghtia, 'Tchin-Lait'];
 
   return (
     <MotionConfig reducedMotion="user">
@@ -482,20 +480,6 @@ export default function LandingPage({ onNavigateToLogin, onNavigateToRegister })
                 <button className="slp-btn-accent" onClick={goRegister}>{t('landingCtaBtnLaunch')}</button>
                 <button className="slp-btn-ghost-sm" onClick={() => scrollToAnchor('slp-how')}>{t('landingCtaBtnMore')}</button>
               </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ══════════════ TRUST LOGOS ══════════════ */}
-      <section className="slp-section slp-section-alt">
-        <div className="slp-container">
-          <Reveal className="slp-trust-strip">
-            <h5>{t('landingTrustLogosTitle')}</h5>
-            <div className="slp-trust-logos">
-              {TRUST_LOGOS.map((logo, i) => (
-                <span key={i} className="slp-trust-logo">{logo}</span>
-              ))}
             </div>
           </Reveal>
         </div>

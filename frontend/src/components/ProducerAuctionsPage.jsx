@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from '../context/LanguageContext';
-import { Inbox, MessageSquare, Check, Trophy, X, Image as ImageIcon, Send, Eye, ChevronLeft, ChevronRight, ClipboardList, Layers, CalendarClock, Hash, FileSearch, Percent } from 'lucide-react';
+import { Inbox, MessageSquare, Check, Trophy, X, Image as ImageIcon, Send, Eye, ChevronLeft, ChevronRight, ClipboardList, Layers, CalendarClock, Hash, FileSearch, Percent, Phone } from 'lucide-react';
 import { getWinnerCongratsMessage, getBidClosedWinnerMessage, isBidLineAccepted } from '../utils/auctionHelpers';
 import { cultureTypes, products } from '../utils/referenceData.js';
 import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
@@ -12,6 +12,34 @@ function SummaryRow({ label, value }) {
       <span className="summary-row-label" style={{ minWidth: 120 }}>{label}</span>
       <span className="summary-row-value">{value}</span>
     </div>
+  );
+}
+
+// Bloc A — live reference-price hint, so a producer can gauge whether the
+// buyer's ceiling is fair against the *current* market, not just whatever it
+// was when the tender was created (auction.validation.referenceUsed).
+function ReferencePriceHint({ productId, wilayaId, unit, onLookup }) {
+  const { t } = useTranslation();
+  const [reference, setReference] = useState(null);
+  const [checked, setChecked] = useState(false);
+
+  // Reset (checked/reference) is handled by remounting this component via a
+  // `key` prop keyed on (productId, wilayaId, unit) at the call site, rather
+  // than a synchronous setState here — avoids an extra render pass per change.
+  useEffect(() => {
+    let cancelled = false;
+    if (!productId || !wilayaId || !onLookup) return;
+    onLookup(productId, wilayaId, unit).then(ref => {
+      if (!cancelled) { setReference(ref); setChecked(true); }
+    });
+    return () => { cancelled = true; };
+  }, [productId, wilayaId, unit, onLookup]);
+
+  if (!productId || !wilayaId || !checked || !reference) return null;
+  return (
+    <p style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 600, marginBottom: 12 }}>
+      {t('referencePriceHint', { price: Math.round(reference.price), count: reference.sampleSize })}
+    </p>
   );
 }
 
@@ -44,7 +72,7 @@ function compressImage(file) {
 
 const emptyLine = () => ({ quality: '', price: '', quantity: '', unit: '', comments: '', images: [], isUploading: false });
 
-export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
+export default function ProducerAuctionsPage({ auctions, onPlaceBid, onLookupReferencePrice, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
   const { locale, t } = useTranslation();
   
   const [inputs, setInputs] = useState({});
@@ -265,6 +293,14 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                             <label>{locale === 'ar' ? 'سعر الاحتياط' : (locale === 'en' ? 'Reserve price' : 'Prix de réserve')}</label>
                             <input type="text" value={lot.priceReserve ? `${lot.priceReserve} ${t('currencyDA')}` : '-'} disabled />
                           </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>{t('calibreLabel')}</label>
+                            <input type="text" value={lot.calibre ? t('calibre_' + lot.calibre) : '-'} disabled />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>{t('deliveryWindowLabel')}</label>
+                            <input type="text" value={lot.deliveryWindowHours ? t('deliveryWindow_' + lot.deliveryWindowHours) : '-'} disabled />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -484,6 +520,8 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                                 {lot.wilayaId && <div>📍 {locale === 'ar' ? 'الولاية الأصلية' : (locale === 'en' ? 'Origin wilaya' : 'Wilaya d’origine')} : <strong>{getWilayaName(lot.wilayaId)}</strong></div>}
                                 {lot.priceCeiling && <div style={{ color: 'var(--danger)' }}>⬇ {locale === 'ar' ? 'سعر السقف' : (locale === 'en' ? 'Ceiling price' : 'Prix plafond')} : <strong>{lot.priceCeiling} {t('currencyDA')}</strong></div>}
                                 {lot.priceReserve && <div style={{ color: 'var(--primary)' }}>⬆ {locale === 'ar' ? 'سعر الاحتياط' : (locale === 'en' ? 'Reserve price' : 'Prix de réserve')} : <strong>{lot.priceReserve} {t('currencyDA')}</strong></div>}
+                                {lot.calibre && <div>📏 {t('calibreLabel')} : <strong>{t('calibre_' + lot.calibre)}</strong></div>}
+                                {lot.deliveryWindowHours && <div>⏱ {t('deliveryWindowLabel')} : <strong>{t('deliveryWindow_' + lot.deliveryWindowHours)}</strong></div>}
                               </div>
                             </div>
                           ))}
@@ -506,6 +544,13 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                     {/* Form to submit bid */}
                     {!isClosed ? (
                       <>
+                        <ReferencePriceHint
+                          key={`${auction.lots?.[0]?.productId}-${auction.lots?.[0]?.wilayaId}-${auction.unit}`}
+                          productId={auction.lots?.[0]?.productId}
+                          wilayaId={auction.lots?.[0]?.wilayaId}
+                          unit={auction.unit}
+                          onLookup={onLookupReferencePrice}
+                        />
                         {myBid && auction.myRank !== null && auction.myRank !== undefined && (
                           <div style={{ background: 'rgba(34, 163, 98, 0.08)', border: '1px solid rgba(34, 163, 98, 0.25)', color: 'var(--secondary)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.88rem', fontWeight: 'bold', marginBottom: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
                             <Trophy size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
@@ -621,7 +666,14 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, newBidFlash
                         {isWinner ? (
                           <>
                             <Trophy style={{ color: 'var(--accent)' }} size={20} />
-                            <div>{getWinnerCongratsMessage({ bid: myBid, acceptedLineId: auction.acceptedLineId, auction, t })}</div>
+                            <div>
+                              {getWinnerCongratsMessage({ bid: myBid, acceptedLineId: auction.acceptedLineId, auction, t })}
+                              {auction.buyerDisplay && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: '0.85rem', color: 'var(--primary)' }}>
+                                  <Phone size={12} /> <strong>{auction.buyerDisplay}</strong>{auction.buyerContact && <span>— {auction.buyerContact}</span>}
+                                </div>
+                              )}
+                            </div>
                           </>
                         ) : (
                           <>

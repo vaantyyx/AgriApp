@@ -5,6 +5,7 @@ import { getDb } from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import adminMiddleware from '../middleware/adminMiddleware.js';
 import { logger } from '../utils/logger.js';
+import { markStatementPaid } from '../services/commissionEngine.js';
 
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
@@ -234,14 +235,23 @@ router.get('/auctions', async (req, res) => {
     const db = getDb();
     const { page, limit } = parsePagination(req.query);
 
+    // Bloc B — lets the team review rejected tenders (audit trail + tuning
+    // the fairness gate) without touching the default "all statuses" view.
+    const allowedStatuses = ['pending', 'open', 'closed', 'rejected'];
+    const status = allowedStatuses.includes(req.query.status) ? req.query.status : null;
+    const filter = status ? { status } : {};
+
+    // Bloc C — ?flagged=1 surfaces only auctions the anti-collusion heuristic flagged.
+    if (req.query.flagged === '1') filter['collusionFlag.flagged'] = true;
+
     const [auctions, total] = await Promise.all([
       db.collection('auctions')
-        .find({}, { projection: { id: 1, title: 1, product: 1, status: 1, buyerName: 1, createdAt: 1, bids: 1 } })
+        .find(filter, { projection: { id: 1, title: 1, product: 1, status: 1, buyerName: 1, createdAt: 1, bids: 1, validation: 1, collusionFlag: 1 } })
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .toArray(),
-      db.collection('auctions').countDocuments({}),
+      db.collection('auctions').countDocuments(filter),
     ]);
 
     res.json({
@@ -252,6 +262,8 @@ router.get('/auctions', async (req, res) => {
         buyerName: a.buyerName,
         bidsCount: (a.bids || []).length,
         createdAt: a.createdAt,
+        rejectionReason: a.status === 'rejected' ? (a.validation?.reason || null) : null,
+        collusionFlag: a.collusionFlag?.flagged ? a.collusionFlag : null,
       })),
       page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
     });
@@ -292,6 +304,150 @@ router.get('/auctions/:id', async (req, res) => {
     });
   } catch (err) {
     logger.error({ err }, 'ADMIN GET AUCTION ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── GET /api/admin/reference-prices ────────────────────────────────────────
+// Bloc A — read-only visibility into the reference engine (services/referenceEngine.js).
+// There is no write endpoint on purpose: prices are only ever computed from
+// settled deals, never entered by hand (see decision to drop manual entry).
+router.get('/reference-prices', async (req, res) => {
+  try {
+    const db = getDb();
+    const { page, limit } = parsePagination(req.query);
+
+    const [prices, total] = await Promise.all([
+      db.collection('referencePrices')
+        .find({})
+        .sort({ computedAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection('referencePrices').countDocuments({}),
+    ]);
+
+    res.json({
+      prices: prices.map(p => ({
+        productId: p.productId,
+        crop: p.crop,
+        wilaya: p.wilaya,
+        unit: p.unit,
+        price: p.price,
+        previousPrice: p.previousPrice,
+        rawMedian: p.rawMedian,
+        seasonalModifier: p.seasonalModifier,
+        sampleSize: p.sampleSize,
+        computedAt: p.computedAt,
+      })),
+      page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN LIST REFERENCE PRICES ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── GET /api/admin/buyer-accounts ──────────────────────────────────────────
+// Bloc D — read-only view of every buyer's commission ledger balance.
+router.get('/buyer-accounts', async (req, res) => {
+  try {
+    const db = getDb();
+    const { page, limit } = parsePagination(req.query);
+
+    const [accounts, total] = await Promise.all([
+      db.collection('buyerAccounts')
+        .find({})
+        .sort({ outstandingBalance: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection('buyerAccounts').countDocuments({}),
+    ]);
+
+    const buyerIds = accounts.map(a => a.buyerId).filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+    const buyers = buyerIds.length
+      ? await db.collection('users').find({ _id: { $in: buyerIds } }, { projection: { name: 1, email: 1 } }).toArray()
+      : [];
+    const buyerById = new Map(buyers.map(b => [b._id.toString(), b]));
+
+    res.json({
+      accounts: accounts.map(a => ({
+        buyerId: a.buyerId,
+        buyerName: buyerById.get(a.buyerId)?.name || null,
+        buyerEmail: buyerById.get(a.buyerId)?.email || null,
+        outstandingBalance: a.outstandingBalance,
+        totalSettled: a.totalSettled,
+        updatedAt: a.updatedAt,
+      })),
+      page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN LIST BUYER ACCOUNTS ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── GET /api/admin/weekly-statements ───────────────────────────────────────
+// Bloc D — relevés hebdomadaires; ?status=pending|paid to filter for reconciliation.
+router.get('/weekly-statements', async (req, res) => {
+  try {
+    const db = getDb();
+    const { page, limit } = parsePagination(req.query);
+    const allowedStatuses = ['pending', 'paid'];
+    const status = allowedStatuses.includes(req.query.status) ? req.query.status : null;
+    const filter = status ? { status } : {};
+
+    const [statements, total] = await Promise.all([
+      db.collection('weeklyStatements')
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection('weeklyStatements').countDocuments(filter),
+    ]);
+
+    const buyerIds = statements.map(s => s.buyerId).filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+    const buyers = buyerIds.length
+      ? await db.collection('users').find({ _id: { $in: buyerIds } }, { projection: { name: 1, email: 1 } }).toArray()
+      : [];
+    const buyerById = new Map(buyers.map(b => [b._id.toString(), b]));
+
+    res.json({
+      statements: statements.map(s => ({
+        id: s.id,
+        buyerId: s.buyerId,
+        buyerName: buyerById.get(s.buyerId)?.name || null,
+        buyerEmail: buyerById.get(s.buyerId)?.email || null,
+        periodStart: s.periodStart,
+        periodEnd: s.periodEnd,
+        entryCount: s.entryCount,
+        totalAmount: s.totalAmount,
+        status: s.status,
+        createdAt: s.createdAt,
+        paidAt: s.paidAt,
+      })),
+      page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN LIST WEEKLY STATEMENTS ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/admin/weekly-statements/:id/mark-paid ────────────────────────
+// Bloc D — manual reconciliation: admin confirms the bank transfer was
+// received outside the app (decision: no real bank integration).
+router.post('/weekly-statements/:id/mark-paid', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getDb();
+    const result = await markStatementPaid(db, id, req.user.userId);
+    if (!result) return res.status(404).json({ error: 'Relevé introuvable.' });
+    res.json({ message: 'Relevé marqué comme payé.', statement: result });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN MARK STATEMENT PAID ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

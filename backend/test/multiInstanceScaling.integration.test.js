@@ -170,7 +170,7 @@ test('an event handled by instance A is broadcast to a socket connected to insta
       auctionType: 'open',
       deliveryLocation: TEST_WILAYA,
       description: 'Multi-instance scaling test',
-      lots: [{ designation: 'Test cross-instance', quantity: 10, unit: 'tonnes' }],
+      lots: [{ designation: 'Test cross-instance', quantity: 10, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 100,
     });
 

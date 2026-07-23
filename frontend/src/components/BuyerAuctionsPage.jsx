@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus, MessageSquare, Check, Package, X, Star, MapPin,
+  Plus, MessageSquare, Check, Package, X, MapPin, Phone,
   Image as ImageIcon,
   ClipboardList, Layers, CalendarClock, FileSearch,
   ChevronRight, ChevronLeft, AlertTriangle,
@@ -31,8 +31,14 @@ const AUCTION_TYPES = [
 
 const WILAYA_LIST = Object.entries(WILAYA_COORDS).map(([id, w]) => ({ id: parseInt(id), name: w.name })).sort((a, b) => a.id - b.id);
 
+// Bloc B — buyer-submitted tender fields. Fixed lists, not free text: the
+// buyer picks the calibre and the delivery window himself (24/48/72h) — the
+// system never imposes a value automatically from the product.
+const CALIBRE_OPTIONS = ['petit', 'moyen', 'gros', 'extra'];
+const DELIVERY_WINDOW_OPTIONS = [24, 48, 72];
+
 function newLot(seq) {
-  return { seq, designation: '', cultureTypeId: '', productId: '', wilayaId: '', unit: 'tonnes', quantity: '', priceCeiling: '', priceReserve: '' };
+  return { seq, designation: '', cultureTypeId: '', productId: '', wilayaId: '', unit: 'tonnes', quantity: '', priceCeiling: '', priceReserve: '', calibre: '', deliveryWindowHours: '' };
 }
 
 /** Formats an ISO date string for a <input type="datetime-local"> value. */
@@ -114,27 +120,100 @@ function StarPicker({ value, onChange }) {
   );
 }
 
-function RatingModal({ auctionId, onSubmit, onClose }) {
-  const [rating, setRating] = useState(0);
+// Bloc A — live reference-price hint shown while composing a lot (before the
+// tender even exists), so the buyer can set a price ceiling that isn't
+// arbitrary. Distinct from auction.validation.referenceUsed, which is a
+// snapshot frozen at the moment a tender was actually submitted.
+function ReferencePriceHint({ productId, wilayaId, unit, onLookup }) {
+  const { t } = useTranslation();
+  const [reference, setReference] = useState(null);
+  const [checked, setChecked] = useState(false);
+
+  // Reset (checked/reference) is handled by remounting this component via a
+  // `key` prop keyed on (productId, wilayaId, unit) at the call site, rather
+  // than a synchronous setState here — avoids an extra render pass per change.
+  useEffect(() => {
+    let cancelled = false;
+    if (!productId || !wilayaId || !onLookup) return;
+    onLookup(productId, wilayaId, unit).then(ref => {
+      if (!cancelled) { setReference(ref); setChecked(true); }
+    });
+    return () => { cancelled = true; };
+  }, [productId, wilayaId, unit, onLookup]);
+
+  if (!productId || !wilayaId || !checked) return null;
+  if (!reference) {
+    return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, gridColumn: '1 / -1' }}>{t('referencePriceUnavailable')}</p>;
+  }
+  return (
+    <p style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, marginTop: 4, gridColumn: '1 / -1' }}>
+      {t('referencePriceHint', { price: Math.round(reference.price), count: reference.sampleSize })}
+    </p>
+  );
+}
+
+function InspectionModal({ auctionId, onSubmit, onClose }) {
+  const [conforms, setConforms] = useState(null);
+  const [reliabilityRating, setReliabilityRating] = useState(0);
+  const [qualityRating, setQualityRating] = useState(0);
   const { t } = useTranslation();
   const cardRef = useRef(null);
   useEscapeKey(true, onClose);
   useFocusTrap(cardRef, true);
+
+  const canSubmit = conforms !== null && reliabilityRating > 0 && (!conforms || qualityRating > 0);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('rateProducerTitle')}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('inspectionTitle')}>
         <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>⭐</div>
-          <h3 style={{ fontSize: '1.2rem', marginBottom: '6px' }}>{t('rateProducerTitle')}</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{t('rateProducerDesc')}</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}><ClipboardList size={40} /></div>
+          <h3 style={{ fontSize: '1.2rem', marginBottom: '6px' }}>{t('inspectionTitle')}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{t('inspectionDesc')}</p>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-          <StarPicker value={rating} onChange={setRating} />
+
+        <div style={{ marginBottom: '20px' }}>
+          <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '10px', textAlign: 'center' }}>{t('conformsQuestion')}</p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="button" className={`btn ${conforms === true ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, gap: 6 }} onClick={() => setConforms(true)}>
+              <Check size={14} /> {t('conformsYes')}
+            </button>
+            <button type="button" className={`btn ${conforms === false ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1, gap: 6 }} onClick={() => setConforms(false)}>
+              <X size={14} /> {t('conformsNo')}
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+
+        {conforms === false && (
+          <p style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '16px' }}>{t('nonConformNotice')}</p>
+        )}
+
+        {conforms !== null && (
+          <>
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ fontSize: '0.85rem', marginBottom: '8px', textAlign: 'center' }}>{t('reliabilityRatingLabel')}</p>
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <StarPicker value={reliabilityRating} onChange={setReliabilityRating} />
+              </div>
+            </div>
+
+            {conforms && (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ fontSize: '0.85rem', marginBottom: '8px', textAlign: 'center' }}>{t('qualityRatingLabel')}</p>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <StarPicker value={qualityRating} onChange={setQualityRating} />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>{t('rateLaterBtn')}</button>
-          <button className="btn btn-primary" style={{ flex: 1 }} disabled={rating === 0} onClick={() => { if (rating > 0) onSubmit(auctionId, rating); }}>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={!canSubmit} onClick={() => {
+            if (canSubmit) onSubmit(auctionId, { conforms, reliabilityRating, qualityRating: conforms ? qualityRating : null });
+          }}>
             {t('confirmBtn')}
           </button>
         </div>
@@ -220,7 +299,7 @@ function DeleteAuctionModal({ onConfirm, onClose }) {
   );
 }
 
-export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onUpdateAuction, onDeleteAuction, onAcceptBid, onRateProducer, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
+export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onUpdateAuction, onDeleteAuction, onAcceptBid, onSubmitInspection, onLookupReferencePrice, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
   const { t, locale } = useTranslation();
   const navigate = useNavigate();
 
@@ -229,7 +308,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
   const [editingAuctionId, setEditingAuctionId] = useState(null);
   const [viewingAuctionId, setViewingAuctionId] = useState(null);
   const [showBlockWarningModal, setShowBlockWarningModal] = useState(false);
-  const [ratingAuctionId, setRatingAuctionId] = useState(null);
+  const [inspectionAuctionId, setInspectionAuctionId] = useState(null);
   const [activeZoomImage, setActiveZoomImage] = useState(null);
   const [deleteConfirmAuctionId, setDeleteConfirmAuctionId] = useState(null);
 
@@ -304,6 +383,8 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
         if (!l.wilayaId) { setStepError(`Lot ${l.seq} : sélectionnez la wilaya d'origine.`); return false; }
         if (!l.quantity || parseFloat(l.quantity) <= 0) { setStepError(`Lot ${l.seq} : quantité invalide.`); return false; }
         if (!l.priceCeiling || parseFloat(l.priceCeiling) <= 0) { setStepError(`Lot ${l.seq} : prix plafond invalide.`); return false; }
+        if (!CALIBRE_OPTIONS.includes(l.calibre)) { setStepError(`Lot ${l.seq} : sélectionnez un calibre.`); return false; }
+        if (!DELIVERY_WINDOW_OPTIONS.includes(parseInt(l.deliveryWindowHours, 10))) { setStepError(`Lot ${l.seq} : sélectionnez une fenêtre de livraison.`); return false; }
       }
     }
     if (step === 4) {
@@ -410,7 +491,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
     const payload = {
       title: title.trim(), auctionType, deliveryLocation: deliveryLocation.trim(),
       description: generalDescription.trim(),
-      lots: lots.map(l => ({ seq: l.seq, designation: l.designation.trim(), cultureTypeId: l.cultureTypeId, productId: l.productId, wilayaId: l.wilayaId, unit: l.unit, quantity: parseFloat(l.quantity), priceCeiling: parseFloat(l.priceCeiling), priceReserve: parseFloat(l.priceReserve) })),
+      lots: lots.map(l => ({ seq: l.seq, designation: l.designation.trim(), cultureTypeId: l.cultureTypeId, productId: l.productId, wilayaId: l.wilayaId, unit: l.unit, quantity: parseFloat(l.quantity), priceCeiling: parseFloat(l.priceCeiling), priceReserve: parseFloat(l.priceReserve), calibre: l.calibre, deliveryWindowHours: parseInt(l.deliveryWindowHours, 10) })),
       radius: radiusKm, isSearchZoneChanged,
       startAt: new Date(startDatetime).toISOString(), endAt: new Date(endDatetime).toISOString(),
       autoProlongate, prolongationMinutes: autoProlongate ? parseInt(prolongationMinutes) : null,
@@ -444,16 +525,29 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
     open: { cls: 'status-pill-open', label: (l) => l === 'ar' ? 'مفتوح' : (l === 'en' ? 'Open' : 'Ouvert') },
     closed: { cls: 'status-pill-closed', label: (l) => l === 'ar' ? 'مغلق' : (l === 'en' ? 'Closed' : 'Clôturé') },
     pending: { cls: 'status-pill-pending', label: (l) => l === 'ar' ? 'معلق' : (l === 'en' ? 'Pending' : 'En attente') },
+    rejected: { cls: 'status-pill-rejected', label: (l) => l === 'ar' ? 'مرفوض' : (l === 'en' ? 'Rejected' : 'Refusée') },
+  };
+
+  // Bloc B — human-readable reason shown next to a rejected tender's status pill.
+  const rejectionReasonLabel = (reason, l) => {
+    const labels = {
+      invalid_price: { ar: 'سعر غير صالح', en: 'Invalid price ceiling', fr: 'Prix plafond invalide' },
+      invalid_quantity: { ar: 'كمية غير صالحة', en: 'Invalid quantity', fr: 'Quantité invalide' },
+      invalid_dates: { ar: 'تواريخ غير متوافقة', en: 'Invalid date range', fr: 'Dates incohérentes' },
+    };
+    const entry = labels[reason];
+    if (!entry) return null;
+    return entry[l] || entry.fr;
   };
 
   return (
     <div className="dash-page-scroll" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', textAlign: 'start' }}>
 
-      {/* Rating Modal */}
-      {ratingAuctionId && (
-        <RatingModal auctionId={ratingAuctionId}
-          onSubmit={(aId, r) => { onRateProducer(aId, r); setRatingAuctionId(null); }}
-          onClose={() => setRatingAuctionId(null)} />
+      {/* Inspection Modal */}
+      {inspectionAuctionId && (
+        <InspectionModal auctionId={inspectionAuctionId}
+          onSubmit={(aId, payload) => { onSubmitInspection(aId, payload); setInspectionAuctionId(null); }}
+          onClose={() => setInspectionAuctionId(null)} />
       )}
 
       {/* Delete Auction Confirmation */}
@@ -642,6 +736,21 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                               <span className="input-suffix-label">{t('currencyDA')}</span>
                             </div>
                           </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>{t('calibreLabel')} <span className="required-asterisk">*</span></label>
+                            <select value={lot.calibre} onChange={e => updateLot(idx, 'calibre', e.target.value)}>
+                              <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
+                              {CALIBRE_OPTIONS.map(c => <option key={c} value={c}>{t('calibre_' + c)}</option>)}
+                            </select>
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>{t('deliveryWindowLabel')} <span className="required-asterisk">*</span></label>
+                            <select value={lot.deliveryWindowHours} onChange={e => updateLot(idx, 'deliveryWindowHours', e.target.value)}>
+                              <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
+                              {DELIVERY_WINDOW_OPTIONS.map(h => <option key={h} value={h}>{t('deliveryWindow_' + h)}</option>)}
+                            </select>
+                          </div>
+                          <ReferencePriceHint key={`${lot.productId}-${lot.wilayaId}-${lot.unit}`} productId={lot.productId} wilayaId={lot.wilayaId} unit={lot.unit} onLookup={onLookupReferencePrice} />
                         </div>
                       </div>
                     );
@@ -792,6 +901,8 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                             <span>📍 {getWilayaName(lot.wilayaId)}</span>
                             <span>📦 {lot.quantity} {t('unit_' + lot.unit)}</span>
                             <span style={{ color: 'var(--danger)' }}>⬆ {lot.priceCeiling} {t('currencyDA')}</span>
+                            {lot.calibre && <span>📏 {t('calibre_' + lot.calibre)}</span>}
+                            {lot.deliveryWindowHours && <span>⏱ {t('deliveryWindow_' + lot.deliveryWindowHours)}</span>}
                           </div>
                         </div>
                       ))}
@@ -822,6 +933,14 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                             </span>
                           )}
                         </h4>
+                        {activeAuction.validation?.referenceUsed && (
+                          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: -8, marginBottom: 14 }}>
+                            {t('referencePriceAtCreation', {
+                              price: Math.round(activeAuction.validation.referenceUsed.price),
+                              count: activeAuction.validation.referenceUsed.sampleSize,
+                            })}
+                          </p>
+                        )}
                         {activeAuction.bids.length === 0 ? (
                           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>{t('waitingProposals')}</p>
                         ) : (
@@ -832,12 +951,22 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                               return (
                                 <div key={bid.id} className={`mini-bid-card ${isAccepted ? 'accepted' : ''} ${isBidNew ? 'bid-flash-new' : ''}`}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                                       <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>{bid.producerAlias}</span>
                                       <StarDisplay rating={bid.producerRating} count={bid.producerRatingCount} />
+                                      {bid.compositeScore != null && (
+                                        <span title={t('compositeScoreTooltip')} style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(16,185,129,0.12)', color: '#047857' }}>
+                                          {t('compositeScoreLabel')} {Math.round(bid.compositeScore * 100)}%
+                                        </span>
+                                      )}
                                     </div>
                                     {isAccepted && <span className="mini-bid-selected-tag">{t('bidSelected')}</span>}
                                   </div>
+                                  {bid.producerName && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, fontSize: '0.82rem', color: 'var(--primary)' }}>
+                                      <Phone size={12} /> <strong>{bid.producerName}</strong>{bid.producerContact && <span>— {bid.producerContact}</span>}
+                                    </div>
+                                  )}
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                                     {(bid.lines || []).map(line => (
                                       <div key={line.id} className="mini-bid-line">
@@ -870,7 +999,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                                     ) : (isAccepted && (
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                         <span style={{ color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 'bold', fontSize: '0.85rem' }}><Check size={16} /> {t('bidConfirmed')}</span>
-                                        {!activeAuction.alreadyRated && <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 10px', gap: 4 }} onClick={() => setRatingAuctionId(activeAuction.id)}><Star size={12} /> {locale === 'fr' ? 'Noter' : 'تقييم'}</button>}
+                                        {!activeAuction.inspection && <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 10px', gap: 4 }} onClick={() => setInspectionAuctionId(activeAuction.id)}><ClipboardList size={12} /> {t('inspectBtn')}</button>}
                                       </div>
                                     ))}
                                   </div>
@@ -968,6 +1097,11 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                       <span className={`status-pill ${status.cls}`}>
                         {status.label(locale)}
                       </span>
+                      {auction.status === 'rejected' && auction.validation?.reason && (
+                        <span className="data-table-cell-sub" style={{ display: 'block', marginTop: 4 }}>
+                          {rejectionReasonLabel(auction.validation.reason, locale)}
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>

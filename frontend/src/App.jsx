@@ -345,7 +345,26 @@ export default function App() {
   const handleDeleteAuction = (auctionId) => socketRef.current?.emit('delete_auction', { auctionId });
   const handlePlaceBid = (data) => socketRef.current?.emit('place_bid', data);
   const handleAcceptBid = (auctionId, bidId) => socketRef.current?.emit('accept_bid', { auctionId, bidId });
-  const handleRateProducer = (auctionId, rating) => socketRef.current?.emit('rate_producer', { auctionId, rating });
+  const handleSubmitInspection = (auctionId, { conforms, reliabilityRating, qualityRating }) =>
+    socketRef.current?.emit('submit_inspection', { auctionId, conforms, reliabilityRating, qualityRating });
+
+  // Bloc A — live reference-price lookup (not the frozen validation.referenceUsed
+  // snapshot): used by the buyer's create/edit form as a pricing hint, and by
+  // the producer's bid view to see the current market reference.
+  const lookupReferencePrice = async (productId, wilayaId, unit) => {
+    if (!productId || !wilayaId) return null;
+    try {
+      const params = new URLSearchParams({ productId, wilayaId, unit: unit || 'tonnes' });
+      const res = await fetch(`${BACKEND_URL}/api/reference-prices/lookup?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.reference;
+    } catch {
+      return null;
+    }
+  };
 
   // The live feed only carries the most recent page (see INITIAL_AUCTIONS_LIMIT
   // server-side) — this fetches older ones on demand instead of ever loading
@@ -688,7 +707,8 @@ export default function App() {
                     onUpdateAuction={handleUpdateAuction}
                     onDeleteAuction={handleDeleteAuction}
                     onAcceptBid={handleAcceptBid}
-                    onRateProducer={handleRateProducer}
+                    onSubmitInspection={handleSubmitInspection}
+                    onLookupReferencePrice={lookupReferencePrice}
                     newBidFlashIds={newBidFlashIds}
                     highlightAuctionId={highlightAuctionId}
                     hasMoreAuctions={hasMoreAuctions}
@@ -700,6 +720,7 @@ export default function App() {
                     user={user}
                     auctions={auctions}
                     onPlaceBid={handlePlaceBid}
+                    onLookupReferencePrice={lookupReferencePrice}
                     newBidFlashIds={newBidFlashIds}
                     highlightAuctionId={highlightAuctionId}
                     token={token}
