@@ -811,6 +811,7 @@ export default function AdminDashboardPage({ token }) {
                   <th style={{ padding: '10px 16px' }}>{t('adminColRole')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColVerified')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
+                  <th style={{ padding: '10px 16px' }} title={t('adminColUsedAiFull')}>{t('adminColUsedAi')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColJoined')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
                 </tr>
@@ -827,6 +828,9 @@ export default function AdminDashboardPage({ token }) {
                         {u.isActive ? t('adminStatusActive') : t('adminStatusDeactivated')}
                       </span>
                     </td>
+                    <td style={{ padding: '10px 16px' }} title={u.usedAi ? t('adminColUsedAiFull') : ''}>
+                      {u.usedAi ? <MessageSquare size={16} style={{ color: 'var(--primary)' }} /> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString(localeTag) : '-'}</td>
                     <td style={{ padding: '10px 16px' }}>
                       <ActionMenu user={u} onView={u2 => setViewingUserId(u2.id)} onChangePassword={setChangingPasswordUser} onToggleActive={toggleUserActive} t={t} />
@@ -834,7 +838,7 @@ export default function AdminDashboardPage({ token }) {
                   </tr>
                 ))}
                 {!loading && users.length === 0 && (
-                  <tr><td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoUsers')}</td></tr>
+                  <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoUsers')}</td></tr>
                 )}
               </tbody>
             </table>

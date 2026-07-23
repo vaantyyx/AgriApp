@@ -66,6 +66,13 @@ router.get('/users', async (req, res) => {
       db.collection('users').countDocuments(filter),
     ]);
 
+    // One query for the whole page rather than one per row — which of these
+    // users has at least one aiChatLogs entry (backed by the userId index).
+    const pageUserIds = users.map(u => u._id.toString());
+    const usedAiIds = pageUserIds.length
+      ? new Set(await db.collection('aiChatLogs').distinct('userId', { userId: { $in: pageUserIds } }))
+      : new Set();
+
     res.json({
       users: users.map(u => ({
         id: u._id.toString(),
@@ -76,6 +83,7 @@ router.get('/users', async (req, res) => {
         isActive: u.isActive !== false,
         wilaya: u.wilaya || '',
         createdAt: u.createdAt,
+        usedAi: usedAiIds.has(u._id.toString()),
       })),
       page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
     });
