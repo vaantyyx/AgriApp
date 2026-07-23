@@ -736,19 +736,6 @@
 }
 .slp-btn-ghost-sm:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
 
-/* ── TRUST LOGOS ─────────────────────────────────────────────── */
-.slp-trust-strip { text-align: center; }
-.slp-trust-strip h5 {
-  font-size: 0.8rem; font-weight: 700; color: var(--text-muted);
-  text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 24px;
-}
-.slp-trust-logos { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px 40px; }
-.slp-trust-logo {
-  font-weight: 800; font-size: 1.05rem; color: var(--text-faint);
-  opacity: 0.75; letter-spacing: 0.01em; transition: opacity 0.2s, color 0.2s;
-}
-.slp-trust-logo:hover { opacity: 1; color: var(--primary); }
-
 /* ── FOOTER ──────────────────────────────────────────────────── */
 .slp-footer {
   background: linear-gradient(180deg, #0a3d20 0%, #072b17 100%);
