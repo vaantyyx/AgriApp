@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2 } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -86,6 +87,63 @@ function ChangePasswordModal({ user, onSubmit, onClose }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteUserModal({ user, onConfirm, onClose }) {
+  const { t, dir } = useTranslation();
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const cardRef = useRef(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(cardRef, true);
+
+  const canConfirm = confirmText.trim() === user.name;
+
+  const handleConfirm = async () => {
+    if (!canConfirm) return;
+    setDeleting(true);
+    await onConfirm();
+    setDeleting(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 440, border: '1px solid rgba(239,68,68,0.3)' }} role="dialog" aria-modal="true" aria-label={t('adminDeleteUserTitle')} dir={dir}>
+        <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ display: 'inline-flex', padding: 14, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', marginBottom: 14 }}>
+            <Trash2 size={28} style={{ color: '#ef4444' }} />
+          </div>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 8, color: '#ef4444' }}>{t('adminDeleteUserTitle')}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>{t('adminDeleteUserWarning')}</p>
+        </div>
+
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 18, fontSize: '0.85rem' }}>
+          <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{user.name}</div>
+          <div style={{ color: 'var(--text-muted)' }}>{user.email}</div>
+        </div>
+
+        <div className="form-group" style={{ marginBottom: 18 }}>
+          <label style={{ fontSize: '0.8rem' }}>{t('adminDeleteUserConfirmLabel', { name: user.name })}</label>
+          <input type="text" value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder={user.name} autoFocus autoComplete="off" />
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>{t('cancelBtn')}</button>
+          <button
+            type="button"
+            className="btn"
+            style={{ flex: 1, background: canConfirm ? '#ef4444' : 'rgba(239,68,68,0.25)', color: 'white', border: 'none', fontWeight: 700, cursor: canConfirm && !deleting ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            disabled={!canConfirm || deleting}
+            onClick={handleConfirm}
+          >
+            {deleting ? <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Trash2 size={14} />}
+            {t('adminDeleteUserBtn')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -188,17 +246,52 @@ function ParcelleMiniMap({ lat, lng }) {
 }
 
 // Hamburger menu holding every row action (view, password reset,
-// deactivate/reactivate) behind a single click, so the table row stays compact.
-function ActionMenu({ user, onView, onChangePassword, onToggleActive, t }) {
+// deactivate/reactivate, delete) behind a single click, so the table row stays compact.
+// Rendered through a portal into document.body — a plain absolutely-positioned
+// dropdown gets clipped by the users table's scroll container (overflowX: auto
+// implicitly makes overflowY 'auto' too, per the CSS spec), which cut the menu
+// off for rows near the bottom/last row. Escaping via portal + viewport-relative
+// fixed coordinates sidesteps that clipping entirely, regardless of row position.
+function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, t }) {
+  const { dir } = useTranslation();
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
-  useClickOutside(wrapRef, open, () => setOpen(false));
+  const [coords, setCoords] = useState(null);
+  const btnRef = useRef(null);
+  const dropdownRef = useRef(null);
+  useClickOutside([btnRef, dropdownRef], open, () => setOpen(false));
+
+  const itemCount = 2 + (user.role !== 'admin' ? 2 : 0);
+  const estimatedHeight = itemCount * 40 + 12;
+
+  const toggleOpen = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const openUpward = rect.bottom + estimatedHeight > window.innerHeight;
+      setCoords({
+        ...(openUpward ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
+        ...(dir === 'rtl' ? { left: rect.left } : { right: window.innerWidth - rect.right }),
+      });
+    }
+    setOpen(o => !o);
+  };
+
+  // Stale coordinates (from a scroll) are worse than just closing the menu.
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
 
   return (
-    <div className="action-menu-wrap" ref={wrapRef}>
+    <div className="action-menu-wrap" ref={btnRef}>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggleOpen}
         className={`action-menu-btn ${open ? 'open' : ''}`}
         aria-label={t('adminActionsMenu')}
         aria-haspopup="true"
@@ -206,8 +299,8 @@ function ActionMenu({ user, onView, onChangePassword, onToggleActive, t }) {
       >
         <Menu size={15} />
       </button>
-      {open && (
-        <div className="action-menu-dropdown">
+      {open && coords && createPortal(
+        <div ref={dropdownRef} className="action-menu-dropdown" style={{ position: 'fixed', ...coords }}>
           <button type="button" onClick={() => { setOpen(false); onView(user); }}>
             <Eye size={14} /> {t('adminViewBtn')}
           </button>
@@ -215,11 +308,17 @@ function ActionMenu({ user, onView, onChangePassword, onToggleActive, t }) {
             <KeyRound size={14} /> {t('adminChangePasswordBtn')}
           </button>
           {user.role !== 'admin' && (
-            <button type="button" className={user.isActive ? 'danger' : ''} onClick={() => { setOpen(false); onToggleActive(user); }}>
-              {user.isActive ? <Ban size={14} /> : <RotateCcw size={14} />} {user.isActive ? t('adminDeactivateBtn') : t('adminReactivateBtn')}
-            </button>
+            <>
+              <button type="button" className={user.isActive ? 'danger' : ''} onClick={() => { setOpen(false); onToggleActive(user); }}>
+                {user.isActive ? <Ban size={14} /> : <RotateCcw size={14} />} {user.isActive ? t('adminDeactivateBtn') : t('adminReactivateBtn')}
+              </button>
+              <button type="button" className="danger" onClick={() => { setOpen(false); onDelete(user); }}>
+                <Trash2 size={14} /> {t('adminDeleteUserBtn')}
+              </button>
+            </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -623,6 +722,7 @@ export default function AdminDashboardPage({ token }) {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [changingPasswordUser, setChangingPasswordUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
   const [viewingUserId, setViewingUserId] = useState(null);
   const [viewingAuctionId, setViewingAuctionId] = useState(null);
 
@@ -712,6 +812,23 @@ export default function AdminDashboardPage({ token }) {
     }
   };
 
+  const handleDeleteUser = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/users/${deletingUser.id}`, { method: 'DELETE', headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+        setUsers(prev => prev.filter(x => x.id !== deletingUser.id));
+        setDeletingUser(null);
+        fetchStats();
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    }
+  };
+
   const handleSetPassword = async (password) => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/admin/users/${changingPasswordUser.id}/set-password`, {
@@ -753,6 +870,13 @@ export default function AdminDashboardPage({ token }) {
           auctionId={viewingAuctionId}
           authHeaders={authHeaders}
           onClose={() => setViewingAuctionId(null)}
+        />
+      )}
+      {deletingUser && (
+        <DeleteUserModal
+          user={deletingUser}
+          onConfirm={handleDeleteUser}
+          onClose={() => setDeletingUser(null)}
         />
       )}
       <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
@@ -833,7 +957,7 @@ export default function AdminDashboardPage({ token }) {
                     </td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString(localeTag) : '-'}</td>
                     <td style={{ padding: '10px 16px' }}>
-                      <ActionMenu user={u} onView={u2 => setViewingUserId(u2.id)} onChangePassword={setChangingPasswordUser} onToggleActive={toggleUserActive} t={t} />
+                      <ActionMenu user={u} onView={u2 => setViewingUserId(u2.id)} onChangePassword={setChangingPasswordUser} onToggleActive={toggleUserActive} onDelete={setDeletingUser} t={t} />
                     </td>
                   </tr>
                 ))}

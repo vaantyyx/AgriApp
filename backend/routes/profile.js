@@ -94,7 +94,7 @@ router.get('/', async (req, res) => {
 router.put('/', async (req, res) => {
   try {
     const {
-      name, phone, wilaya, commune, bio,
+      name, email, phone, wilaya, commune, bio,
       // Buyer-specific fields
       rc, nif, forme_juridique, nom_commercial, secteur_activite,
       possede_transport, possede_chambre_froide,
@@ -107,6 +107,21 @@ router.put('/', async (req, res) => {
         return res.status(400).json({ error: 'Le nom doit contenir au moins 2 caractères.' });
       }
       updates.name = name.trim();
+    }
+    // Self-service email changes are admin-only for now — buyers/producers have
+    // never had this option, and changing it correctly needs a uniqueness check
+    // this endpoint doesn't otherwise need to do.
+    if (email !== undefined && req.user.role === 'admin') {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        return res.status(400).json({ error: 'Format e-mail invalide.' });
+      }
+      const db = getDb();
+      const existing = await db.collection('users').findOne({ email: normalizedEmail, _id: { $ne: new ObjectId(req.user.userId) } });
+      if (existing) {
+        return res.status(409).json({ error: 'Cette adresse e-mail est déjà utilisée.' });
+      }
+      updates.email = normalizedEmail;
     }
     if (phone !== undefined) updates.phone = String(phone).slice(0, 20);
     if (wilaya !== undefined) updates.wilaya = String(wilaya).slice(0, 100);

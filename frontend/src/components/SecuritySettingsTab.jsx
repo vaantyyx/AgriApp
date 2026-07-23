@@ -105,7 +105,7 @@ const secTrans = {
   }
 };
 
-export default function SecuritySettingsTab({ token, profile, setProfile, onUserUpdate, showToast, onLogout, initialUser }) {
+export default function SecuritySettingsTab({ token, profile, setProfile, onUserUpdate, showToast, onLogout, initialUser, hideDangerZone }) {
   const { t, locale, dir } = useTranslation();
   const secT = secTrans[locale] || secTrans.fr;
 
@@ -319,19 +319,23 @@ export default function SecuritySettingsTab({ token, profile, setProfile, onUser
         </div>
       </div>
 
-      {/* Card 3: Danger Zone */}
-      <div className="glass-panel" style={{ padding: '24px', textAlign: 'start', border: '1px solid rgba(239,68,68,0.3)' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
-          <AlertCircle size={20} />
-          <span>{secT.dangerZoneTitle}</span>
-        </h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', lineHeight: '1.5' }}>
-          {secT.dangerZoneDesc}
-        </p>
-        <button onClick={() => setShowDeactivateModal(true)} className="btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.875rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease' }}>
-          {secT.deactivateBtn}
-        </button>
-      </div>
+      {/* Card 3: Danger Zone — hidden for admin accounts (hideDangerZone): an
+          admin self-deactivating locks them out of the admin panel, and
+          reactivation requires another admin to do it via the users table. */}
+      {!hideDangerZone && (
+        <div className="glass-panel" style={{ padding: '24px', textAlign: 'start', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+            <AlertCircle size={20} />
+            <span>{secT.dangerZoneTitle}</span>
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '20px', lineHeight: '1.5' }}>
+            {secT.dangerZoneDesc}
+          </p>
+          <button onClick={() => setShowDeactivateModal(true)} className="btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px', fontSize: '0.875rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease' }}>
+            {secT.deactivateBtn}
+          </button>
+        </div>
+      )}
 
       {/* Deactivation Confirmation Modal */}
       {showDeactivateModal && (

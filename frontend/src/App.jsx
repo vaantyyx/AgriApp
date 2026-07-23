@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import io from 'socket.io-client';
-import { LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Sun, Moon, Menu } from 'lucide-react';
+import { LogOut, Tractor, ShoppingBag, Wifi, WifiOff, LogIn, Home, Bell, Sun, Moon, Menu, Shield } from 'lucide-react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/DashboardLayout';
 import CookieConsent from './components/CookieConsent';
@@ -18,6 +18,7 @@ const LoginPage = lazy(() => import('./components/LoginPage'));
 const RegisterPage = lazy(() => import('./components/RegisterPage'));
 const BuyerProfilePage = lazy(() => import('./components/BuyerProfilePage'));
 const ProducerProfilePage = lazy(() => import('./components/ProducerProfilePage'));
+const AdminProfilePage = lazy(() => import('./components/AdminProfilePage'));
 const BuyerOverviewPage = lazy(() => import('./components/BuyerOverviewPage'));
 const BuyerAuctionsPage = lazy(() => import('./components/BuyerAuctionsPage'));
 const ProducerOverviewPage = lazy(() => import('./components/ProducerOverviewPage'));
@@ -597,7 +598,7 @@ export default function App() {
                   )}
                   <span className="user-pill-name">{user.name}</span>
                   <span className="user-pill-role-icon" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    {user.role === 'buyer' ? <ShoppingBag size={11} /> : <Tractor size={11} />}
+                    {user.role === 'buyer' ? <ShoppingBag size={11} /> : user.role === 'admin' ? <Shield size={11} /> : <Tractor size={11} />}
                   </span>
                   <div style={{
                     width: 7, height: 7,
@@ -654,7 +655,16 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/profile" element={
-            user && token ? (
+            !user || !token ? <Navigate to="/login" replace />
+            : user.role === 'admin' ? (
+              <AdminProfilePage
+                token={token}
+                user={user}
+                onUserUpdate={handleUserUpdate}
+                onLogout={handleLogout}
+                onNavigateToDashboard={() => navigate('/admin')}
+              />
+            ) : (
               <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 {user.role === 'buyer' ? (
                   <BuyerProfilePage
@@ -674,7 +684,7 @@ export default function App() {
                   />
                 )}
               </DashboardLayout>
-            ) : <Navigate to="/login" replace />
+            )
           } />
           <Route path="/dashboard" element={
             !user || !token ? <Navigate to="/login" replace />

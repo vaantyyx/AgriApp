@@ -208,6 +208,39 @@ router.get('/users/:id/ai-chats', async (req, res) => {
   }
 });
 
+// ─── DELETE /api/admin/users/:id ─────────────────────────────────────────────
+// Permanent, unlike /deactivate — removes the account itself plus data that's
+// exclusively theirs (parcelles, IP/AI-chat logs, notifications). Deliberately
+// does NOT touch auctions or bids: those are the OTHER party's transaction
+// history too (a buyer's auction is a producer's bid record, and vice versa),
+// so they're left in place — the admin auction detail view already renders a
+// "Producteur introuvable" fallback for a bid whose producer no longer exists.
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID invalide.' });
+    if (id === req.user.userId) return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte.' });
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(id) });
+    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    if (user.role === 'admin') return res.status(400).json({ error: 'Impossible de supprimer un compte administrateur.' });
+
+    await Promise.all([
+      db.collection('users').deleteOne({ _id: new ObjectId(id) }),
+      db.collection('parcelles').deleteMany({ userId: id }),
+      db.collection('userLoginHistory').deleteMany({ userId: id }),
+      db.collection('aiChatLogs').deleteMany({ userId: id }),
+      db.collection('notifications').deleteMany({ userId: id }),
+    ]);
+
+    res.json({ message: 'Utilisateur supprimé définitivement.' });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN DELETE USER ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // ─── POST /api/admin/users/:id/deactivate ───────────────────────────────────
 router.post('/users/:id/deactivate', async (req, res) => {
   try {
