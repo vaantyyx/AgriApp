@@ -189,6 +189,25 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Public site-visit tracker — intentionally unauthenticated (anonymous
+// visitors, including everyone who never signs up, are exactly who this
+// counts). Already covered by the generalLimiter mounted on '/api' above.
+app.post('/api/track-visit', async (req, res) => {
+  try {
+    const db = getDb();
+    await db.collection('siteVisits').insertOne({
+      ip: req.ip || '',
+      userAgent: String(req.headers['user-agent'] || '').slice(0, 300),
+      path: String(req.body?.path || '').slice(0, 300),
+      createdAt: new Date(),
+    });
+    res.status(204).end();
+  } catch (err) {
+    logger.error({ err }, 'Error recording site visit');
+    res.status(204).end(); // Never surface a tracking failure to the visitor.
+  }
+});
+
 // Producers count within a radius
 app.get('/api/producers/count', async (req, res) => {
   try {
@@ -1308,6 +1327,11 @@ async function startServer() {
     // TTL index: auto-reaps abandoned/never-submitted CAPTCHA challenges.
     // Not relied on for security — every read already filters expiresAt itself.
     await db.collection('captcha_challenges').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+    // Backs the admin stats' unique-visitor count (distinct ip) and the visits-over-time sort.
+    await db.collection('siteVisits').createIndex({ createdAt: -1 });
+    await db.collection('siteVisits').createIndex({ ip: 1 });
+    // Backs GET /api/admin/users/:id's per-user IP history lookup.
+    await db.collection('userLoginHistory').createIndex({ userId: 1, createdAt: -1 });
 
     // Recover precise timers for auctions still pending from before a restart
     const pendingAuctions = await db.collection('auctions').find({ status: 'pending' }).toArray();

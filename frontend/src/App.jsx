@@ -9,6 +9,7 @@ import { useTranslation } from './context/LanguageContext';
 import { useTheme } from './context/ThemeContext';
 import { BACKEND_URL } from './utils/config.js';
 import { getNotificationTitle, getNotificationBody } from './utils/notificationText.js';
+import { trackVisit } from './utils/trackVisit.js';
 
 // Route-level pages are code-split: each is only downloaded when the user
 // actually navigates to it, instead of bloating the initial bundle.
@@ -79,6 +80,11 @@ export default function App() {
 
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { localeRef.current = locale; }, [locale]);
+
+  // Covers returning visitors whose cookie consent was already accepted in a
+  // previous session — first-time acceptance is tracked from CookieConsent.jsx
+  // itself, at the moment consent is actually granted.
+  useEffect(() => { trackVisit(); }, []);
 
   const fetchParcelles = async () => {
     if (!token || !user || user.role !== 'producer') return;

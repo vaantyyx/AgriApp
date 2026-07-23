@@ -12,6 +12,23 @@ import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 
+// Records the IP an account was created from or logged in from, for admin
+// oversight (see GET /api/admin/users/:id). Never blocks the auth flow it's
+// called from — a logging failure here must not fail a real login/register.
+async function recordUserIp(db, userId, req, type) {
+  try {
+    await db.collection('userLoginHistory').insertOne({
+      userId,
+      ip: req.ip || '',
+      userAgent: String(req.headers['user-agent'] || '').slice(0, 300),
+      type,
+      createdAt: new Date(),
+    });
+  } catch (err) {
+    logger.error({ err, userId, type }, 'Failed to record login IP');
+  }
+}
+
 // ─── POST /api/auth/register ───────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
@@ -78,7 +95,8 @@ router.post('/register', async (req, res) => {
       createdAt: new Date(),
     };
 
-    await db.collection('users').insertOne(newUser);
+    const insertResult = await db.collection('users').insertOne(newUser);
+    await recordUserIp(db, insertResult.insertedId.toString(), req, 'register');
 
     // Send verification email (do not log credentials)
     try {
@@ -253,6 +271,8 @@ router.post('/login', async (req, res) => {
       { algorithm: 'HS256', expiresIn: '24h' }
     );
 
+    await recordUserIp(db, user._id.toString(), req, 'login');
+
     res.json({
       token,
       user: {
@@ -307,6 +327,8 @@ router.post('/verify-otp', async (req, res) => {
       secret,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
+
+    await recordUserIp(db, user._id.toString(), req, 'login');
 
     res.json({
       status: 'AUTHENTICATED',

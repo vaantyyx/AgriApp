@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Cookie } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
+import { trackVisit } from '../utils/trackVisit.js';
 
 const STORAGE_KEY = 'sougra_cookie_consent'; // 'accepted' | 'rejected'
 
@@ -13,6 +14,7 @@ export default function CookieConsent() {
   const decide = (choice) => {
     localStorage.setItem(STORAGE_KEY, choice);
     setVisible(false);
+    if (choice === 'accepted') trackVisit();
   };
 
   if (!visible) return null;
