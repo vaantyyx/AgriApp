@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2 } from 'lucide-react';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2, MessageCircle } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -713,6 +713,55 @@ function AuctionDetailModal({ auctionId, authHeaders, onClose }) {
   );
 }
 
+function SupportMessageModal({ message, onToggleResolved, onClose }) {
+  const { t, locale, dir } = useTranslation();
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
+  const [toggling, setToggling] = useState(false);
+  const cardRef = useRef(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(cardRef, true);
+
+  const handleToggle = async () => {
+    setToggling(true);
+    await onToggleResolved(message);
+    setToggling(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 520, maxHeight: '85vh', overflowY: 'auto' }} role="dialog" aria-modal="true" aria-label={message.subject} dir={dir}>
+        <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
+
+        <div style={{ marginBottom: 16 }}>
+          <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: message.status === 'open' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)', color: message.status === 'open' ? '#f59e0b' : 'var(--primary)' }}>
+            {message.status === 'open' ? t('adminSupportStatusOpen') : t('adminSupportStatusResolved')}
+          </span>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: '10px 0 4px' }}>{message.subject}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+            {message.name} · <span style={{ direction: 'ltr', display: 'inline-block' }}>{message.email}</span>
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '2px 0 0' }}>
+            {message.createdAt ? new Date(message.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+          </p>
+        </div>
+
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 20, fontSize: '0.9rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+          {message.message}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <a href={`mailto:${message.email}?subject=${encodeURIComponent(`Re: ${message.subject}`)}`} className="btn btn-secondary" style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}>
+            {t('adminReplyByEmailBtn')}
+          </a>
+          <button type="button" onClick={handleToggle} disabled={toggling} className="btn btn-primary" style={{ flex: 1 }}>
+            {message.status === 'open' ? t('adminMarkResolvedBtn') : t('adminReopenBtn')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboardPage({ token }) {
   const { t, dir, locale } = useTranslation();
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
@@ -721,6 +770,7 @@ export default function AdminDashboardPage({ token }) {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [auctions, setAuctions] = useState([]);
+  const [supportMessages, setSupportMessages] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -730,6 +780,7 @@ export default function AdminDashboardPage({ token }) {
   const [deletingUser, setDeletingUser] = useState(null);
   const [viewingUserId, setViewingUserId] = useState(null);
   const [viewingAuctionId, setViewingAuctionId] = useState(null);
+  const [viewingSupportMessage, setViewingSupportMessage] = useState(null);
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -772,6 +823,27 @@ export default function AdminDashboardPage({ token }) {
     }
   }, [authHeaders]);
 
+  const fetchSupportMessages = useCallback(async (targetPage) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: targetPage, limit: 20 });
+      const res = await fetch(`${BACKEND_URL}/api/admin/support-messages?${params}`, { headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        setSupportMessages(data.messages);
+        setTotalPages(data.totalPages);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
+  const fetchTab = useCallback((targetPage) => {
+    if (tab === 'users') fetchUsers(targetPage, search);
+    else if (tab === 'auctions') fetchAuctions(targetPage);
+    else fetchSupportMessages(targetPage);
+  }, [tab, search, fetchUsers, fetchAuctions, fetchSupportMessages]);
+
   // Data-fetching-on-dependency-change effects: each callback sets a loading
   // flag / result state after its own fetch, not derived-state-from-props.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -780,15 +852,13 @@ export default function AdminDashboardPage({ token }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPage(1);
-    if (tab === 'users') fetchUsers(1, search);
-    else fetchAuctions(1);
+    fetchTab(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (tab === 'users') fetchUsers(page, search);
-    else fetchAuctions(page);
+    fetchTab(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
@@ -796,6 +866,23 @@ export default function AdminDashboardPage({ token }) {
     e.preventDefault();
     setPage(1);
     fetchUsers(1, search);
+  };
+
+  const handleToggleResolved = async (msg) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/support-messages/${msg.id}/resolve`, { method: 'POST', headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+        setSupportMessages(prev => prev.map(x => x.id === msg.id ? { ...x, status: data.status } : x));
+        setViewingSupportMessage(prev => prev && prev.id === msg.id ? { ...prev, status: data.status } : prev);
+        fetchStats();
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    }
   };
 
   const toggleUserActive = async (u) => {
@@ -900,6 +987,13 @@ export default function AdminDashboardPage({ token }) {
           onClose={() => setDeletingUser(null)}
         />
       )}
+      {viewingSupportMessage && (
+        <SupportMessageModal
+          message={viewingSupportMessage}
+          onToggleResolved={handleToggleResolved}
+          onClose={() => setViewingSupportMessage(null)}
+        />
+      )}
       <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 28 }}>
@@ -911,6 +1005,7 @@ export default function AdminDashboardPage({ token }) {
             <StatTile label={t('adminStatDeactivated')} value={stats.deactivatedUsers} />
             <StatTile label={t('adminStatTotalVisits')} value={stats.totalVisits} />
             <StatTile label={t('adminStatUniqueVisitors')} value={stats.uniqueVisitors} />
+            <StatTile label={t('adminStatOpenSupport')} value={stats.openSupportCount} />
           </div>
         )}
 
@@ -928,6 +1023,18 @@ export default function AdminDashboardPage({ token }) {
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: '0.875rem' }}
           >
             <Gavel size={15} /> {t('adminAuctionsTab')}
+          </button>
+          <button
+            onClick={() => setTab('support')}
+            className={tab === 'support' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: '0.875rem' }}
+          >
+            <MessageCircle size={15} /> {t('adminSupportTab')}
+            {stats?.openSupportCount > 0 && (
+              <span style={{ background: tab === 'support' ? 'rgba(255,255,255,0.25)' : '#ef4444', color: 'white', borderRadius: 999, fontSize: '0.68rem', fontWeight: 800, padding: '1px 7px' }}>
+                {stats.openSupportCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -987,7 +1094,7 @@ export default function AdminDashboardPage({ token }) {
                 )}
               </tbody>
             </table>
-          ) : (
+          ) : tab === 'auctions' ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
@@ -1022,6 +1129,46 @@ export default function AdminDashboardPage({ token }) {
                 ))}
                 {!loading && auctions.length === 0 && (
                   <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoAuctions')}</td></tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColName')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColSubject')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColDate')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {supportMessages.map(m => (
+                  <tr key={m.id} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{m.name}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.subject}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700, background: m.status === 'open' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)', color: m.status === 'open' ? '#f59e0b' : 'var(--primary)' }}>
+                        {m.status === 'open' ? t('adminSupportStatusOpen') : t('adminSupportStatusResolved')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{m.createdAt ? new Date(m.createdAt).toLocaleDateString(localeTag) : '-'}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <button
+                        onClick={() => setViewingSupportMessage(m)}
+                        className="btn btn-secondary"
+                        title={locale === 'ar' ? 'عرض' : (locale === 'en' ? 'View' : 'Voir')}
+                        aria-label={locale === 'ar' ? 'عرض' : (locale === 'en' ? 'View' : 'Voir')}
+                        style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 5 }}
+                      >
+                        <Eye size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {!loading && supportMessages.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoSupportMessages')}</td></tr>
                 )}
               </tbody>
             </table>

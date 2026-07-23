@@ -1502,6 +1502,8 @@ async function startServer() {
     await db.collection('userLoginHistory').createIndex({ userId: 1, createdAt: -1 });
     // Backs GET /api/admin/users/:id's per-user AI chat history lookup.
     await db.collection('aiChatLogs').createIndex({ userId: 1, createdAt: -1 });
+    // Backs the admin Support tab's status filter + open-ticket stat tile.
+    await db.collection('supportMessages').createIndex({ status: 1, createdAt: -1 });
 
     // Recover precise timers for auctions still pending from before a restart
     const pendingAuctions = await db.collection('auctions').find({ status: 'pending' }).toArray();

@@ -20,7 +20,7 @@ function parsePagination(query) {
 router.get('/stats', async (req, res) => {
   try {
     const db = getDb();
-    const [totalUsers, buyerCount, producerCount, openAuctions, closedAuctions, deactivatedUsers, totalVisits, uniqueVisitorIps] = await Promise.all([
+    const [totalUsers, buyerCount, producerCount, openAuctions, closedAuctions, deactivatedUsers, totalVisits, uniqueVisitorIps, openSupportCount] = await Promise.all([
       db.collection('users').countDocuments({}),
       db.collection('users').countDocuments({ role: 'buyer' }),
       db.collection('users').countDocuments({ role: 'producer' }),
@@ -29,10 +29,11 @@ router.get('/stats', async (req, res) => {
       db.collection('users').countDocuments({ isActive: false }),
       db.collection('siteVisits').countDocuments({}),
       db.collection('siteVisits').distinct('ip'),
+      db.collection('supportMessages').countDocuments({ status: 'open' }),
     ]);
     res.json({
       totalUsers, buyerCount, producerCount, openAuctions, closedAuctions, deactivatedUsers,
-      totalVisits, uniqueVisitors: uniqueVisitorIps.filter(Boolean).length,
+      totalVisits, uniqueVisitors: uniqueVisitorIps.filter(Boolean).length, openSupportCount,
     });
   } catch (err) {
     logger.error({ err }, 'ADMIN STATS ERROR');
@@ -549,6 +550,67 @@ router.post('/weekly-statements/:id/mark-paid', async (req, res) => {
     res.json({ message: 'Relevé marqué comme payé.', statement: result });
   } catch (err) {
     logger.error({ err }, 'ADMIN MARK STATEMENT PAID ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── GET /api/admin/support-messages ─────────────────────────────────────────
+// Contact-form submissions (backend/routes/support.js) — previously only ever
+// reached an email inbox with no record anywhere else; now persisted so they
+// show up here even if the notification email failed to send.
+router.get('/support-messages', async (req, res) => {
+  try {
+    const db = getDb();
+    const { page, limit } = parsePagination(req.query);
+    const allowedStatuses = ['open', 'resolved'];
+    const status = allowedStatuses.includes(req.query.status) ? req.query.status : null;
+    const filter = status ? { status } : {};
+
+    const [messages, total] = await Promise.all([
+      db.collection('supportMessages')
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection('supportMessages').countDocuments(filter),
+    ]);
+
+    res.json({
+      messages: messages.map(m => ({
+        id: m._id.toString(),
+        name: m.name,
+        email: m.email,
+        subject: m.subject,
+        message: m.message,
+        status: m.status,
+        createdAt: m.createdAt,
+      })),
+      page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN LIST SUPPORT MESSAGES ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/admin/support-messages/:id/resolve ────────────────────────────
+// Toggles open <-> resolved — a ticket reopened by mistake is a much smaller
+// problem than a one-way status with no way back.
+router.post('/support-messages/:id/resolve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID invalide.' });
+
+    const db = getDb();
+    const existing = await db.collection('supportMessages').findOne({ _id: new ObjectId(id) });
+    if (!existing) return res.status(404).json({ error: 'Message introuvable.' });
+
+    const newStatus = existing.status === 'resolved' ? 'open' : 'resolved';
+    await db.collection('supportMessages').updateOne({ _id: new ObjectId(id) }, { $set: { status: newStatus } });
+    res.json({ message: 'Statut mis à jour.', status: newStatus });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN RESOLVE SUPPORT MESSAGE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
