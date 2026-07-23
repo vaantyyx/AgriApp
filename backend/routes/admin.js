@@ -278,6 +278,28 @@ router.post('/users/:id/reactivate', async (req, res) => {
   }
 });
 
+// ─── POST /api/admin/users/:id/verify ────────────────────────────────────────
+// Marks the account verified without the owner clicking the emailed link —
+// for test accounts created with throwaway/unreachable addresses. Real users
+// keep going through the normal email-verification (and, on login, OTP) flow
+// untouched; this only ever short-circuits the one-time email-link step.
+router.post('/users/:id/verify', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID invalide.' });
+
+    const result = await getDb().collection('users').updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { isVerified: true }, $unset: { verificationToken: '', verificationExpires: '' } }
+    );
+    if (result.matchedCount === 0) return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    res.json({ message: 'Compte vérifié.' });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN VERIFY USER ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // ─── POST /api/admin/users/:id/set-password ─────────────────────────────────
 router.post('/users/:id/set-password', async (req, res) => {
   try {

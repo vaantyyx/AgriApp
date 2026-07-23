@@ -252,7 +252,7 @@ function ParcelleMiniMap({ lat, lng }) {
 // implicitly makes overflowY 'auto' too, per the CSS spec), which cut the menu
 // off for rows near the bottom/last row. Escaping via portal + viewport-relative
 // fixed coordinates sidesteps that clipping entirely, regardless of row position.
-function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, t }) {
+function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, onVerify, t }) {
   const { dir } = useTranslation();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -260,7 +260,7 @@ function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, 
   const dropdownRef = useRef(null);
   useClickOutside([btnRef, dropdownRef], open, () => setOpen(false));
 
-  const itemCount = 2 + (user.role !== 'admin' ? 2 : 0);
+  const itemCount = 2 + (user.role !== 'admin' ? 2 : 0) + (!user.isVerified ? 1 : 0);
   const estimatedHeight = itemCount * 40 + 12;
 
   const toggleOpen = () => {
@@ -307,6 +307,11 @@ function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, 
           <button type="button" onClick={() => { setOpen(false); onChangePassword(user); }}>
             <KeyRound size={14} /> {t('adminChangePasswordBtn')}
           </button>
+          {!user.isVerified && (
+            <button type="button" onClick={() => { setOpen(false); onVerify(user); }}>
+              <CheckCircle2 size={14} /> {t('adminVerifyUserBtn')}
+            </button>
+          )}
           {user.role !== 'admin' && (
             <>
               <button type="button" className={user.isActive ? 'danger' : ''} onClick={() => { setOpen(false); onToggleActive(user); }}>
@@ -812,6 +817,22 @@ export default function AdminDashboardPage({ token }) {
     }
   };
 
+  const handleVerifyUser = async (u) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/users/${u.id}/verify`, { method: 'POST', headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+        setUsers(prev => prev.map(x => x.id === u.id ? { ...x, isVerified: true } : x));
+        fetchStats();
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    }
+  };
+
   const handleDeleteUser = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/admin/users/${deletingUser.id}`, { method: 'DELETE', headers: authHeaders });
@@ -957,7 +978,7 @@ export default function AdminDashboardPage({ token }) {
                     </td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString(localeTag) : '-'}</td>
                     <td style={{ padding: '10px 16px' }}>
-                      <ActionMenu user={u} onView={u2 => setViewingUserId(u2.id)} onChangePassword={setChangingPasswordUser} onToggleActive={toggleUserActive} onDelete={setDeletingUser} t={t} />
+                      <ActionMenu user={u} onView={u2 => setViewingUserId(u2.id)} onChangePassword={setChangingPasswordUser} onToggleActive={toggleUserActive} onDelete={setDeletingUser} onVerify={handleVerifyUser} t={t} />
                     </td>
                   </tr>
                 ))}
