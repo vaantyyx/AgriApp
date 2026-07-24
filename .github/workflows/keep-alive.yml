@@ -1,0 +1,18 @@
+name: Keep Backend Awake
+
+# Render's free tier spins the backend down after ~15 minutes with no
+# incoming traffic, which makes the first real visitor of the day wait
+# through a cold start (slow enough that the CAPTCHA challenge times out).
+# Pinging the lightweight /health route every 10 minutes keeps the dyno
+# warm without ever coming close to that threshold.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: curl -sf https://agriapp-mhbz.onrender.com/health
