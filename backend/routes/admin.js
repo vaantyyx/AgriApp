@@ -7,6 +7,7 @@ import adminMiddleware from '../middleware/adminMiddleware.js';
 import { logger } from '../utils/logger.js';
 import { markStatementPaid } from '../services/commissionEngine.js';
 import { SCORE_WEIGHTS, setScoreWeights } from '../services/compositeScoring.js';
+import { sendAdminMessage } from '../services/emailService.js';
 
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
@@ -651,6 +652,32 @@ router.put('/score-weights', async (req, res) => {
   } catch (err) {
     logger.error({ err }, 'ADMIN UPDATE SCORE WEIGHTS ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/admin/send-email ──────────────────────────────────────────────
+// Lets the admin send a one-off, free-form email to any address, on Sougra's
+// behalf, using the same branded template as the automated OTP/verification
+// emails (see emailService.js's getBaseTemplate).
+router.post('/send-email', async (req, res) => {
+  try {
+    const { to, subject, message } = req.body;
+
+    if (typeof to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) {
+      return res.status(400).json({ error: 'Adresse email destinataire invalide.' });
+    }
+    if (typeof subject !== 'string' || subject.trim().length < 2 || subject.trim().length > 200) {
+      return res.status(400).json({ error: "L'objet doit contenir entre 2 et 200 caractères." });
+    }
+    if (typeof message !== 'string' || message.trim().length < 2 || message.trim().length > 5000) {
+      return res.status(400).json({ error: 'Le message doit contenir entre 2 et 5000 caractères.' });
+    }
+
+    await sendAdminMessage(to.trim(), subject.trim(), message.trim());
+    res.json({ message: 'Email envoyé.' });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN SEND EMAIL ERROR');
+    res.status(500).json({ error: "Échec de l'envoi de l'email." });
   }
 });
 

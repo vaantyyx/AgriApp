@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2, MessageCircle, TrendingUp, Wallet, Receipt, SlidersHorizontal, Save, AlertCircle } from 'lucide-react';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2, MessageCircle, TrendingUp, Wallet, Receipt, SlidersHorizontal, Save, AlertCircle, Mail, Send } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -910,6 +910,70 @@ function ScoreWeightsPanel({ authHeaders, showToast }) {
   );
 }
 
+// Lets the admin send a one-off, free-form email to any address on Sougra's
+// behalf — reuses the same branded template as the automated OTP/verification
+// emails server-side, just with an admin-authored subject and body.
+function SendEmailPanel({ authHeaders, showToast, t, dir }) {
+  const [to, setTo] = useState('');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim()) && subject.trim().length >= 2 && message.trim().length >= 2;
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!isValid) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/send-email`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), message: message.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminEmailSentSuccess'));
+        setTo(''); setSubject(''); setMessage('');
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSend} className="glass-panel" style={{ maxWidth: 560, padding: 24, textAlign: 'start' }} dir={dir}>
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20, lineHeight: 1.6 }}>
+        {t('adminSendEmailDesc')}
+      </p>
+
+      <div className="form-group">
+        <label>{t('adminSendEmailTo')}</label>
+        <input type="email" value={to} onChange={e => setTo(e.target.value)} placeholder="exemple@email.com" required />
+      </div>
+
+      <div className="form-group">
+        <label>{t('adminSendEmailSubject')}</label>
+        <input type="text" value={subject} onChange={e => setSubject(e.target.value)} maxLength={200} required />
+      </div>
+
+      <div className="form-group">
+        <label>{t('adminSendEmailMessage')}</label>
+        <textarea value={message} onChange={e => setMessage(e.target.value)} maxLength={5000} rows={8} required style={{ resize: 'vertical' }} />
+      </div>
+
+      <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }} disabled={!isValid || sending}>
+        {sending ? <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Send size={15} />}
+        {t('adminSendEmailSubmit')}
+      </button>
+    </form>
+  );
+}
+
 export default function AdminDashboardPage({ token }) {
   const { t, dir, locale } = useTranslation();
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
@@ -1041,7 +1105,7 @@ export default function AdminDashboardPage({ token }) {
     else if (tab === 'referencePrices') fetchReferencePrices(targetPage);
     else if (tab === 'buyerAccounts') fetchBuyerAccounts(targetPage);
     else if (tab === 'weeklyStatements') fetchWeeklyStatements(targetPage);
-    // 'scoreWeights' is a settings form, not a paginated list — ScoreWeightsPanel fetches its own data.
+    // 'scoreWeights' and 'sendEmail' are settings forms, not paginated lists — they fetch their own data.
   }, [tab, search, fetchUsers, fetchAuctions, fetchSupportMessages, fetchReferencePrices, fetchBuyerAccounts, fetchWeeklyStatements]);
 
   // Data-fetching-on-dependency-change effects: each callback sets a loading
@@ -1279,6 +1343,13 @@ export default function AdminDashboardPage({ token }) {
           >
             <SlidersHorizontal size={15} /> {t('adminScoreWeightsTab')}
           </button>
+          <button
+            onClick={() => setTab('sendEmail')}
+            className={tab === 'sendEmail' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: '0.875rem' }}
+          >
+            <Mail size={15} /> {t('adminSendEmailTab')}
+          </button>
         </div>
 
         {tab === 'users' && (
@@ -1298,6 +1369,8 @@ export default function AdminDashboardPage({ token }) {
 
         {tab === 'scoreWeights' ? (
           <ScoreWeightsPanel authHeaders={authHeaders} showToast={showToast} />
+        ) : tab === 'sendEmail' ? (
+          <SendEmailPanel authHeaders={authHeaders} showToast={showToast} t={t} dir={dir} />
         ) : (
         <>
         <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', background: 'var(--bg-panel)' }}>

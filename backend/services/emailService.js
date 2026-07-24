@@ -635,6 +635,47 @@ export async function sendPasswordResetEmail(to, name, token, locale = 'fr') {
   }
 }
 
+// A free-form message composed by the admin from the dashboard (e.g. a manual
+// notice to a specific user) — reuses the same branded template as every other
+// automated email, but the subject and body are whatever the admin typed.
+export async function sendAdminMessage(to, subject, message) {
+  const transporter = await createTransporter();
+
+  if (isDev) {
+    console.log(`\n==================================================`);
+    console.log(`[ADMIN EMAIL DEV] To: ${to}`);
+    console.log(`Subject: ${subject}`);
+    console.log(message);
+    console.log(`==================================================\n`);
+  }
+
+  if (!transporter) {
+    throw new Error('Email transport unavailable');
+  }
+
+  const safeMessageHtml = message
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+
+  const html = getBaseTemplate(
+    subject,
+    `
+      <h2 style="color:#f3f4f6;font-size:20px;margin:0 0 24px 0;font-weight:700;">${subject}</h2>
+      <p style="color:#9ca3af;line-height:1.7;margin:0;white-space:pre-line;">${safeMessageHtml}</p>
+    `,
+    'fr'
+  );
+
+  await transporter.sendMail({
+    from: getFromAddress(),
+    to,
+    subject,
+    html,
+  });
+}
+
 const SUPPORT_ADDRESS = process.env.SUPPORT_EMAIL || 'achikh200@gmail.com';
 
 // Sends a user's help-page message to the support inbox, with Reply-To set to the
