@@ -205,7 +205,7 @@ router.post('/roles', async (req, res) => {
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email, role: user.role, roles },
       secret,
-      { algorithm: 'HS256', expiresIn: '24h' }
+      { algorithm: 'HS256', expiresIn: '30d' }
     );
 
     res.json({

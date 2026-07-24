@@ -273,7 +273,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email, role: user.role, roles },
       secret,
-      { algorithm: 'HS256', expiresIn: '24h' }
+      { algorithm: 'HS256', expiresIn: '30d' }
     );
 
     await recordUserIp(db, user._id.toString(), req, 'login');
@@ -332,7 +332,7 @@ router.post('/verify-otp', async (req, res) => {
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email, role: user.role, roles },
       secret,
-      { algorithm: 'HS256', expiresIn: '24h' }
+      { algorithm: 'HS256', expiresIn: '30d' }
     );
 
     await recordUserIp(db, user._id.toString(), req, 'login');

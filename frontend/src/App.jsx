@@ -47,14 +47,14 @@ function RouteLoadingFallback() {
   );
 }
 
-// Helper: get token from sessionStorage
+// Helper: get token from localStorage
 // TODO(security): In production, migrate to HttpOnly cookies to prevent XSS token theft.
 function getStoredToken() {
-  try { return sessionStorage.getItem('agri_token') || null; } catch { return null; }
+  try { return localStorage.getItem('agri_token') || null; } catch { return null; }
 }
 function getStoredUser() {
   try {
-    const s = sessionStorage.getItem('agri_user');
+    const s = localStorage.getItem('agri_user');
     return s ? JSON.parse(s) : null;
   } catch { return null; }
 }
@@ -62,7 +62,7 @@ function getStoredUser() {
 // preference only, never an authorization concept (the backend still checks
 // actual capabilities). Single-role accounts never see this matter at all.
 function getStoredActiveView() {
-  try { return sessionStorage.getItem('agri_active_view') || null; } catch { return null; }
+  try { return localStorage.getItem('agri_active_view') || null; } catch { return null; }
 }
 
 export default function App() {
@@ -81,7 +81,7 @@ export default function App() {
   const activeRole = userRoles.includes(activeView) ? activeView : userRoles[0];
   const setActiveView = (view) => {
     setActiveViewState(view);
-    try { sessionStorage.setItem('agri_active_view', view); } catch { /* ignore */ }
+    try { localStorage.setItem('agri_active_view', view); } catch { /* ignore */ }
   };
   const activeRoleRef = useRef(activeRole);
   useEffect(() => { activeRoleRef.current = activeRole; }, [activeRole]);
@@ -147,9 +147,9 @@ export default function App() {
     setActiveViewState(null);
     setNotifications([]);
     setNotifOpen(false);
-    sessionStorage.removeItem('agri_token');
-    sessionStorage.removeItem('agri_user');
-    sessionStorage.removeItem('agri_active_view');
+    localStorage.removeItem('agri_token');
+    localStorage.removeItem('agri_user');
+    localStorage.removeItem('agri_active_view');
     navigate('/login');
   };
 
@@ -219,7 +219,7 @@ export default function App() {
   // Refresh the session user from the authoritative profile data on load/login.
   // Without this, fields edited on the Profile page (e.g. phone) only update the
   // dashboard's completion widget in the tab that made the edit — any other tab,
-  // or a session restored from sessionStorage, kept showing the stale value.
+  // or a session restored from localStorage, kept showing the stale value.
   useEffect(() => {
     if (!token) return;
     fetch(`${BACKEND_URL}/api/profile`, {
@@ -251,7 +251,7 @@ export default function App() {
             ficheSignaletiqueDocument: data.ficheSignaletiqueDocument || null,
             carteAgriculteurDocument: data.carteAgriculteurDocument || null,
           };
-          sessionStorage.setItem('agri_user', JSON.stringify(updated));
+          localStorage.setItem('agri_user', JSON.stringify(updated));
           return updated;
         });
       })
@@ -354,14 +354,14 @@ export default function App() {
   const handleLoginSuccess = (newToken, userInfo) => {
     setToken(newToken);
     setUser(userInfo);
-    sessionStorage.setItem('agri_token', newToken);
-    sessionStorage.setItem('agri_user', JSON.stringify(userInfo));
+    localStorage.setItem('agri_token', newToken);
+    localStorage.setItem('agri_user', JSON.stringify(userInfo));
     navigate(userInfo.role === 'admin' ? '/admin' : '/dashboard');
   };
 
   const handleUserUpdate = (updatedUser) => {
     setUser(updatedUser);
-    sessionStorage.setItem('agri_user', JSON.stringify(updatedUser));
+    localStorage.setItem('agri_user', JSON.stringify(updatedUser));
   };
 
   // Lets a buyer add the producer capability (or vice versa) without
@@ -378,8 +378,8 @@ export default function App() {
       if (!res.ok) return { ok: false, error: data.error };
       setToken(data.token);
       setUser(data.user);
-      sessionStorage.setItem('agri_token', data.token);
-      sessionStorage.setItem('agri_user', JSON.stringify(data.user));
+      localStorage.setItem('agri_token', data.token);
+      localStorage.setItem('agri_user', JSON.stringify(data.user));
       return { ok: true };
     } catch {
       return { ok: false, error: 'Erreur réseau.' };

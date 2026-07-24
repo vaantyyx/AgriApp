@@ -4,7 +4,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 
 function getStoredToken() {
-  try { return sessionStorage.getItem('agri_token') || null; } catch { return null; }
+  try { return localStorage.getItem('agri_token') || null; } catch { return null; }
 }
 
 export default function AiAssistant() {
