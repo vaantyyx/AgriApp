@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { getDb } from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import { sendOtpEmail, sendAccountDeactivationEmail } from '../services/emailService.js';
@@ -67,12 +68,14 @@ router.get('/', async (req, res) => {
       return res.status(404).json({ error: 'Utilisateur introuvable.' });
     }
 
-    // Count user's auctions/bids for stats
+    // Count user's auctions/bids for stats — a dual-role account gets both counts.
     let auctionsCount = 0;
     let bidsCount = 0;
-    if (user.role === 'buyer') {
+    const userRoles = user.roles || [user.role];
+    if (userRoles.includes('buyer')) {
       auctionsCount = await db.collection('auctions').countDocuments({ buyerId: req.user.userId });
-    } else {
+    }
+    if (userRoles.includes('producer')) {
       const allAuctions = await db.collection('auctions').find({ 'bids.producerId': req.user.userId }).toArray();
       bidsCount = allAuctions.reduce((acc, a) => {
         return acc + a.bids.filter(b => b.producerId === req.user.userId).length;
@@ -152,6 +155,78 @@ router.put('/', async (req, res) => {
     res.json({ message: 'Profil mis à jour avec succès.', updates });
   } catch (err) {
     logger.error({ err }, 'UPDATE PROFILE ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── POST /api/profile/roles ───────────────────────────────────────────────
+// Lets a buyer add the producer capability (or vice versa) to their own
+// account without re-registering. Reissues a JWT carrying the new `roles`
+// array so the frontend doesn't have to force a re-login.
+router.post('/roles', async (req, res) => {
+  try {
+    const { role, entity_type } = req.body;
+    if (!['buyer', 'producer'].includes(role)) {
+      return res.status(400).json({ error: 'Rôle invalide.' });
+    }
+    // Same requirement as at registration (auth.js /register): a buyer picks
+    // particulier/entreprise — adding the buyer role later must ask for it too,
+    // instead of silently defaulting it.
+    if (role === 'buyer' && !['particulier', 'entreprise'].includes(entity_type)) {
+      return res.status(400).json({ error: "Type d'entité invalide." });
+    }
+
+    const db = getDb();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(req.user.userId) });
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur introuvable.' });
+    }
+
+    const currentRoles = user.roles || [user.role];
+    if (currentRoles.includes('admin')) {
+      return res.status(400).json({ error: "Impossible d'ajouter un rôle à un compte administrateur." });
+    }
+    if (currentRoles.includes(role)) {
+      return res.status(400).json({ error: 'Ce rôle est déjà associé à votre compte.' });
+    }
+
+    const roles = [...currentRoles, role];
+    const updates = { roles };
+    // A pre-existing producer account defaults entity_type to 'particulier'
+    // (never asked at registration) — only overwrite it once the buyer role
+    // is actually being added and the user has made an explicit choice.
+    if (role === 'buyer') updates.entity_type = entity_type;
+    await db.collection('users').updateOne(
+      { _id: user._id },
+      { $set: updates }
+    );
+
+    const secret = process.env.JWT_SECRET;
+    const token = jwt.sign(
+      { userId: user._id.toString(), email: user.email, role: user.role, roles },
+      secret,
+      { algorithm: 'HS256', expiresIn: '24h' }
+    );
+
+    res.json({
+      message: 'Rôle ajouté avec succès.',
+      token,
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        roles,
+        profilePhoto: user.profilePhoto || null,
+        wilaya: user.wilaya || '',
+        commune: user.commune || '',
+        phone: user.phone || '',
+        entity_type: updates.entity_type || user.entity_type || 'particulier',
+        bio: user.bio || '',
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, 'ADD ROLE ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
@@ -392,6 +467,7 @@ router.put('/security', async (req, res) => {
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
+        roles: updatedUser.roles || [updatedUser.role],
         profilePhoto: updatedUser.profilePhoto || null,
         wilaya: updatedUser.wilaya || '',
         commune: updatedUser.commune || '',

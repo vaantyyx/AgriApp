@@ -45,6 +45,7 @@ import { recomputeReferencePrices, getReferencePrice } from './services/referenc
 import { recordCommission, generateWeeklyStatements } from './services/commissionEngine.js';
 import { checkForCollusion } from './services/collusionDetection.js';
 import { setScoreWeights } from './services/compositeScoring.js';
+import { setIo, userRoom } from './services/socketRegistry.js';
 
 // ─── JWT Secret bootstrap ──────────────────────────────────────────────────
 if (!process.env.JWT_SECRET) {
@@ -224,7 +225,7 @@ app.post('/api/track-visit', async (req, res) => {
 });
 
 // Producers count within a radius
-app.get('/api/producers/count', async (req, res) => {
+app.get('/api/producers/count', authMiddleware, async (req, res) => {
   try {
     const lat = parseFloat(req.query.lat);
     const lng = parseFloat(req.query.lng);
@@ -244,7 +245,10 @@ app.get('/api/producers/count', async (req, res) => {
     }
 
     const db = getDb();
-    const producers = await db.collection('users').find({ role: 'producer', isVerified: true }).toArray();
+    const { ObjectId } = await import('mongodb');
+    const producers = await db.collection('users')
+      .find({ roles: 'producer', isVerified: true, _id: { $ne: new ObjectId(req.user.userId) } })
+      .toArray();
 
     // Each producer's eligibility check is independent — run them concurrently
     // instead of one-at-a-time, so this scales with how long the slowest single
@@ -310,6 +314,8 @@ app.get('/api/auctions/older', authMiddleware, async (req, res) => {
 
     const db = getDb();
     const { userId: uid, role } = req.user;
+    const roles = req.user.roles || [role];
+    const activeView = roles.includes(req.query.activeView) ? req.query.activeView : roles[0];
 
     // Bloc B — a 'rejected' tender is only ever visible to the buyer who
     // created it (audit trail) and to admins; everyone else must never see it.
@@ -319,7 +325,7 @@ app.get('/api/auctions/older', authMiddleware, async (req, res) => {
       .limit(limit)
       .toArray();
 
-    if (role === 'producer') {
+    if (roles.includes('producer')) {
       const { ObjectId } = await import('mongodb');
       const producerUser = await db.collection('users').findOne(
         { _id: new ObjectId(uid) },
@@ -329,13 +335,14 @@ app.get('/api/auctions/older', authMiddleware, async (req, res) => {
         ? getCommuneCoords(producerUser.wilaya || '', producerUser.commune)
         : getWilayaCoords(producerUser?.wilaya || '');
 
-      const checks = await Promise.all(auctions.map(async a =>
-        (a.status !== 'pending' && await canProducerParticipate(a, uid, producerCoords, db)) ? a : null
-      ));
+      const checks = await Promise.all(auctions.map(async a => {
+        if (a.buyerId === uid) return a;
+        return (a.status !== 'pending' && await canProducerParticipate(a, uid, producerCoords, db)) ? a : null;
+      }));
       auctions = checks.filter(Boolean);
     }
 
-    const sanitized = sanitizeAuctions(auctions, uid, role);
+    const sanitized = sanitizeAuctions(auctions, uid, activeView);
     res.json({ auctions: sanitized, hasMore: auctions.length === limit });
   } catch (err) {
     logger.error({ err }, 'Error fetching older auctions');
@@ -354,11 +361,14 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST'],
   },
 });
+// Lets route modules (e.g. routes/admin.js, for online-presence checks) reach
+// this `io` instance without a circular import — see socketRegistry.js.
+setIo(io);
 
-// Per-user Socket.IO room, used for targeted delivery. Room-based (rather than
-// tracking raw socket IDs ourselves) so `io.to(userRoom(id)).emit(...)` fans out
-// correctly across instances once the Redis adapter below is active.
-const userRoom = (userId) => `user:${userId}`;
+// Capability check for a decoded JWT payload (`{ role, roles }`) — falls back
+// to the legacy single `role` for tokens issued before dual-role accounts
+// existed, so old still-valid sessions keep working unchanged.
+const hasRole = (userPayload, roleName) => (userPayload.roles || [userPayload.role]).includes(roleName);
 
 // Real-time delivery (new/updated auctions) is unaffected by this cap — it only
 // bounds the initial snapshot sent on connect; older auctions load on demand.
@@ -402,11 +412,14 @@ async function getMatchingProducers(auction, db) {
     ? { lat: auction.buyerLat, lng: auction.buyerLng }
     : null;
   const radiusKm = auction.radiusKm || 100;
-  const producers = await db.collection('users').find({ role: 'producer', isVerified: true }).toArray();
+  const producers = await db.collection('users').find({ roles: 'producer', isVerified: true }).toArray();
 
   // Each producer's zone/product eligibility is independent of the others —
   // run them concurrently instead of one-at-a-time.
   const results = await Promise.all(producers.map(async producer => {
+    // A dual-role account never gets notified about its own auction.
+    if (producer._id.toString() === auction.buyerId) return null;
+
     let shouldNotify = false;
     let distKm = 0;
 
@@ -473,28 +486,47 @@ async function notifyMatchingProducers(auction, db, type) {
   }
 }
 
-/** Broadcasts a sanitized version of the auction to every connected socket (zone/product filtered for producers). */
-async function broadcastAuction(auction, db, eventName = 'auction_updated') {
-  // Fetch buyers (always eligible) and only the producers whose wilaya room
-  // could plausibly be in range, instead of every connected socket — the
-  // exact per-producer check below still runs, just over a far smaller set.
+/**
+ * Sockets that could plausibly need an update about this auction: all buyers,
+ * plus producers in wilaya range. A dual-role account joins both room sets
+ * (see the connection handler below), so the same socket can come back from
+ * both fetches — dedupe by socket id or it would receive the event twice.
+ */
+async function getBroadcastCandidateSockets(auction) {
   const buyerSockets = await io.in('role:buyer').fetchSockets();
   const producerSockets = auction.status === 'pending'
     ? []
     : await io.in(getEligibleWilayaRooms(auction.buyerLat, auction.buyerLng, auction.radiusKm)).fetchSockets();
-  const candidateSockets = [...buyerSockets, ...producerSockets];
+  const seen = new Set();
+  return [...buyerSockets, ...producerSockets].filter(s => {
+    if (seen.has(s.id)) return false;
+    seen.add(s.id);
+    return true;
+  });
+}
 
+/**
+ * Emits `auction`, sanitized for `s`'s user, after checking producer
+ * eligibility — skipped for the auction's own buyer (always eligible for
+ * their own auction, even if their account also has the producer role).
+ */
+async function emitAuctionIfEligible(s, auction, db, eventName) {
+  const isOwnAuction = s.data.user.userId === auction.buyerId;
+  if (!isOwnAuction && hasRole(s.data.user, 'producer')) {
+    const allowed = await canProducerParticipate(auction, s.data.user.userId, s.data.producerCoords, db);
+    if (!allowed) return;
+  }
+  const [sanitized] = sanitizeAuctions([auction], s.data.user.userId, s.data.activeView || s.data.user.role);
+  s.emit(eventName, sanitized);
+}
+
+/** Broadcasts a sanitized version of the auction to every connected socket (zone/product filtered for producers). */
+async function broadcastAuction(auction, db, eventName = 'auction_updated') {
+  const candidateSockets = await getBroadcastCandidateSockets(auction);
   // Each socket's eligibility check + emit is independent — run them
   // concurrently. Sequentially awaiting one socket at a time made every
   // broadcast's cost scale with the size of the candidate set.
-  await Promise.all(candidateSockets.map(async s => {
-    if (s.data.user.role === 'producer') {
-      const allowed = await canProducerParticipate(auction, s.data.user.userId, s.data.producerCoords, db);
-      if (!allowed) return;
-    }
-    const [sanitized] = sanitizeAuctions([auction], s.data.user.userId, s.data.user.role);
-    s.emit(eventName, sanitized);
-  }));
+  await Promise.all(candidateSockets.map(s => emitAuctionIfEligible(s, auction, db, eventName)));
 }
 
 function clearAuctionTimers(auctionId) {
@@ -635,13 +667,20 @@ io.use((socket, next) => {
 
 io.on('connection', async (socket) => {
   const uid = socket.data.user.userId;
-  const role = socket.data.user.role;
+  // `roles` is the account's capabilities (JWTs issued before dual-role
+  // accounts existed only carry `role`, hence the fallback). `activeView` is
+  // just which view the frontend is currently showing — it only affects which
+  // *perspective* sanitizeAuctions renders with, never authorization.
+  const roles = socket.data.user.roles || [socket.data.user.role];
+  const requestedView = socket.handshake.auth?.activeView;
+  const activeView = roles.includes(requestedView) ? requestedView : roles[0];
+  socket.data.activeView = activeView;
 
   // Room-based presence — works for targeted delivery across instances once
   // the Redis adapter is active, and Socket.IO cleans it up on disconnect.
   socket.join(userRoom(uid));
 
-  logger.info({ email: socket.data.user.email, role, socketId: socket.id }, 'User connected');
+  logger.info({ email: socket.data.user.email, roles, activeView, socketId: socket.id }, 'User connected');
 
   // Resolve producer geographic coordinates for zone-based filtering
   socket.data.producerCoords = null;
@@ -650,7 +689,10 @@ io.on('connection', async (socket) => {
     const db = getDb();
     const { ObjectId } = await import('mongodb');
 
-    if (role === 'producer') {
+    // Independent (not else-if): a dual-role account joins both room sets,
+    // so it receives both buyer and producer broadcast categories on one
+    // connection — see getBroadcastCandidateSockets()'s dedupe for why that's safe.
+    if (roles.includes('producer')) {
       const producerUser = await db.collection('users').findOne(
         { _id: new ObjectId(uid) },
         { projection: { wilaya: 1, commune: 1 } }
@@ -661,7 +703,8 @@ io.on('connection', async (socket) => {
       // Lets broadcasts fetch a per-auction candidate set (producers in
       // plausibly-in-range wilayas) instead of every connected socket.
       socket.join(wilayaRoomName(producerUser?.wilaya || ''));
-    } else if (role === 'buyer') {
+    }
+    if (roles.includes('buyer')) {
       socket.join('role:buyer');
     }
 
@@ -672,14 +715,18 @@ io.on('connection', async (socket) => {
     const visibilityFilter = { $or: [{ status: { $ne: 'rejected' } }, { buyerId: uid }] };
     const totalAuctionsCount = await db.collection('auctions').countDocuments(visibilityFilter);
     let auctions = await db.collection('auctions').find(visibilityFilter).sort({ createdAt: -1 }).limit(INITIAL_AUCTIONS_LIMIT).toArray();
-    if (role === 'producer') {
-      const checks = await Promise.all(auctions.map(async a =>
-        (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.data.producerCoords, db)) ? a : null
-      ));
+    if (roles.includes('producer')) {
+      // A dual-role account must still see its own auctions (as their buyer)
+      // in this producer-eligibility pass — only auctions belonging to
+      // someone else are filtered by whether this account can bid on them.
+      const checks = await Promise.all(auctions.map(async a => {
+        if (a.buyerId === uid) return a;
+        return (a.status !== 'pending' && await canProducerParticipate(a, uid, socket.data.producerCoords, db)) ? a : null;
+      }));
       auctions = checks.filter(Boolean);
     }
 
-    const sanitized = sanitizeAuctions(auctions, uid, role);
+    const sanitized = sanitizeAuctions(auctions, uid, activeView);
     socket.emit('auctions_list', sanitized, { hasMore: totalAuctionsCount > INITIAL_AUCTIONS_LIMIT });
   } catch (err) {
     logger.error({ err }, 'Error fetching initial auctions');
@@ -687,7 +734,7 @@ io.on('connection', async (socket) => {
 
   // ── Create Auction (Buyer only) ──────────────────────────────────────
   socket.on('create_auction', async (data) => {
-    if (role !== 'buyer') {
+    if (!roles.includes('buyer')) {
       socket.emit('error', { message: 'Seuls les acheteurs peuvent créer des enchères.' });
       return;
     }
@@ -810,7 +857,7 @@ io.on('connection', async (socket) => {
       await db.collection('auctions').insertOne(newAuction);
 
       if (newAuction.status === 'rejected') {
-        const [sanitized] = sanitizeAuctions([newAuction], uid, role);
+        const [sanitized] = sanitizeAuctions([newAuction], uid, activeView);
         io.to(userRoom(uid)).emit('auction_created', sanitized);
         return;
       }
@@ -839,7 +886,7 @@ io.on('connection', async (socket) => {
 
   // ── Update Auction (Buyer only, only while pending / not yet started) ──
   socket.on('update_auction', async (data) => {
-    if (role !== 'buyer') {
+    if (!roles.includes('buyer')) {
       socket.emit('error', { message: 'Seuls les acheteurs peuvent modifier une enchère.' });
       return;
     }
@@ -945,7 +992,7 @@ io.on('connection', async (socket) => {
       clearAuctionRoundTimers(auctionId);
 
       if (updatedAuction.status === 'rejected') {
-        const [sanitized] = sanitizeAuctions([updatedAuction], uid, role);
+        const [sanitized] = sanitizeAuctions([updatedAuction], uid, activeView);
         io.to(userRoom(uid)).emit('auction_updated', sanitized);
         return;
       }
@@ -966,7 +1013,7 @@ io.on('connection', async (socket) => {
 
   // ── Delete Auction (Buyer only, only while pending / not yet started) ──
   socket.on('delete_auction', async (data) => {
-    if (role !== 'buyer') {
+    if (!roles.includes('buyer')) {
       socket.emit('error', { message: 'Seuls les acheteurs peuvent supprimer une enchère.' });
       return;
     }
@@ -1001,7 +1048,7 @@ io.on('connection', async (socket) => {
 
   // ── Place Bid (Producer only) ────────────────────────────────────────
   socket.on('place_bid', async (data) => {
-    if (role !== 'producer') {
+    if (!roles.includes('producer')) {
       socket.emit('error', { message: 'Seuls les producteurs peuvent faire des offres.' });
       return;
     }
@@ -1160,19 +1207,8 @@ io.on('connection', async (socket) => {
       io.to(userRoom(auction.buyerId)).emit('new_notification', notification);
 
       // Broadcast updated auction (sanitized per receiver)
-      // Fetch buyers (always eligible) plus only the producers in wilaya
-      // rooms that could plausibly be in range — see broadcastAuction() above.
-      const buyerSockets = await io.in('role:buyer').fetchSockets();
-      const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
-      const candidateSockets = [...buyerSockets, ...producerSockets];
-      await Promise.all(candidateSockets.map(async s => {
-        if (s.data.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
-          if (!allowed) return;
-        }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
-        s.emit('auction_updated', sanitized);
-      }));
+      const candidateSockets = await getBroadcastCandidateSockets(updatedAuction);
+      await Promise.all(candidateSockets.map(s => emitAuctionIfEligible(s, updatedAuction, db, 'auction_updated')));
     } catch (err) {
       logger.error({ err }, 'Error placing bid');
       socket.emit('error', { message: "Échec du dépôt d'offre." });
@@ -1181,7 +1217,7 @@ io.on('connection', async (socket) => {
 
   // ── Accept Bid (Buyer only) — accepts the whole bid package ─────────
   socket.on('accept_bid', async (data) => {
-    if (role !== 'buyer') {
+    if (!roles.includes('buyer')) {
       socket.emit('error', { message: 'Seuls les acheteurs peuvent valider une offre.' });
       return;
     }
@@ -1237,19 +1273,8 @@ io.on('connection', async (socket) => {
 
       io.to(userRoom(bid.producerId)).emit('new_notification', notification);
 
-      // Fetch buyers (always eligible) plus only the producers in wilaya
-      // rooms that could plausibly be in range — see broadcastAuction() above.
-      const buyerSockets = await io.in('role:buyer').fetchSockets();
-      const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
-      const candidateSockets = [...buyerSockets, ...producerSockets];
-      await Promise.all(candidateSockets.map(async s => {
-        if (s.data.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
-          if (!allowed) return;
-        }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
-        s.emit('auction_updated', sanitized);
-      }));
+      const candidateSockets = await getBroadcastCandidateSockets(updatedAuction);
+      await Promise.all(candidateSockets.map(s => emitAuctionIfEligible(s, updatedAuction, db, 'auction_updated')));
     } catch (err) {
       logger.error({ err }, 'Error accepting bid');
       socket.emit('error', { message: 'Échec de la validation.' });
@@ -1264,7 +1289,7 @@ io.on('connection', async (socket) => {
   // *next* auctions, per decision #6 — never the current one). A conforming
   // inspection also books the Sougra commission to the buyer's account.
   socket.on('submit_inspection', async (data) => {
-    if (role !== 'buyer') {
+    if (!roles.includes('buyer')) {
       socket.emit('error', { message: 'Seuls les acheteurs peuvent inspecter une livraison.' });
       return;
     }
@@ -1387,19 +1412,8 @@ io.on('connection', async (socket) => {
 
       // Update auction's inspection status across all connections
       const updatedAuction = await db.collection('auctions').findOne({ id: auctionId });
-      // Fetch buyers (always eligible) plus only the producers in wilaya
-      // rooms that could plausibly be in range — see broadcastAuction() above.
-      const buyerSockets = await io.in('role:buyer').fetchSockets();
-      const producerSockets = await io.in(getEligibleWilayaRooms(updatedAuction.buyerLat, updatedAuction.buyerLng, updatedAuction.radiusKm)).fetchSockets();
-      const candidateSockets = [...buyerSockets, ...producerSockets];
-      await Promise.all(candidateSockets.map(async s => {
-        if (s.data.user.role === 'producer') {
-          const allowed = await canProducerParticipate(updatedAuction, s.data.user.userId, s.data.producerCoords, db);
-          if (!allowed) return;
-        }
-        const [sanitized] = sanitizeAuctions([updatedAuction], s.data.user.userId, s.data.user.role);
-        s.emit('auction_updated', sanitized);
-      }));
+      const candidateSockets = await getBroadcastCandidateSockets(updatedAuction);
+      await Promise.all(candidateSockets.map(s => emitAuctionIfEligible(s, updatedAuction, db, 'auction_updated')));
     } catch (err) {
       logger.error({ err }, 'Error submitting inspection');
       socket.emit('error', { message: 'Échec de l\'inspection.' });
@@ -1476,6 +1490,22 @@ async function startServer() {
     const db = getDb();
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
     await db.collection('users').createIndex({ verificationToken: 1 }, { sparse: true });
+
+    // One-time backfill for dual-role accounts: every account created before
+    // this feature only ever had a single `role` string. Idempotent (only
+    // touches documents missing `roles`), so it's safe to run on every startup.
+    try {
+      await db.collection('users').updateMany(
+        { roles: { $exists: false } },
+        [{ $set: { roles: ['$role'] } }]
+      );
+    } catch (err) {
+      logger.error({ err }, 'Pipeline update for users.roles backfill failed — falling back to per-document update');
+      const legacyUsers = await db.collection('users').find({ roles: { $exists: false } }, { projection: { role: 1 } }).toArray();
+      for (const u of legacyUsers) {
+        await db.collection('users').updateOne({ _id: u._id }, { $set: { roles: [u.role] } });
+      }
+    }
     await db.collection('auctions').createIndex({ id: 1 }, { unique: true });
     // Every auction listing query (initial Socket.IO snapshot, GET /api/auctions/older
     // pagination) sorts by createdAt — without this, each one is a full collection

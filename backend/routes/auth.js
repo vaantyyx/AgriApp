@@ -84,6 +84,7 @@ router.post('/register', async (req, res) => {
       email: email.toLowerCase(),
       password: hashedPassword,
       role,
+      roles: [role],
       isVerified: false,
       verificationToken,
       verificationExpires,
@@ -268,8 +269,9 @@ router.post('/login', async (req, res) => {
     }
 
     const secret = process.env.JWT_SECRET;
+    const roles = user.roles || [user.role];
     const token = jwt.sign(
-      { userId: user._id.toString(), email: user.email, role: user.role },
+      { userId: user._id.toString(), email: user.email, role: user.role, roles },
       secret,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
@@ -283,6 +285,7 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        roles,
         profilePhoto: user.profilePhoto || null,
         wilaya: user.wilaya || '',
         commune: user.commune || '',
@@ -325,8 +328,9 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     const secret = process.env.JWT_SECRET;
+    const roles = user.roles || [user.role];
     const token = jwt.sign(
-      { userId: user._id.toString(), email: user.email, role: user.role },
+      { userId: user._id.toString(), email: user.email, role: user.role, roles },
       secret,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
@@ -341,6 +345,7 @@ router.post('/verify-otp', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        roles,
         profilePhoto: user.profilePhoto || null,
         wilaya: user.wilaya || '',
         commune: user.commune || '',

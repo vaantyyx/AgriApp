@@ -58,14 +58,33 @@ function getStoredUser() {
     return s ? JSON.parse(s) : null;
   } catch { return null; }
 }
+// Which "hat" a dual-role account is currently browsing under — a display
+// preference only, never an authorization concept (the backend still checks
+// actual capabilities). Single-role accounts never see this matter at all.
+function getStoredActiveView() {
+  try { return sessionStorage.getItem('agri_active_view') || null; } catch { return null; }
+}
 
 export default function App() {
   const { locale, t, dir } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [token, setToken] = useState(getStoredToken);
   const [user, setUser] = useState(getStoredUser);
+  const [activeView, setActiveViewState] = useState(getStoredActiveView);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // `roles` is the account's capabilities; `activeRole` resolves the current
+  // view preference against them, falling back to the first role a dual-role
+  // account has (or the legacy single `role` for accounts predating this).
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  const activeRole = userRoles.includes(activeView) ? activeView : userRoles[0];
+  const setActiveView = (view) => {
+    setActiveViewState(view);
+    try { sessionStorage.setItem('agri_active_view', view); } catch { /* ignore */ }
+  };
+  const activeRoleRef = useRef(activeRole);
+  useEffect(() => { activeRoleRef.current = activeRole; }, [activeRole]);
 
   const [auctions, setAuctions] = useState([]);
   const [hasMoreAuctions, setHasMoreAuctions] = useState(false);
@@ -88,7 +107,7 @@ export default function App() {
   useEffect(() => { trackVisit(); }, []);
 
   const fetchParcelles = async () => {
-    if (!token || !user || user.role !== 'producer') return;
+    if (!token || !user || !userRoles.includes('producer')) return;
     try {
       setLoadingParcelles(true);
       const res = await fetch(`${BACKEND_URL}/api/parcelles`, {
@@ -125,10 +144,12 @@ export default function App() {
   const handleLogout = () => {
     setToken(null);
     setUser(null);
+    setActiveViewState(null);
     setNotifications([]);
     setNotifOpen(false);
     sessionStorage.removeItem('agri_token');
     sessionStorage.removeItem('agri_user');
+    sessionStorage.removeItem('agri_active_view');
     navigate('/login');
   };
 
@@ -253,7 +274,7 @@ export default function App() {
       return;
     }
 
-    const socket = io(BACKEND_URL, { auth: { token } });
+    const socket = io(BACKEND_URL, { auth: { token, activeView: activeRoleRef.current } });
     socketRef.current = socket;
 
     socket.on('connect', () => setConnected(true));
@@ -311,7 +332,7 @@ export default function App() {
     socket.on('new_notification', (notif) => {
       setNotifications(prev => [notif, ...prev]);
       // Show a brief flash on the page title
-      const currentRole = userRef.current?.role;
+      const currentRole = activeRoleRef.current;
       const currentLoc = localeRef.current;
       const alertTitle = currentRole === 'buyer'
         ? (currentLoc === 'ar' ? '🔔 إشعار جديد!' : (currentLoc === 'fr' ? '🔔 Nouveau message !' : '🔔 New notification!'))
@@ -322,11 +343,13 @@ export default function App() {
 
     return () => { socket.disconnect(); };
     // handleLogout and t are intentionally omitted: the socket should only
-    // reconnect when the auth token changes, not on every render or locale
-    // switch — localeRef/userRef above exist precisely to read their latest
-    // values from inside long-lived socket callbacks without that dependency.
+    // reconnect when the auth token changes (or the active view is switched,
+    // so the server resends auctions_list sanitized for the new perspective),
+    // not on every render or locale switch — localeRef/userRef above exist
+    // precisely to read their latest values from inside long-lived socket
+    // callbacks without that dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, activeRole]);
 
   const handleLoginSuccess = (newToken, userInfo) => {
     setToken(newToken);
@@ -339,6 +362,28 @@ export default function App() {
   const handleUserUpdate = (updatedUser) => {
     setUser(updatedUser);
     sessionStorage.setItem('agri_user', JSON.stringify(updatedUser));
+  };
+
+  // Lets a buyer add the producer capability (or vice versa) without
+  // re-registering — the backend reissues a JWT carrying the new `roles`,
+  // so the session updates in place instead of forcing a re-login.
+  const handleAddRole = async (role, extraFields = {}) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/profile/roles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role, ...extraFields }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { ok: false, error: data.error };
+      setToken(data.token);
+      setUser(data.user);
+      sessionStorage.setItem('agri_token', data.token);
+      sessionStorage.setItem('agri_user', JSON.stringify(data.user));
+      return { ok: true };
+    } catch {
+      return { ok: false, error: 'Erreur réseau.' };
+    }
   };
 
   const handleCreateAuction = (data) => socketRef.current?.emit('create_auction', data);
@@ -375,7 +420,7 @@ export default function App() {
     const oldest = auctions.reduce((min, a) => (a.createdAt < min ? a.createdAt : min), auctions[0].createdAt);
     setLoadingMoreAuctions(true);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/auctions/older?before=${encodeURIComponent(oldest)}&limit=50`, {
+      const res = await fetch(`${BACKEND_URL}/api/auctions/older?before=${encodeURIComponent(oldest)}&limit=50&activeView=${encodeURIComponent(activeRole || '')}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -598,7 +643,7 @@ export default function App() {
                   )}
                   <span className="user-pill-name">{user.name}</span>
                   <span className="user-pill-role-icon" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    {user.role === 'buyer' ? <ShoppingBag size={11} /> : user.role === 'admin' ? <Shield size={11} /> : <Tractor size={11} />}
+                    {user.role === 'admin' ? <Shield size={11} /> : activeRole === 'buyer' ? <ShoppingBag size={11} /> : <Tractor size={11} />}
                   </span>
                   <div style={{
                     width: 7, height: 7,
@@ -665,11 +710,13 @@ export default function App() {
                 onNavigateToDashboard={() => navigate('/admin')}
               />
             ) : (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
-                {user.role === 'buyer' ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                {activeRole === 'buyer' ? (
                   <BuyerProfilePage
                     token={token}
                     user={user}
+                    roles={userRoles}
+                    onAddRole={handleAddRole}
                     onUserUpdate={handleUserUpdate}
                     onLogout={handleLogout}
                     onNavigateToDashboard={() => navigate('/dashboard')}
@@ -678,6 +725,8 @@ export default function App() {
                   <ProducerProfilePage
                     token={token}
                     user={user}
+                    roles={userRoles}
+                    onAddRole={handleAddRole}
                     onUserUpdate={handleUserUpdate}
                     onLogout={handleLogout}
                     onNavigateToDashboard={() => navigate('/dashboard')}
@@ -690,8 +739,8 @@ export default function App() {
             !user || !token ? <Navigate to="/login" replace />
             : user.role === 'admin' ? <Navigate to="/admin" replace />
             : (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
-                {user.role === 'buyer' ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                {activeRole === 'buyer' ? (
                   <BuyerOverviewPage user={user} auctions={auctions} />
                 ) : (
                   <ProducerOverviewPage user={user} auctions={auctions} parcelles={parcelles} />
@@ -708,10 +757,11 @@ export default function App() {
 
           <Route path="/dashboard/auctions" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
-                {user.role === 'buyer' ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                {activeRole === 'buyer' ? (
                   <BuyerAuctionsPage
                     user={user}
+                    token={token}
                     auctions={auctions}
                     onCreateAuction={handleCreateAuction}
                     onUpdateAuction={handleUpdateAuction}
@@ -745,7 +795,7 @@ export default function App() {
 
           <Route path="/dashboard/notifications" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 <NotificationsPage
                   notifications={notifications}
                   onMarkAllRead={handleMarkAllRead}
@@ -757,24 +807,24 @@ export default function App() {
           } />
 
           <Route path="/dashboard/weather" element={
-            user && token && user.role === 'producer' ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+            user && token && userRoles.includes('producer') ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 <WeatherPage parcelles={parcelles} loadingParcelles={loadingParcelles} />
               </DashboardLayout>
             ) : <Navigate to="/dashboard" replace />
           } />
 
           <Route path="/dashboard/map" element={
-            user && token && user.role === 'producer' ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+            user && token && userRoles.includes('producer') ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 <ParcellesMapPage parcelles={parcelles} loadingParcelles={loadingParcelles} />
               </DashboardLayout>
             ) : <Navigate to="/dashboard" replace />
           } />
 
           <Route path="/dashboard/calendar" element={
-            user && token && user.role === 'producer' ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+            user && token && userRoles.includes('producer') ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 <CropCalendarPage parcelles={parcelles} loadingParcelles={loadingParcelles} />
               </DashboardLayout>
             ) : <Navigate to="/dashboard" replace />
@@ -782,8 +832,8 @@ export default function App() {
 
           <Route path="/dashboard/stats" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
-                {user.role === 'buyer' ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                {activeRole === 'buyer' ? (
                   <BuyerStatsPage user={user} auctions={auctions} />
                 ) : (
                   <ProducerStatsPage user={user} auctions={auctions} />
@@ -794,8 +844,8 @@ export default function App() {
 
           <Route path="/dashboard/transactions" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
-                {user.role === 'buyer' ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+                {activeRole === 'buyer' ? (
                   <BuyerTransactionsPage user={user} auctions={auctions} />
                 ) : (
                   <ProducerTransactionsPage user={user} auctions={auctions} />
@@ -806,15 +856,15 @@ export default function App() {
 
           <Route path="/dashboard/help" element={
             user && token ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 <HelpPage user={user} token={token} />
               </DashboardLayout>
             ) : <Navigate to="/login" replace />
           } />
 
           <Route path="/dashboard/parcelles" element={
-            user && token && user.role === 'producer' ? (
-              <DashboardLayout user={user} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
+            user && token && userRoles.includes('producer') ? (
+              <DashboardLayout user={user} roles={userRoles} activeRole={activeRole} onSwitchView={setActiveView} isOpen={isSidebarOpen} onToggle={toggleSidebar} mobileOpen={isMobileDrawerOpen} onCloseMobile={() => setIsMobileDrawerOpen(false)}>
                 <ProducerParcellesPage
                   user={user}
                   parcelles={parcelles}

@@ -4,7 +4,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { LayoutDashboard, Gavel, User, MapPin, ChevronRight, ChevronLeft, CloudSun, Map as MapIcon, Calendar, BarChart3, Receipt, Bell, HelpCircle } from 'lucide-react';
 import AiAssistant from './AiAssistant';
 
-export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, onCloseMobile, children }) {
+export default function DashboardLayout({ user, roles, activeRole, onSwitchView, isOpen, onToggle, mobileOpen, onCloseMobile, children }) {
   const { t, dir } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,7 +57,9 @@ export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, on
     { id: 'help',           icon: HelpCircle,      labelKey: 'sidebarHelp' },
   ];
 
-  const items = user?.role === 'buyer' ? buyerItems : producerItems;
+  const effectiveRole = activeRole || user?.role;
+  const items = effectiveRole === 'buyer' ? buyerItems : producerItems;
+  const isDualRole = (roles?.length || 0) > 1;
 
   const handleItemClick = (id) => {
     if (id === 'profile') {
@@ -100,7 +102,7 @@ export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, on
                 {user?.name}
               </div>
               <div className="dash-sidebar-userrole">
-                {user?.role === 'buyer' ? t('role_buyer') : t('role_producer')}
+                {effectiveRole === 'buyer' ? t('role_buyer') : t('role_producer')}
               </div>
             </div>
           )}
@@ -118,6 +120,30 @@ export default function DashboardLayout({ user, isOpen, onToggle, mobileOpen, on
             </button>
           )}
         </div>
+
+        {/* Role switcher — only shown once an account has both capabilities */}
+        {isDualRole && effectiveOpen && (
+          <div className="segmented-control" style={{ margin: '0 12px 12px' }}>
+            {roles.includes('buyer') && (
+              <button
+                type="button"
+                className={`segmented-btn ${effectiveRole === 'buyer' ? 'active' : ''}`}
+                onClick={() => { onSwitchView?.('buyer'); navigate('/dashboard'); }}
+              >
+                {t('role_buyer')}
+              </button>
+            )}
+            {roles.includes('producer') && (
+              <button
+                type="button"
+                className={`segmented-btn ${effectiveRole === 'producer' ? 'active' : ''}`}
+                onClick={() => { onSwitchView?.('producer'); navigate('/dashboard'); }}
+              >
+                {t('role_producer')}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Navigation items */}
         <nav className="dash-sidebar-nav">

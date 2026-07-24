@@ -419,9 +419,11 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
             <div style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>{detail.name}</h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
-                  {detail.role === 'buyer' ? t('role_buyer') : detail.role === 'producer' ? t('role_producer') : detail.role}
-                </span>
+                {(detail.roles || [detail.role]).map(r => (
+                  <span key={r} style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
+                    {r === 'buyer' ? t('role_buyer') : r === 'producer' ? t('role_producer') : r}
+                  </span>
+                ))}
                 <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: detail.isVerified ? 'rgba(16,185,129,0.12)' : 'rgba(148,163,184,0.12)', color: detail.isVerified ? 'var(--primary)' : 'var(--text-muted)' }}>
                   {detail.isVerified ? t('adminColVerified') : (locale === 'ar' ? 'غير مفعّل' : (locale === 'en' ? 'Not verified' : 'Non vérifié'))}
                 </span>
@@ -474,7 +476,7 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
               )}
             </DetailSection>
 
-            {detail.role === 'producer' && (
+            {(detail.roles || [detail.role]).includes('producer') && (
               <DetailSection title={locale === 'ar' ? 'التقييم' : (locale === 'en' ? 'Rating' : 'Notation')}>
                 <DetailRow
                   label={locale === 'ar' ? 'متوسط التقييم' : (locale === 'en' ? 'Average rating' : 'Note moyenne')}
@@ -530,7 +532,7 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
               </DetailSection>
             )}
 
-            {detail.role === 'producer' && (
+            {(detail.roles || [detail.role]).includes('producer') && (
               <DetailSection title={locale === 'ar' ? 'الحقول' : (locale === 'en' ? 'Parcels' : 'Parcelles')}>
                 {detail.parcelles.length === 0 ? (
                   <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'لا توجد حقول' : (locale === 'en' ? 'No parcels registered' : 'Aucune parcelle enregistrée')}</p>
@@ -1558,6 +1560,7 @@ export default function AdminDashboardPage({ token }) {
                   <th style={{ padding: '10px 16px' }}>{t('adminColRole')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColVerified')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColOnline')}</th>
                   <th style={{ padding: '10px 16px' }} title={t('adminColUsedAiFull')}>{t('adminColUsedAi')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColJoined')}</th>
                   <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
@@ -1568,12 +1571,26 @@ export default function AdminDashboardPage({ token }) {
                   <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 600, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={u.name}>{u.name}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.email}</td>
-                    <td style={{ padding: '10px 16px' }}>{u.role === 'buyer' ? t('role_buyer') : u.role === 'producer' ? t('role_producer') : u.role}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      {(u.roles || [u.role]).map(r => r === 'buyer' ? t('role_buyer') : r === 'producer' ? t('role_producer') : r).join(' + ')}
+                    </td>
                     <td style={{ padding: '10px 16px' }}>{u.isVerified ? <CheckCircle2 size={16} style={{ color: 'var(--primary)' }} /> : <XCircle size={16} style={{ color: 'var(--text-muted)' }} />}</td>
                     <td style={{ padding: '10px 16px' }}>
                       <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700, background: u.isActive ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: u.isActive ? 'var(--primary)' : '#ef4444' }}>
                         {u.isActive ? t('adminStatusActive') : t('adminStatusDeactivated')}
                       </span>
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      {u.isOnline ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--success)', fontWeight: 600, fontSize: '0.8rem' }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 6px var(--success)' }} />
+                          {t('adminOnlineNow')}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : t('adminNeverLoggedIn')}
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '10px 16px' }} title={u.usedAi ? t('adminColUsedAiFull') : ''}>
                       {u.usedAi ? <MessageSquare size={16} style={{ color: 'var(--primary)' }} /> : <span style={{ color: 'var(--text-muted)' }}>—</span>}
@@ -1585,7 +1602,7 @@ export default function AdminDashboardPage({ token }) {
                   </tr>
                 ))}
                 {!loading && users.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoUsers')}</td></tr>
+                  <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoUsers')}</td></tr>
                 )}
               </tbody>
             </table>

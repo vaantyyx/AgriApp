@@ -340,3 +340,74 @@ test('a producer outside the auction zone cannot bid', async () => {
     outsiderSocket.disconnect();
   }
 });
+
+test('a dual-role account is never notified about, nor able to bid on, its own auction', async () => {
+  const dualRoleResult = await db.collection('users').insertOne({
+    name: 'Integration Test Dual-Role User',
+    email: `integration.dualrole.${Date.now()}@test.local`,
+    password: 'unused-password-hash',
+    role: 'buyer',
+    roles: ['buyer', 'producer'],
+    isVerified: true,
+    isActive: true,
+    wilaya: TEST_WILAYA,
+    commune: TEST_WILAYA,
+    integrationTest: true,
+  });
+  const dualRoleId = dualRoleResult.insertedId;
+  const dualRoleToken = jwt.sign(
+    { userId: String(dualRoleId), email: 'integration.dualrole@test.local', role: 'buyer', roles: ['buyer', 'producer'] },
+    JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' },
+  );
+  // An ordinary producer confirms the auction really is broadcast-eligible —
+  // otherwise this test could pass for the wrong reason (nobody notified at all).
+  const producerToken = jwt.sign({ userId: String(producerId), email: 'integration.producer@test.local', role: 'producer' }, JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
+
+  const dualRoleSocket = await connectSocket(dualRoleToken);
+  const producerSocket = await connectSocket(producerToken);
+
+  try {
+    await dualRoleSocket._auctionsListPromise;
+    await producerSocket._auctionsListPromise;
+
+    const auctionTitle = `Dual-role self-exclusion test ${Date.now()}`;
+    const producerSeesCreated = waitForEvent(producerSocket, 'auction_created', (a) => a.title === auctionTitle);
+
+    let sawSelfNotification = false;
+    const selfNotifHandler = (notif) => { if (notif.type === 'new_auction') sawSelfNotification = true; };
+    dualRoleSocket.on('new_notification', selfNotifHandler);
+
+    dualRoleSocket.emit('create_auction', {
+      title: auctionTitle,
+      auctionType: 'open',
+      deliveryLocation: TEST_WILAYA,
+      description: 'Dual-role self-exclusion test',
+      lots: [{ designation: 'Tomate test', quantity: 10, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
+      radius: 100,
+    });
+    const [createdAuction] = await producerSeesCreated;
+    const auctionId = createdAuction.id;
+
+    // Give any (incorrect) self-notification a moment to arrive before asserting its absence.
+    await new Promise(resolve => setTimeout(resolve, 500));
+    dualRoleSocket.off('new_notification', selfNotifHandler);
+    assert.equal(sawSelfNotification, false, 'the auction creator must never be notified about its own auction as a producer');
+
+    const errorPromise = waitForEvent(dualRoleSocket, 'error');
+    dualRoleSocket.emit('place_bid', {
+      auctionId,
+      lines: [{ price: 10, quantity: 10, optionName: 'Standard', unit: 'tonnes', comments: '', images: [] }],
+    });
+    const [errorPayload] = await errorPromise;
+    assert.match(errorPayload.message, /autorisé/i);
+
+    const persisted = await db.collection('auctions').findOne({ id: auctionId });
+    assert.equal(persisted.bids.length, 0);
+    assert.equal(persisted.buyerId, String(dualRoleId));
+
+    await db.collection('auctions').updateOne({ id: auctionId }, { $set: { integrationTest: true } });
+  } finally {
+    dualRoleSocket.disconnect();
+    producerSocket.disconnect();
+  }
+});

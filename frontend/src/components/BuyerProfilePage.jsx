@@ -75,7 +75,7 @@ function StatItem({ value, label, color, isText, dir }) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function BuyerProfilePage({ token, user: initialUser, onUserUpdate, onLogout, onNavigateToDashboard }) {
+export default function BuyerProfilePage({ token, user: initialUser, roles, onAddRole, onUserUpdate, onLogout, onNavigateToDashboard }) {
   const { t, dir, locale } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +84,7 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingRc, setUploadingRc] = useState(false);
+  const [addingRole, setAddingRole] = useState(false);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -96,6 +97,18 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
 
   const photoUrl = profile?.profilePhoto ? `${BACKEND_URL}/uploads/${profile.profilePhoto}?token=${token}` : null;
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3500); };
+
+  const handleAddProducerRole = async () => {
+    if (!onAddRole || addingRole) return;
+    setAddingRole(true);
+    const result = await onAddRole('producer');
+    setAddingRole(false);
+    if (result.ok) {
+      showToast(locale === 'ar' ? 'تمت إضافة صفة المنتج إلى حسابك.' : (locale === 'en' ? 'Producer role added to your account.' : 'Rôle producteur ajouté à votre compte.'));
+    } else {
+      showToast(result.error || (locale === 'ar' ? 'حدث خطأ.' : (locale === 'en' ? 'Something went wrong.' : 'Une erreur est survenue.')), 'error');
+    }
+  };
 
   useEffect(() => {
     fetch('/cities.json').then(r => r.json()).then(data => { setWilayas(data.wilayas || []); setAllCommunes(data.communes || []); }).catch(() => {});
@@ -285,6 +298,24 @@ export default function BuyerProfilePage({ token, user: initialUser, onUserUpdat
           {locale === 'ar' ? 'يجب أن تصل نسبة اكتمال ملفك الشخصي إلى 70% على الأقل لتتمكن من إنشاء مزاد جديد.' : (locale === 'en' ? 'Your profile must be at least 70% complete to be able to launch an auction.' : "Votre profil doit être complété à au moins 70% pour pouvoir lancer une enchère.")}
         </p>
       </div>
+
+      {/* Dual-role opt-in — lets a buyer also operate as a producer on the same account */}
+      {!roles?.includes('producer') && (
+        <div className="glass-panel" style={{ padding: '18px 24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+          <div style={{ textAlign: 'start' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+              <Tractor size={16} />
+              {locale === 'ar' ? 'كن أيضًا منتجًا' : (locale === 'en' ? 'Also become a producer' : 'Devenir aussi producteur')}
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+              {locale === 'ar' ? 'أضف صفة المنتج إلى حسابك للمشاركة في المزادات كمنتج أيضًا.' : (locale === 'en' ? 'Add the producer role to this account to also bid on auctions as a producer.' : 'Ajoutez le rôle producteur à ce compte pour pouvoir aussi soumissionner sur des enchères.')}
+            </p>
+          </div>
+          <button onClick={handleAddProducerRole} disabled={addingRole} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+            {addingRole ? '...' : (locale === 'ar' ? 'إضافة' : (locale === 'en' ? 'Add' : 'Ajouter'))}
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--border)', marginBottom: '24px', paddingBottom: '2px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>

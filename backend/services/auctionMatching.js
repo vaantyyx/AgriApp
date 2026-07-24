@@ -255,6 +255,8 @@ export function computeRoundPriceBounds(auction, existingBid) {
 }
 
 export async function canProducerParticipate(auction, producerId, pCoords, db) {
+  // A dual-role account can never bid on the auction it created itself.
+  if (producerId === auction.buyerId) return false;
   if (!isProducerInZone(auction, pCoords)) return false;
 
   if (auction.auctionType === 'smart') {
@@ -282,9 +284,13 @@ export async function canProducerParticipate(auction, producerId, pCoords, db) {
 export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
   return auctions.map(auction => {
     const isOwnerBuyer = requestingUserId === auction.buyerId;
+    // A dual-role account browsing under its "producer" view still owns any
+    // auction it created — ownership always wins over whatever view the
+    // caller happens to currently be showing.
+    const effectiveRole = isOwnerBuyer ? 'buyer' : requestingRole;
     const isClosedWithWinner = auction.status === 'closed' && !!auction.acceptedBidId;
     const acceptedBid = isClosedWithWinner ? (auction.bids || []).find(b => b.id === auction.acceptedBidId) : null;
-    const isWinningProducer = requestingRole === 'producer' && acceptedBid?.producerId === requestingUserId;
+    const isWinningProducer = effectiveRole === 'producer' && acceptedBid?.producerId === requestingUserId;
 
     // Sanitize buyer name — lifted for the winning producer once closed (Bloc C anonymity lift).
     const buyerDisplay = isOwnerBuyer || isWinningProducer ? auction.buyerName : 'Acheteur Anonyme';
@@ -341,7 +347,7 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
       const isWinningBid = isClosedWithWinner && bid.id === auction.acceptedBidId;
       // Full breakdown only for the buyer (sees everyone) or a producer's own bid
       // (never a competitor's) — "classement aveugle" stays blind between producers.
-      const showScoreBreakdown = (requestingRole === 'buyer' && isOwnerBuyer) || isSelf;
+      const showScoreBreakdown = (effectiveRole === 'buyer' && isOwnerBuyer) || isSelf;
       const myScore = scoreByProducerId[bid.producerId];
 
       return {
@@ -349,8 +355,8 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
         producerAlias: producerAliasMap[bid.producerId] || 'Producteur Anonyme',
         // Anonymity lift: the buyer sees the real producer name/phone for the
         // winning bid only, once the auction is closed.
-        producerName: (requestingRole === 'buyer' && isOwnerBuyer && isWinningBid) ? (bid.producerName || '') : null,
-        producerContact: (requestingRole === 'buyer' && isOwnerBuyer && isWinningBid) ? (bid.producerPhone || '') : null,
+        producerName: (effectiveRole === 'buyer' && isOwnerBuyer && isWinningBid) ? (bid.producerName || '') : null,
+        producerContact: (effectiveRole === 'buyer' && isOwnerBuyer && isWinningBid) ? (bid.producerPhone || '') : null,
         // Rating info is safe to expose (anonymous average)
         producerRating: bid.producerRating ?? null,
         producerRatingCount: bid.producerRatingCount ?? 0,
@@ -361,7 +367,7 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
         scoreBreakdown: showScoreBreakdown ? myScore?.breakdown ?? null : null,
         lines: (bid.lines || []).map(line => ({
           id: line.id,
-          price: (requestingRole === 'producer' && bid.producerId !== requestingUserId) ? null : line.price,
+          price: (effectiveRole === 'producer' && bid.producerId !== requestingUserId) ? null : line.price,
           quantity: line.quantity || null,
           optionName: line.optionName || '',
           unit: line.unit || auction.unit,
@@ -376,7 +382,7 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
       buyerDisplay,
       buyerContact,
       // Only buyer sees their own real demand location context, except producers who need it to bid
-      deliveryLocation: (requestingUserId === auction.buyerId || requestingRole === 'producer') ? auction.deliveryLocation : 'Zone de livraison',
+      deliveryLocation: (isOwnerBuyer || effectiveRole === 'producer') ? auction.deliveryLocation : 'Zone de livraison',
       title: auction.title || auction.product,
       auctionType: auction.auctionType || 'open',
       product: auction.product,
@@ -404,24 +410,24 @@ export function sanitizeAuctions(auctions, requestingUserId, requestingRole) {
       roundStartedAt: auction.roundStartedAt || null,
       // Price window the requesting producer's next bid must fall within — null for buyers
       // and for non-progressive auctions (see computeRoundPriceBounds()).
-      myRoundBounds: requestingRole === 'producer'
+      myRoundBounds: effectiveRole === 'producer'
         ? computeRoundPriceBounds(auction, (auction.bids || []).find(b => b.producerId === requestingUserId))
         : null,
       bids: sanitizedBids,
       acceptedBidId: auction.acceptedBidId,
       acceptedLineId: auction.acceptedLineId || null,
       // Indicates if current user is the buyer of this auction
-      isOwner: auction.buyerId === requestingUserId,
+      isOwner: isOwnerBuyer,
       // Producer's own bid reference
-      myBidId: requestingRole === 'producer'
+      myBidId: effectiveRole === 'producer'
         ? ((auction.bids || []).find(b => b.producerId === requestingUserId)?.id ?? null)
         : null,
       // Buyer: already rated flag
       alreadyRated: auction.alreadyRated || false,
       // Bloc D — conformity + reliability/quality ratings captured at inspection time.
       inspection: auction.inspection || null,
-      myRank: requestingRole === 'producer' ? myRank : null,
-      totalBidders: requestingRole === 'producer' ? totalBidders : null,
+      myRank: effectiveRole === 'producer' ? myRank : null,
+      totalBidders: effectiveRole === 'producer' ? totalBidders : null,
     };
   });
 }

@@ -135,6 +135,15 @@ describe('canProducerParticipate', () => {
     assert.equal(await canProducerParticipate(auction, 'producer1', pCoords, dbWithMatch), true);
     assert.equal(await canProducerParticipate(auction, 'producer1', pCoords, dbWithoutMatch), false);
   });
+
+  test('a dual-role account can never bid on the auction it created itself', async () => {
+    const auction = { buyerId: 'user1', buyerLat: 36.75, buyerLng: 3.06, radiusKm: 50, auctionType: 'open' };
+    const db = fakeDb({});
+    // Would otherwise be perfectly eligible (in-zone, open auction) — only
+    // producerId === auction.buyerId makes the difference here.
+    assert.equal(await canProducerParticipate(auction, 'user1', pCoords, db), false);
+    assert.equal(await canProducerParticipate(auction, 'someone-else', pCoords, db), true);
+  });
 });
 
 describe('wilayaRoomName', () => {
@@ -328,6 +337,18 @@ describe('sanitizeAuctions', () => {
   test('anonymity lift: stays blind while the auction is still open, even for what will be the eventual winner', () => {
     const [asBuyer] = sanitizeAuctions([auction], 'buyer1', 'buyer');
     assert.ok(asBuyer.bids.every(b => b.producerName === null));
+  });
+
+  test('a dual-role account still gets the buyer view of its own auction, even if its browsing view is currently "producer"', () => {
+    // Simulates a dual-role user whose frontend activeView happens to be
+    // 'producer' (e.g. just placed a bid elsewhere) while looking at an
+    // auction they themselves created as buyer — ownership must win.
+    const [asMismatchedView] = sanitizeAuctions([auction], 'buyer1', 'producer');
+    const [asBuyerView] = sanitizeAuctions([auction], 'buyer1', 'buyer');
+    assert.equal(asMismatchedView.isOwner, true);
+    assert.deepEqual(asMismatchedView.bids.map(b => b.compositeScore), asBuyerView.bids.map(b => b.compositeScore));
+    assert.ok(asMismatchedView.bids.every(b => b.compositeScore != null), 'owner should see every bid\'s score, like the buyer view');
+    assert.equal(asMismatchedView.myRoundBounds, null, 'must not compute producer round bounds for the auction\'s own buyer');
   });
 
   test('anonymity lift: the winning producer sees the buyer\'s real name/phone once closed', () => {

@@ -8,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { markStatementPaid } from '../services/commissionEngine.js';
 import { SCORE_WEIGHTS, setScoreWeights } from '../services/compositeScoring.js';
 import { sendAdminMessage } from '../services/emailService.js';
+import { getIo, userRoom } from '../services/socketRegistry.js';
 
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
@@ -24,8 +25,8 @@ router.get('/stats', async (req, res) => {
     const db = getDb();
     const [totalUsers, buyerCount, producerCount, openAuctions, closedAuctions, deactivatedUsers, totalVisits, uniqueVisitorIps, openSupportCount] = await Promise.all([
       db.collection('users').countDocuments({}),
-      db.collection('users').countDocuments({ role: 'buyer' }),
-      db.collection('users').countDocuments({ role: 'producer' }),
+      db.collection('users').countDocuments({ roles: 'buyer' }),
+      db.collection('users').countDocuments({ roles: 'producer' }),
       db.collection('auctions').countDocuments({ status: 'open' }),
       db.collection('auctions').countDocuments({ status: 'closed' }),
       db.collection('users').countDocuments({ isActive: false }),
@@ -76,18 +77,48 @@ router.get('/users', async (req, res) => {
       ? new Set(await db.collection('aiChatLogs').distinct('userId', { userId: { $in: pageUserIds } }))
       : new Set();
 
+    // Batched last-login lookup (one aggregate for the whole page, same
+    // pattern as usedAiIds above) — backs the "last seen" column for
+    // whichever users turn out not to be currently online.
+    const lastLogins = pageUserIds.length
+      ? await db.collection('userLoginHistory').aggregate([
+          { $match: { userId: { $in: pageUserIds }, type: 'login' } },
+          { $group: { _id: '$userId', lastLoginAt: { $max: '$createdAt' } } },
+        ]).toArray()
+      : [];
+    const lastLoginByUserId = Object.fromEntries(lastLogins.map(l => [l._id, l.lastLoginAt]));
+
+    // Online = at least one live socket in this user's room, checked against
+    // the real-time Socket.IO state (works across instances via the Redis
+    // adapter, so this is never a stale DB flag) — a no-op array if the
+    // Socket.IO server hasn't started yet.
+    const io = getIo();
+    const onlineChecks = io
+      ? await Promise.all(pageUserIds.map(async id => {
+          const sockets = await io.in(userRoom(id)).fetchSockets();
+          return [id, sockets.length > 0];
+        }))
+      : [];
+    const onlineByUserId = Object.fromEntries(onlineChecks);
+
     res.json({
-      users: users.map(u => ({
-        id: u._id.toString(),
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        isVerified: !!u.isVerified,
-        isActive: u.isActive !== false,
-        wilaya: u.wilaya || '',
-        createdAt: u.createdAt,
-        usedAi: usedAiIds.has(u._id.toString()),
-      })),
+      users: users.map(u => {
+        const id = u._id.toString();
+        return {
+          id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          roles: u.roles || [u.role],
+          isVerified: !!u.isVerified,
+          isActive: u.isActive !== false,
+          wilaya: u.wilaya || '',
+          createdAt: u.createdAt,
+          usedAi: usedAiIds.has(id),
+          isOnline: !!onlineByUserId[id],
+          lastLoginAt: lastLoginByUserId[id] || null,
+        };
+      }),
       page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
     });
   } catch (err) {
@@ -112,7 +143,8 @@ router.get('/users/:id', async (req, res) => {
     );
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable.' });
 
-    const parcelles = user.role === 'producer'
+    const userRoles = user.roles || [user.role];
+    const parcelles = userRoles.includes('producer')
       ? await db.collection('parcelles').find({ userId: id }).toArray()
       : [];
 
@@ -135,6 +167,7 @@ router.get('/users/:id', async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      roles: userRoles,
       phone: user.phone || '',
       wilaya: user.wilaya || '',
       commune: user.commune || '',

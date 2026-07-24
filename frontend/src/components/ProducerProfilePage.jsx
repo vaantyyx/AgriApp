@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mail, Phone, MapPin, FileText, Camera, Tractor, Edit3, Save, X, CheckCircle, AlertCircle, BarChart2, Shield } from 'lucide-react';
+import { User, Mail, Phone, MapPin, FileText, Camera, Tractor, ShoppingBag, Edit3, Save, X, CheckCircle, AlertCircle, BarChart2, Shield } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import SecuritySettingsTab from './SecuritySettingsTab';
 import { BACKEND_URL } from '../utils/config.js';
@@ -97,7 +97,7 @@ function DocUploadField({ label, docKey, profile, inputRef, uploading, onChange,
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function ProducerProfilePage({ token, user: initialUser, onUserUpdate, onLogout, onNavigateToDashboard }) {
+export default function ProducerProfilePage({ token, user: initialUser, roles, onAddRole, onUserUpdate, onLogout, onNavigateToDashboard }) {
   const { t, dir, locale } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -107,6 +107,8 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingFiche, setUploadingFiche] = useState(false);
   const [uploadingCarte, setUploadingCarte] = useState(false);
+  const [addingRole, setAddingRole] = useState(false);
+  const [buyerEntityType, setBuyerEntityType] = useState('particulier');
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -120,6 +122,18 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
 
   const photoUrl = profile?.profilePhoto ? `${BACKEND_URL}/uploads/${profile.profilePhoto}?token=${token}` : null;
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3500); };
+
+  const handleAddBuyerRole = async () => {
+    if (!onAddRole || addingRole) return;
+    setAddingRole(true);
+    const result = await onAddRole('buyer', { entity_type: buyerEntityType });
+    setAddingRole(false);
+    if (result.ok) {
+      showToast(locale === 'ar' ? 'تمت إضافة صفة المشتري إلى حسابك.' : (locale === 'en' ? 'Buyer role added to your account.' : 'Rôle acheteur ajouté à votre compte.'));
+    } else {
+      showToast(result.error || (locale === 'ar' ? 'حدث خطأ.' : (locale === 'en' ? 'Something went wrong.' : 'Une erreur est survenue.')), 'error');
+    }
+  };
 
   useEffect(() => {
     fetch('/cities.json').then(r => r.json()).then(data => { setWilayas(data.wilayas || []); setAllCommunes(data.communes || []); }).catch(() => {});
@@ -324,6 +338,38 @@ export default function ProducerProfilePage({ token, user: initialUser, onUserUp
           {locale === 'ar' ? 'أكمل ملفك الشخصي لتعزيز مصداقيتك أمام المشترين.' : (locale === 'en' ? 'Complete your profile to strengthen your credibility with buyers.' : 'Complétez votre profil pour renforcer votre crédibilité auprès des acheteurs.')}
         </p>
       </div>
+
+      {/* Dual-role opt-in — lets a producer also operate as a buyer on the same account */}
+      {!roles?.includes('buyer') && (
+        <div className="glass-panel" style={{ padding: '18px 24px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'start' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>
+                <ShoppingBag size={16} />
+                {locale === 'ar' ? 'كن أيضًا مشتريًا' : (locale === 'en' ? 'Also become a buyer' : 'Devenir aussi acheteur')}
+              </div>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                {locale === 'ar' ? 'أضف صفة المشتري إلى حسابك لتتمكن من إطلاق مزادات أيضًا.' : (locale === 'en' ? 'Add the buyer role to this account to also launch auctions as a buyer.' : 'Ajoutez le rôle acheteur à ce compte pour pouvoir aussi lancer des enchères.')}
+              </p>
+            </div>
+            <button onClick={handleAddBuyerRole} disabled={addingRole} className="btn btn-secondary" style={{ padding: '8px 16px', fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+              {addingRole ? '...' : (locale === 'ar' ? 'إضافة' : (locale === 'en' ? 'Add' : 'Ajouter'))}
+            </button>
+          </div>
+          {/* Same choice RegisterPage asks a buyer to make — required here too, not silently defaulted. */}
+          <div>
+            <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>{t('entityTypeLabel')}</label>
+            <div className="segmented-control" style={{ maxWidth: 320 }}>
+              <button type="button" onClick={() => setBuyerEntityType('particulier')} className={`segmented-btn${buyerEntityType === 'particulier' ? ' active' : ''}`}>
+                {t('entityTypeParticulier')}
+              </button>
+              <button type="button" onClick={() => setBuyerEntityType('entreprise')} className={`segmented-btn${buyerEntityType === 'entreprise' ? ' active' : ''}`}>
+                {t('entityTypeEntreprise')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--border)', marginBottom: '24px', paddingBottom: '2px', flexDirection: dir === 'rtl' ? 'row-reverse' : 'row' }}>

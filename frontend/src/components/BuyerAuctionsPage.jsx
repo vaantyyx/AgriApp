@@ -299,7 +299,7 @@ function DeleteAuctionModal({ onConfirm, onClose }) {
   );
 }
 
-export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onUpdateAuction, onDeleteAuction, onAcceptBid, onSubmitInspection, onLookupReferencePrice, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
+export default function BuyerAuctionsPage({ user, token, auctions, onCreateAuction, onUpdateAuction, onDeleteAuction, onAcceptBid, onSubmitInspection, onLookupReferencePrice, newBidFlashIds, highlightAuctionId, hasMoreAuctions, loadingMoreAuctions, onLoadMoreAuctions }) {
   const { t, locale } = useTranslation();
   const navigate = useNavigate();
 
@@ -344,18 +344,18 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
   }, [lots]);
 
   useEffect(() => {
-    if (!userCoords?.lat || !userCoords?.lng) return;
+    if (!userCoords?.lat || !userCoords?.lng || !token) return;
     let active = true;
     let url = `${BACKEND_URL}/api/producers/count?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`;
     if (auctionType === 'smart') {
       url += `&auctionType=smart&productIds=${productIdsJoined}`;
     }
-    fetch(url)
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : { count: 0 })
       .then(d => { if (active) setProducerCount(d.count); })
       .catch(() => { if (active) setProducerCount(0); });
     return () => { active = false; };
-  }, [userCoords, radiusKm, auctionType, productIdsJoined]);
+  }, [userCoords, radiusKm, auctionType, productIdsJoined, token]);
 
   const updateLot = (idx, field, value) => {
     setLots(prev => prev.map((l, i) => {
