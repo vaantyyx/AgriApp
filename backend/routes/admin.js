@@ -674,10 +674,82 @@ router.post('/send-email', async (req, res) => {
     }
 
     await sendAdminMessage(to.trim(), subject.trim(), message.trim());
+
+    const db = getDb();
+    await db.collection('sentEmails').insertOne({
+      to: to.trim(),
+      subject: subject.trim(),
+      message: message.trim(),
+      sentAt: new Date(),
+      sentBy: req.user.userId,
+    });
+
     res.json({ message: 'Email envoyé.' });
   } catch (err) {
     logger.error({ err }, 'ADMIN SEND EMAIL ERROR');
     res.status(500).json({ error: "Échec de l'envoi de l'email." });
+  }
+});
+
+// ─── GET /api/admin/sent-emails ──────────────────────────────────────────────
+// History of emails sent by an admin via POST /send-email, newest first.
+router.get('/sent-emails', async (req, res) => {
+  try {
+    const db = getDb();
+    const { page, limit } = parsePagination(req.query);
+
+    const [emails, total] = await Promise.all([
+      db.collection('sentEmails')
+        .find({})
+        .sort({ sentAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection('sentEmails').countDocuments({}),
+    ]);
+
+    res.json({
+      emails: emails.map(e => ({
+        id: e._id.toString(),
+        to: e.to,
+        subject: e.subject,
+        message: e.message,
+        sentAt: e.sentAt,
+      })),
+      page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1),
+    });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN LIST SENT EMAILS ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── PUT /api/admin/users/:id/name ───────────────────────────────────────────
+router.put('/users/:id/name', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'ID invalide.' });
+
+    const { name } = req.body;
+    if (typeof name !== 'string' || name.trim().length < 2) {
+      return res.status(400).json({ error: 'Le nom doit contenir au minimum 2 caractères.' });
+    }
+    if (name.trim().length > 100) {
+      return res.status(400).json({ error: 'Le nom ne doit pas dépasser 100 caractères.' });
+    }
+
+    const db = getDb();
+    const result = await db.collection('users').findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { name: name.trim() } },
+      { returnDocument: 'after' }
+    );
+    if (!result) return res.status(404).json({ error: 'Utilisateur introuvable.' });
+
+    res.json({ message: 'Nom mis à jour.', name: result.name });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN UPDATE USER NAME ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
   }
 });
 

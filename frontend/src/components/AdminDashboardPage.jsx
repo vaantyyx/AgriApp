@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2, MessageCircle, TrendingUp, Wallet, Receipt, SlidersHorizontal, Save, AlertCircle, Mail, Send } from 'lucide-react';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2, MessageCircle, TrendingUp, Wallet, Receipt, SlidersHorizontal, Save, AlertCircle, Mail, Send, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -83,6 +83,51 @@ function ChangePasswordModal({ user, onSubmit, onClose }) {
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>{t('cancelBtn')}</button>
             <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting || !password || !confirmPassword}>
+              {t('confirmBtn')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditNameModal({ user, onSubmit, onClose }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(user.name || '');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const cardRef = useRef(null);
+  useEscapeKey(true, onClose);
+  useFocusTrap(cardRef, true);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (name.trim().length < 2) { setError(t('adminEditNameTooShort')); return; }
+    setError('');
+    setSubmitting(true);
+    await onSubmit(name.trim());
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div ref={cardRef} className="modal-card animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }} role="dialog" aria-modal="true" aria-label={t('adminEditNameTitle')}>
+        <button className="modal-close-btn" onClick={onClose} aria-label={t('captchaClose')}><X size={18} /></button>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>✏️</div>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: 6, color: 'var(--text-main)' }}>{t('adminEditNameTitle')}</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{t('adminEditNameDesc', { name: user.name })}</p>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="admin-edit-name">{t('adminEditNameLabel')}</label>
+            <input id="admin-edit-name" type="text" value={name} onChange={e => setName(e.target.value)} maxLength={100} autoFocus />
+          </div>
+          {error && <div className="inline-alert-danger" style={{ marginBottom: 16 }}>{error}</div>}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>{t('cancelBtn')}</button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting || name.trim().length < 2}>
               {t('confirmBtn')}
             </button>
           </div>
@@ -252,7 +297,7 @@ function ParcelleMiniMap({ lat, lng }) {
 // implicitly makes overflowY 'auto' too, per the CSS spec), which cut the menu
 // off for rows near the bottom/last row. Escaping via portal + viewport-relative
 // fixed coordinates sidesteps that clipping entirely, regardless of row position.
-function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, onVerify, t }) {
+function ActionMenu({ user, onView, onChangePassword, onEditName, onToggleActive, onDelete, onVerify, t }) {
   const { dir } = useTranslation();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState(null);
@@ -260,7 +305,7 @@ function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, 
   const dropdownRef = useRef(null);
   useClickOutside([btnRef, dropdownRef], open, () => setOpen(false));
 
-  const itemCount = 2 + (user.role !== 'admin' ? 2 : 0) + (!user.isVerified ? 1 : 0);
+  const itemCount = 3 + (user.role !== 'admin' ? 2 : 0) + (!user.isVerified ? 1 : 0);
   const estimatedHeight = itemCount * 40 + 12;
 
   const toggleOpen = () => {
@@ -306,6 +351,9 @@ function ActionMenu({ user, onView, onChangePassword, onToggleActive, onDelete, 
           </button>
           <button type="button" onClick={() => { setOpen(false); onChangePassword(user); }}>
             <KeyRound size={14} /> {t('adminChangePasswordBtn')}
+          </button>
+          <button type="button" onClick={() => { setOpen(false); onEditName(user); }}>
+            <Pencil size={14} /> {t('adminEditNameBtn')}
           </button>
           {!user.isVerified && (
             <button type="button" onClick={() => { setOpen(false); onVerify(user); }}>
@@ -387,10 +435,10 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
             </DetailSection>
 
             <DetailSection title={locale === 'ar' ? 'الحساب' : (locale === 'en' ? 'Account' : 'Compte')}>
-              <DetailRow label={t('adminColJoined')} value={detail.createdAt ? new Date(detail.createdAt).toLocaleDateString(localeTag) : '-'} />
+              <DetailRow label={t('adminColJoined')} value={detail.createdAt ? new Date(detail.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
               <DetailRow label={locale === 'ar' ? 'التحقق بخطوتين' : (locale === 'en' ? '2FA enabled' : 'Double authentification')} value={yesNo(detail.two_factor_enabled)} />
               {!detail.isActive && detail.deactivatedAt && (
-                <DetailRow label={locale === 'ar' ? 'تاريخ التعطيل' : (locale === 'en' ? 'Deactivated on' : 'Désactivé le')} value={new Date(detail.deactivatedAt).toLocaleDateString(localeTag)} />
+                <DetailRow label={locale === 'ar' ? 'تاريخ التعطيل' : (locale === 'en' ? 'Deactivated on' : 'Désactivé le')} value={new Date(detail.deactivatedAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })} />
               )}
             </DetailSection>
 
@@ -403,7 +451,7 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
                     <div key={entry.ip} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', fontSize: '0.8rem' }}>
                       <span style={{ fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace' }}>{entry.ip || (locale === 'ar' ? 'غير معروف' : 'Inconnue')}</span>
                       <span style={{ color: 'var(--text-muted)', textAlign: 'right' }}>
-                        {t('adminIpLastSeen', { date: new Date(entry.lastSeen).toLocaleDateString(localeTag) })} · {t('adminIpCount', { count: entry.count })}
+                        {t('adminIpLastSeen', { date: new Date(entry.lastSeen).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) })} · {t('adminIpCount', { count: entry.count })}
                       </span>
                     </div>
                   ))}
@@ -912,14 +960,41 @@ function ScoreWeightsPanel({ authHeaders, showToast }) {
 
 // Lets the admin send a one-off, free-form email to any address on Sougra's
 // behalf — reuses the same branded template as the automated OTP/verification
-// emails server-side, just with an admin-authored subject and body.
-function SendEmailPanel({ authHeaders, showToast, t, dir }) {
+// emails server-side, just with an admin-authored subject and body. Also lists
+// the history of previously sent emails (persisted server-side on each send).
+function SendEmailPanel({ authHeaders, showToast }) {
+  const { t, locale, dir } = useTranslation();
+  const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
+
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [expandedId, setExpandedId] = useState(null);
+
   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim()) && subject.trim().length >= 2 && message.trim().length >= 2;
+
+  const fetchHistory = useCallback(async (targetPage) => {
+    setHistoryLoading(true);
+    try {
+      const params = new URLSearchParams({ page: targetPage, limit: 10 });
+      const res = await fetch(`${BACKEND_URL}/api/admin/sent-emails?${params}`, { headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        setHistory(data.emails);
+        setHistoryTotalPages(data.totalPages);
+      }
+    } catch { /* history is non-critical */ }
+    setHistoryLoading(false);
+  }, [authHeaders]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { fetchHistory(historyPage); }, [fetchHistory, historyPage]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -935,6 +1010,8 @@ function SendEmailPanel({ authHeaders, showToast, t, dir }) {
       if (res.ok) {
         showToast(t('adminEmailSentSuccess'));
         setTo(''); setSubject(''); setMessage('');
+        setHistoryPage(1);
+        fetchHistory(1);
       } else {
         showToast(data.error || t('adminActionError'), 'error');
       }
@@ -946,31 +1023,79 @@ function SendEmailPanel({ authHeaders, showToast, t, dir }) {
   };
 
   return (
-    <form onSubmit={handleSend} className="glass-panel" style={{ maxWidth: 560, padding: 24, textAlign: 'start' }} dir={dir}>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20, lineHeight: 1.6 }}>
-        {t('adminSendEmailDesc')}
-      </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <form onSubmit={handleSend} className="glass-panel" style={{ maxWidth: 560, padding: 24, textAlign: 'start' }} dir={dir}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20, lineHeight: 1.6 }}>
+          {t('adminSendEmailDesc')}
+        </p>
 
-      <div className="form-group">
-        <label>{t('adminSendEmailTo')}</label>
-        <input type="email" value={to} onChange={e => setTo(e.target.value)} placeholder="exemple@email.com" required />
+        <div className="form-group">
+          <label>{t('adminSendEmailTo')}</label>
+          <input type="email" value={to} onChange={e => setTo(e.target.value)} placeholder="exemple@email.com" required />
+        </div>
+
+        <div className="form-group">
+          <label>{t('adminSendEmailSubject')}</label>
+          <input type="text" value={subject} onChange={e => setSubject(e.target.value)} maxLength={200} required />
+        </div>
+
+        <div className="form-group">
+          <label>{t('adminSendEmailMessage')}</label>
+          <textarea value={message} onChange={e => setMessage(e.target.value)} maxLength={5000} rows={8} required style={{ resize: 'vertical' }} />
+        </div>
+
+        <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }} disabled={!isValid || sending}>
+          {sending ? <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Send size={15} />}
+          {t('adminSendEmailSubmit')}
+        </button>
+      </form>
+
+      <div className="glass-panel" style={{ maxWidth: 560, padding: 24, textAlign: 'start' }} dir={dir}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 16 }}>{t('adminSendEmailHistoryTitle')}</h3>
+        {historyLoading ? (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', fontSize: '0.85rem' }}>{t('adminLoading')}</p>
+        ) : history.length === 0 ? (
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('adminSendEmailHistoryEmpty')}</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {history.map(entry => {
+              const expanded = expandedId === entry.id;
+              return (
+                <div key={entry.id} style={{ borderRadius: 10, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', overflow: 'hidden' }}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : entry.id)}
+                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'start' }}
+                  >
+                    <span style={{ minWidth: 0, flex: 1 }}>
+                      <span style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.subject}</span>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{entry.to} · {new Date(entry.sentAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    </span>
+                    {expanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
+                  </button>
+                  {expanded && (
+                    <div style={{ padding: '0 12px 14px', fontSize: '0.82rem', color: 'var(--text-body)', whiteSpace: 'pre-line', lineHeight: 1.6, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                      {entry.message}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {historyTotalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, marginTop: 16 }}>
+            <button type="button" className="btn btn-secondary" style={{ padding: '6px 10px' }} disabled={historyPage <= 1} onClick={() => setHistoryPage(p => p - 1)}>
+              <ChevronLeft size={14} />
+            </button>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{historyPage} / {historyTotalPages}</span>
+            <button type="button" className="btn btn-secondary" style={{ padding: '6px 10px' }} disabled={historyPage >= historyTotalPages} onClick={() => setHistoryPage(p => p + 1)}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
       </div>
-
-      <div className="form-group">
-        <label>{t('adminSendEmailSubject')}</label>
-        <input type="text" value={subject} onChange={e => setSubject(e.target.value)} maxLength={200} required />
-      </div>
-
-      <div className="form-group">
-        <label>{t('adminSendEmailMessage')}</label>
-        <textarea value={message} onChange={e => setMessage(e.target.value)} maxLength={5000} rows={8} required style={{ resize: 'vertical' }} />
-      </div>
-
-      <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%' }} disabled={!isValid || sending}>
-        {sending ? <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Send size={15} />}
-        {t('adminSendEmailSubmit')}
-      </button>
-    </form>
+    </div>
   );
 }
 
@@ -992,6 +1117,7 @@ export default function AdminDashboardPage({ token }) {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [changingPasswordUser, setChangingPasswordUser] = useState(null);
+  const [editingNameUser, setEditingNameUser] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
   const [viewingUserId, setViewingUserId] = useState(null);
   const [viewingAuctionId, setViewingAuctionId] = useState(null);
@@ -1235,6 +1361,26 @@ export default function AdminDashboardPage({ token }) {
     }
   };
 
+  const handleEditName = async (newName) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/users/${editingNameUser.id}/name`, {
+        method: 'PUT',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+        setUsers(prev => prev.map(x => x.id === editingNameUser.id ? { ...x, name: data.name } : x));
+        setEditingNameUser(null);
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    }
+  };
+
   return (
     <div dir={dir} style={{ minHeight: '100vh', background: 'var(--bg-main)' }}>
       {changingPasswordUser && (
@@ -1242,6 +1388,13 @@ export default function AdminDashboardPage({ token }) {
           user={changingPasswordUser}
           onSubmit={handleSetPassword}
           onClose={() => setChangingPasswordUser(null)}
+        />
+      )}
+      {editingNameUser && (
+        <EditNameModal
+          user={editingNameUser}
+          onSubmit={handleEditName}
+          onClose={() => setEditingNameUser(null)}
         />
       )}
       {viewingUserId && (
@@ -1370,7 +1523,7 @@ export default function AdminDashboardPage({ token }) {
         {tab === 'scoreWeights' ? (
           <ScoreWeightsPanel authHeaders={authHeaders} showToast={showToast} />
         ) : tab === 'sendEmail' ? (
-          <SendEmailPanel authHeaders={authHeaders} showToast={showToast} t={t} dir={dir} />
+          <SendEmailPanel authHeaders={authHeaders} showToast={showToast} />
         ) : (
         <>
         <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', background: 'var(--bg-panel)' }}>
@@ -1405,7 +1558,7 @@ export default function AdminDashboardPage({ token }) {
                     </td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString(localeTag) : '-'}</td>
                     <td style={{ padding: '10px 16px' }}>
-                      <ActionMenu user={u} onView={u2 => setViewingUserId(u2.id)} onChangePassword={setChangingPasswordUser} onToggleActive={toggleUserActive} onDelete={setDeletingUser} onVerify={handleVerifyUser} t={t} />
+                      <ActionMenu user={u} onView={u2 => setViewingUserId(u2.id)} onChangePassword={setChangingPasswordUser} onEditName={setEditingNameUser} onToggleActive={toggleUserActive} onDelete={setDeletingUser} onVerify={handleVerifyUser} t={t} />
                     </td>
                   </tr>
                 ))}

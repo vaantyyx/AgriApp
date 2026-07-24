@@ -1505,6 +1505,8 @@ async function startServer() {
     await db.collection('aiChatLogs').createIndex({ userId: 1, createdAt: -1 });
     // Backs the admin Support tab's status filter + open-ticket stat tile.
     await db.collection('supportMessages').createIndex({ status: 1, createdAt: -1 });
+    // Backs the admin Send Email tab's sent-history list.
+    await db.collection('sentEmails').createIndex({ sentAt: -1 });
 
     // Restores the admin-configured Bloc C score weights, if any were ever
     // saved (see PUT /api/admin/score-weights) — otherwise compositeScoring.js
