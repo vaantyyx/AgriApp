@@ -42,17 +42,24 @@ describe('getNotificationBody', () => {
     expect(result).toContain('"count":3');
   });
 
-  test('auction_scheduled formats the date using the locale-aware tag', () => {
+  test('auction_scheduled formats the date using the locale-aware tag, in 24h for Arabic', () => {
     const spy = vi.spyOn(Date.prototype, 'toLocaleString');
     getNotificationBody({ type: 'auction_scheduled', product: 'Blé', startAt: '2026-01-01T10:00:00.000Z' }, fakeT, 'ar');
-    expect(spy).toHaveBeenCalledWith('ar-DZ', { dateStyle: 'medium', timeStyle: 'short' });
+    expect(spy).toHaveBeenCalledWith('ar-DZ', { dateStyle: 'medium', timeStyle: 'short', hour12: false });
     spy.mockRestore();
   });
 
-  test('defaults to fr-DZ when no locale is given', () => {
+  test('defaults to fr-DZ (24h) when no locale is given', () => {
     const spy = vi.spyOn(Date.prototype, 'toLocaleString');
     getNotificationBody({ type: 'auction_scheduled', product: 'Blé', startAt: '2026-01-01T10:00:00.000Z' }, fakeT);
-    expect(spy).toHaveBeenCalledWith('fr-DZ', { dateStyle: 'medium', timeStyle: 'short' });
+    expect(spy).toHaveBeenCalledWith('fr-DZ', { dateStyle: 'medium', timeStyle: 'short', hour12: false });
+    spy.mockRestore();
+  });
+
+  test('uses a 12-hour AM/PM clock for English', () => {
+    const spy = vi.spyOn(Date.prototype, 'toLocaleString');
+    getNotificationBody({ type: 'auction_scheduled', product: 'Wheat', startAt: '2026-01-01T10:00:00.000Z' }, fakeT, 'en');
+    expect(spy).toHaveBeenCalledWith('en-US', { dateStyle: 'medium', timeStyle: 'short', hour12: true });
     spy.mockRestore();
   });
 

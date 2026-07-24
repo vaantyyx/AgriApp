@@ -53,7 +53,7 @@ export function getNotificationBody(n, t, locale = 'fr') {
   if (n.type === 'auction_scheduled') {
     return t('auctionScheduledNotificationBody', {
       product: n.product,
-      date: n.startAt ? new Date(n.startAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '',
+      date: n.startAt ? new Date(n.startAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '',
     });
   }
   if (n.type === 'auction_starting_soon') {

@@ -83,7 +83,7 @@ export default function NotificationsPage({ notifications, onMarkAllRead, onMark
                   {getNotificationBody(n, t, locale)}
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>
-                  {new Date(n.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })}
+                  {new Date(n.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' })}
                 </div>
               </div>
             </div>

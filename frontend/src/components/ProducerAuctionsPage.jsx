@@ -332,11 +332,11 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, onLookupRef
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>{locale === 'ar' ? 'تاريخ البدء' : (locale === 'en' ? 'Start' : 'Début')}</label>
-                      <input type="text" value={a.startAt ? new Date(a.startAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} disabled />
+                      <input type="text" value={a.startAt ? new Date(a.startAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-'} disabled />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>{locale === 'ar' ? 'تاريخ الانتهاء' : (locale === 'en' ? 'End' : 'Fin')}</label>
-                      <input type="text" value={a.endAt ? new Date(a.endAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} disabled />
+                      <input type="text" value={a.endAt ? new Date(a.endAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-'} disabled />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>{locale === 'ar' ? 'تمديد تلقائي' : (locale === 'en' ? 'Automatic extension' : 'Prolongation automatique')}</label>
@@ -494,8 +494,8 @@ export default function ProducerAuctionsPage({ auctions, onPlaceBid, onLookupRef
                       <div className="metadata-box">
                         <div className="metadata-box-title">{locale === 'ar' ? 'التوقيت والإعدادات' : (locale === 'en' ? 'Timing & settings' : 'Dates & paramètres')}</div>
                         <div style={{ display: 'grid', gap: 8 }}>
-                          <SummaryRow label={locale === 'ar' ? 'تاريخ البدء' : (locale === 'en' ? 'Start' : 'Début')} value={auction.startAt ? new Date(auction.startAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
-                          <SummaryRow label={locale === 'ar' ? 'تاريخ الانتهاء' : (locale === 'en' ? 'End' : 'Fin')} value={auction.endAt ? new Date(auction.endAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
+                          <SummaryRow label={locale === 'ar' ? 'تاريخ البدء' : (locale === 'en' ? 'Start' : 'Début')} value={auction.startAt ? new Date(auction.startAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-'} />
+                          <SummaryRow label={locale === 'ar' ? 'تاريخ الانتهاء' : (locale === 'en' ? 'End' : 'Fin')} value={auction.endAt ? new Date(auction.endAt).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-'} />
                           <SummaryRow label={locale === 'ar' ? 'تمديد تلقائي' : (locale === 'en' ? 'Auto extension' : 'Prolongation auto')} value={auction.autoProlongate ? `${auction.prolongationMinutes || 0} min, ${auction.maxProlongations || 0} ${locale === 'en' ? 'times' : 'fois'}` : (locale === 'ar' ? 'لا' : (locale === 'en' ? 'No' : 'Non'))} />
                           <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${auction.radiusKm || 0} ${t('unitKm')}`} />
                           <SummaryRow label={locale === 'ar' ? 'عدد الأقسام' : (locale === 'en' ? 'Number of lots' : 'Nombre de lots')} value={`${(auction.lots || []).length}`} />

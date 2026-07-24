@@ -442,10 +442,10 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
             </DetailSection>
 
             <DetailSection title={locale === 'ar' ? 'الحساب' : (locale === 'en' ? 'Account' : 'Compte')}>
-              <DetailRow label={t('adminColJoined')} value={detail.createdAt ? new Date(detail.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '-'} />
+              <DetailRow label={t('adminColJoined')} value={detail.createdAt ? new Date(detail.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-'} />
               <DetailRow label={locale === 'ar' ? 'التحقق بخطوتين' : (locale === 'en' ? '2FA enabled' : 'Double authentification')} value={yesNo(detail.two_factor_enabled)} />
               {!detail.isActive && detail.deactivatedAt && (
-                <DetailRow label={locale === 'ar' ? 'تاريخ التعطيل' : (locale === 'en' ? 'Deactivated on' : 'Désactivé le')} value={new Date(detail.deactivatedAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })} />
+                <DetailRow label={locale === 'ar' ? 'تاريخ التعطيل' : (locale === 'en' ? 'Deactivated on' : 'Désactivé le')} value={new Date(detail.deactivatedAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' })} />
               )}
             </DetailSection>
 
@@ -458,7 +458,7 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
                     <div key={entry.ip} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', fontSize: '0.8rem' }}>
                       <span style={{ fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace' }}>{entry.ip || (locale === 'ar' ? 'غير معروف' : 'Inconnue')}</span>
                       <span style={{ color: 'var(--text-muted)', textAlign: 'right' }}>
-                        {t('adminIpLastSeen', { date: new Date(entry.lastSeen).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) })} · {t('adminIpCount', { count: entry.count })}
+                        {t('adminIpLastSeen', { date: new Date(entry.lastSeen).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) })} · {t('adminIpCount', { count: entry.count })}
                       </span>
                     </div>
                   ))}
@@ -615,7 +615,7 @@ function AiChatHistoryModal({ userId, userName, authHeaders, onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
               {chats.map((c, i) => (
                 <div key={i} style={{ padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 6 }}>{new Date(c.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 6 }}>{new Date(c.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' })}</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: 4 }}>{c.userMessage}</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>{c.assistantReply}</div>
                 </div>
@@ -659,7 +659,7 @@ function AuctionDetailModal({ auctionId, authHeaders, onClose }) {
     return () => { active = false; };
   }, [auctionId, authHeaders]);
 
-  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-';
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -796,7 +796,7 @@ function SupportMessageModal({ message, onToggleResolved, onClose }) {
             {message.name} · <span style={{ direction: 'ltr', display: 'inline-block' }}>{message.email}</span>
           </p>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: '2px 0 0' }}>
-            {message.createdAt ? new Date(message.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+            {message.createdAt ? new Date(message.createdAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-'}
           </p>
         </div>
 
@@ -1076,7 +1076,7 @@ function SendEmailPanel({ authHeaders, showToast }) {
                   >
                     <span style={{ minWidth: 0, flex: 1 }}>
                       <span style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.subject}</span>
-                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{entry.to} · {new Date(entry.sentAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{entry.to} · {new Date(entry.sentAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' })}</span>
                     </span>
                     {expanded ? <ChevronUp size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
                   </button>
@@ -1106,6 +1106,99 @@ function SendEmailPanel({ authHeaders, showToast }) {
   );
 }
 
+// ─── Column sorting (client-side, current page only) ───────────────────────
+// Generic ascending comparator — nullish values sort first, strings compare
+// locale-aware, everything else (numbers, ISO date strings, 0/1 booleans)
+// compares fine with plain </>.
+function compareValues(a, b) {
+  if (a == null && b == null) return 0;
+  if (a == null) return -1;
+  if (b == null) return 1;
+  if (typeof a === 'string' && typeof b === 'string') return a.localeCompare(b);
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
+// Per-tab accessor maps: how to pull a comparable value out of a row for a
+// given column key. Only columns worth sorting are listed — "Actions" never is.
+const SORT_ACCESSORS = {
+  users: {
+    name: u => u.name || '',
+    email: u => u.email || '',
+    role: u => (u.roles || [u.role]).join(','),
+    isVerified: u => u.isVerified ? 1 : 0,
+    isActive: u => u.isActive ? 1 : 0,
+    // Online accounts sort together at one end; offline ones then order by
+    // how recently they last logged in.
+    isOnline: u => u.isOnline ? Infinity : (u.lastLoginAt ? new Date(u.lastLoginAt).getTime() : -Infinity),
+    usedAi: u => u.usedAi ? 1 : 0,
+    createdAt: u => u.createdAt || '',
+  },
+  auctions: {
+    title: a => a.title || '',
+    status: a => a.status || '',
+    buyerName: a => a.buyerName || '',
+    bidsCount: a => a.bidsCount || 0,
+    createdAt: a => a.createdAt || '',
+  },
+  support: {
+    name: m => m.name || '',
+    subject: m => m.subject || '',
+    status: m => m.status || '',
+    createdAt: m => m.createdAt || '',
+  },
+  referencePrices: {
+    crop: p => p.crop || '',
+    wilaya: p => p.wilaya || '',
+    price: p => p.price ?? -Infinity,
+    previousPrice: p => p.previousPrice ?? -Infinity,
+    rawMedian: p => p.rawMedian ?? -Infinity,
+    seasonalModifier: p => p.seasonalModifier ?? -Infinity,
+    sampleSize: p => p.sampleSize ?? -Infinity,
+    computedAt: p => p.computedAt || '',
+  },
+  buyerAccounts: {
+    buyerName: a => a.buyerName || '',
+    buyerEmail: a => a.buyerEmail || '',
+    outstandingBalance: a => a.outstandingBalance ?? 0,
+    totalSettled: a => a.totalSettled ?? 0,
+    updatedAt: a => a.updatedAt || '',
+  },
+  weeklyStatements: {
+    buyerName: s => s.buyerName || '',
+    periodStart: s => s.periodStart || '',
+    entryCount: s => s.entryCount ?? 0,
+    totalAmount: s => s.totalAmount ?? 0,
+    status: s => s.status || '',
+  },
+};
+
+function sortRows(rows, tabName, sortConfig) {
+  const accessor = sortConfig.key && SORT_ACCESSORS[tabName]?.[sortConfig.key];
+  if (!accessor) return rows;
+  const dir = sortConfig.direction === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => compareValues(accessor(a), accessor(b)) * dir);
+}
+
+/** Clickable column header — 1st click sorts ascending, 2nd click (same column) sorts descending. */
+function SortableTh({ children, sortKey, sortConfig, onSort }) {
+  const isActive = sortConfig.key === sortKey;
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      style={{ padding: '10px 16px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        {children}
+        {isActive
+          ? (sortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)
+          : <ChevronDown size={12} style={{ opacity: 0.25 }} />}
+      </span>
+    </th>
+  );
+}
+
 export default function AdminDashboardPage({ token }) {
   const { t, dir, locale } = useTranslation();
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
@@ -1129,6 +1222,24 @@ export default function AdminDashboardPage({ token }) {
   const [viewingUserId, setViewingUserId] = useState(null);
   const [viewingAuctionId, setViewingAuctionId] = useState(null);
   const [viewingSupportMessage, setViewingSupportMessage] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+
+  // A sort key from one tab's table never applies to another's columns.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSortConfig({ key: null, direction: 'asc' }); }, [tab]);
+
+  const handleSort = (key) => {
+    setSortConfig(prev => prev.key === key
+      ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      : { key, direction: 'asc' });
+  };
+
+  const sortedUsers = useMemo(() => sortRows(users, 'users', sortConfig), [users, sortConfig]);
+  const sortedAuctions = useMemo(() => sortRows(auctions, 'auctions', sortConfig), [auctions, sortConfig]);
+  const sortedSupportMessages = useMemo(() => sortRows(supportMessages, 'support', sortConfig), [supportMessages, sortConfig]);
+  const sortedReferencePrices = useMemo(() => sortRows(referencePrices, 'referencePrices', sortConfig), [referencePrices, sortConfig]);
+  const sortedBuyerAccounts = useMemo(() => sortRows(buyerAccounts, 'buyerAccounts', sortConfig), [buyerAccounts, sortConfig]);
+  const sortedWeeklyStatements = useMemo(() => sortRows(weeklyStatements, 'weeklyStatements', sortConfig), [weeklyStatements, sortConfig]);
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -1555,19 +1666,19 @@ export default function AdminDashboardPage({ token }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColName')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColEmail')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColRole')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColVerified')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColOnline')}</th>
-                  <th style={{ padding: '10px 16px' }} title={t('adminColUsedAiFull')}>{t('adminColUsedAi')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColJoined')}</th>
+                  <SortableTh sortKey="name" sortConfig={sortConfig} onSort={handleSort}>{t('adminColName')}</SortableTh>
+                  <SortableTh sortKey="email" sortConfig={sortConfig} onSort={handleSort}>{t('adminColEmail')}</SortableTh>
+                  <SortableTh sortKey="role" sortConfig={sortConfig} onSort={handleSort}>{t('adminColRole')}</SortableTh>
+                  <SortableTh sortKey="isVerified" sortConfig={sortConfig} onSort={handleSort}>{t('adminColVerified')}</SortableTh>
+                  <SortableTh sortKey="isActive" sortConfig={sortConfig} onSort={handleSort}>{t('adminColStatus')}</SortableTh>
+                  <SortableTh sortKey="isOnline" sortConfig={sortConfig} onSort={handleSort}>{t('adminColOnline')}</SortableTh>
+                  <SortableTh sortKey="usedAi" sortConfig={sortConfig} onSort={handleSort}><span title={t('adminColUsedAiFull')}>{t('adminColUsedAi')}</span></SortableTh>
+                  <SortableTh sortKey="createdAt" sortConfig={sortConfig} onSort={handleSort}>{t('adminColJoined')}</SortableTh>
                   <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map(u => (
+                {sortedUsers.map(u => (
                   <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 600, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={u.name}>{u.name}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.email}</td>
@@ -1588,7 +1699,7 @@ export default function AdminDashboardPage({ token }) {
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                          {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : t('adminNeverLoggedIn')}
+                          {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : t('adminNeverLoggedIn')}
                         </span>
                       )}
                     </td>
@@ -1610,16 +1721,16 @@ export default function AdminDashboardPage({ token }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColTitle')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColBuyer')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColBids')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColDate')}</th>
+                  <SortableTh sortKey="title" sortConfig={sortConfig} onSort={handleSort}>{t('adminColTitle')}</SortableTh>
+                  <SortableTh sortKey="status" sortConfig={sortConfig} onSort={handleSort}>{t('adminColStatus')}</SortableTh>
+                  <SortableTh sortKey="buyerName" sortConfig={sortConfig} onSort={handleSort}>{t('adminColBuyer')}</SortableTh>
+                  <SortableTh sortKey="bidsCount" sortConfig={sortConfig} onSort={handleSort}>{t('adminColBids')}</SortableTh>
+                  <SortableTh sortKey="createdAt" sortConfig={sortConfig} onSort={handleSort}>{t('adminColDate')}</SortableTh>
                   <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {auctions.map(a => (
+                {sortedAuctions.map(a => (
                   <tr key={a.id} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 600, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.title}>{a.title}</td>
                     <td style={{ padding: '10px 16px' }}>{a.status}</td>
@@ -1659,15 +1770,15 @@ export default function AdminDashboardPage({ token }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColName')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColSubject')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColDate')}</th>
+                  <SortableTh sortKey="name" sortConfig={sortConfig} onSort={handleSort}>{t('adminColName')}</SortableTh>
+                  <SortableTh sortKey="subject" sortConfig={sortConfig} onSort={handleSort}>{t('adminColSubject')}</SortableTh>
+                  <SortableTh sortKey="status" sortConfig={sortConfig} onSort={handleSort}>{t('adminColStatus')}</SortableTh>
+                  <SortableTh sortKey="createdAt" sortConfig={sortConfig} onSort={handleSort}>{t('adminColDate')}</SortableTh>
                   <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {supportMessages.map(m => (
+                {sortedSupportMessages.map(m => (
                   <tr key={m.id} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 600 }}>{m.name}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.subject}</td>
@@ -1699,18 +1810,18 @@ export default function AdminDashboardPage({ token }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColCrop')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColWilaya')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColCurrentPrice')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColPreviousPrice')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColRawMedian')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColSeasonalModifier')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColSampleSize')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColComputedAt')}</th>
+                  <SortableTh sortKey="crop" sortConfig={sortConfig} onSort={handleSort}>{t('adminColCrop')}</SortableTh>
+                  <SortableTh sortKey="wilaya" sortConfig={sortConfig} onSort={handleSort}>{t('adminColWilaya')}</SortableTh>
+                  <SortableTh sortKey="price" sortConfig={sortConfig} onSort={handleSort}>{t('adminColCurrentPrice')}</SortableTh>
+                  <SortableTh sortKey="previousPrice" sortConfig={sortConfig} onSort={handleSort}>{t('adminColPreviousPrice')}</SortableTh>
+                  <SortableTh sortKey="rawMedian" sortConfig={sortConfig} onSort={handleSort}>{t('adminColRawMedian')}</SortableTh>
+                  <SortableTh sortKey="seasonalModifier" sortConfig={sortConfig} onSort={handleSort}>{t('adminColSeasonalModifier')}</SortableTh>
+                  <SortableTh sortKey="sampleSize" sortConfig={sortConfig} onSort={handleSort}>{t('adminColSampleSize')}</SortableTh>
+                  <SortableTh sortKey="computedAt" sortConfig={sortConfig} onSort={handleSort}>{t('adminColComputedAt')}</SortableTh>
                 </tr>
               </thead>
               <tbody>
-                {referencePrices.map((p, i) => (
+                {sortedReferencePrices.map((p, i) => (
                   <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 600 }}>{p.crop}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.wilaya}</td>
@@ -1719,7 +1830,7 @@ export default function AdminDashboardPage({ token }) {
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.rawMedian != null ? `${p.rawMedian} ${t('currencyDA')}` : '-'}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.seasonalModifier != null ? `×${p.seasonalModifier}` : '-'}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.sampleSize ?? '-'}</td>
-                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.computedAt ? new Date(p.computedAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '-'}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.computedAt ? new Date(p.computedAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-'}</td>
                   </tr>
                 ))}
                 {!loading && referencePrices.length === 0 && (
@@ -1731,15 +1842,15 @@ export default function AdminDashboardPage({ token }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColBuyer')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColEmail')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColOutstandingBalance')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColTotalSettled')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColUpdatedAt')}</th>
+                  <SortableTh sortKey="buyerName" sortConfig={sortConfig} onSort={handleSort}>{t('adminColBuyer')}</SortableTh>
+                  <SortableTh sortKey="buyerEmail" sortConfig={sortConfig} onSort={handleSort}>{t('adminColEmail')}</SortableTh>
+                  <SortableTh sortKey="outstandingBalance" sortConfig={sortConfig} onSort={handleSort}>{t('adminColOutstandingBalance')}</SortableTh>
+                  <SortableTh sortKey="totalSettled" sortConfig={sortConfig} onSort={handleSort}>{t('adminColTotalSettled')}</SortableTh>
+                  <SortableTh sortKey="updatedAt" sortConfig={sortConfig} onSort={handleSort}>{t('adminColUpdatedAt')}</SortableTh>
                 </tr>
               </thead>
               <tbody>
-                {buyerAccounts.map((a, i) => {
+                {sortedBuyerAccounts.map((a, i) => {
                   const overCap = a.outstandingBalance >= 50000;
                   return (
                     <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
@@ -1763,16 +1874,16 @@ export default function AdminDashboardPage({ token }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColBuyer')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColPeriod')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColEntryCount')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColTotalAmount')}</th>
-                  <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
+                  <SortableTh sortKey="buyerName" sortConfig={sortConfig} onSort={handleSort}>{t('adminColBuyer')}</SortableTh>
+                  <SortableTh sortKey="periodStart" sortConfig={sortConfig} onSort={handleSort}>{t('adminColPeriod')}</SortableTh>
+                  <SortableTh sortKey="entryCount" sortConfig={sortConfig} onSort={handleSort}>{t('adminColEntryCount')}</SortableTh>
+                  <SortableTh sortKey="totalAmount" sortConfig={sortConfig} onSort={handleSort}>{t('adminColTotalAmount')}</SortableTh>
+                  <SortableTh sortKey="status" sortConfig={sortConfig} onSort={handleSort}>{t('adminColStatus')}</SortableTh>
                   <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
                 </tr>
               </thead>
               <tbody>
-                {weeklyStatements.map(s => (
+                {sortedWeeklyStatements.map(s => (
                   <tr key={s.id} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 600 }}>{s.buyerName || '-'}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>

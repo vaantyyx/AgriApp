@@ -911,8 +911,8 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                       <div className="summary-box-title">{locale === 'ar' ? 'المنطقة والتواريخ' : (locale === 'en' ? 'Zone & Dates' : 'Zone & Dates')}</div>
                       <SummaryRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${radiusKm} ${t('unitKm')}`} />
                       <SummaryRow label={locale === 'ar' ? 'منتجون في المنطقة' : (locale === 'en' ? 'Producers in zone' : 'Producteurs dans la zone')} value={`${producerCount}`} />
-                      <SummaryRow label={locale === 'ar' ? 'بداية' : (locale === 'en' ? 'Start' : 'Début')} value={startDatetime ? new Date(startDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ') : '—'} />
-                      <SummaryRow label={locale === 'ar' ? 'نهاية' : (locale === 'en' ? 'End' : 'Fin')} value={endDatetime ? new Date(endDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ') : '—'} />
+                      <SummaryRow label={locale === 'ar' ? 'بداية' : (locale === 'en' ? 'Start' : 'Début')} value={startDatetime ? new Date(startDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { hour12: locale === 'en' }) : '—'} />
+                      <SummaryRow label={locale === 'ar' ? 'نهاية' : (locale === 'en' ? 'End' : 'Fin')} value={endDatetime ? new Date(endDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { hour12: locale === 'en' }) : '—'} />
                       {roundModeEnabled && (
                         <>
                           <SummaryRow label={t('roundModeToggleTitle')} value={`${roundTotalRounds} × ${roundDurationHours}h, -${roundMaxDecreasePercent}%/tour`} />

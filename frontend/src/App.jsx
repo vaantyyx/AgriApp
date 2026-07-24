@@ -615,7 +615,7 @@ export default function App() {
                                     {getNotificationBody(n, t, locale)}
                                   </div>
                                   <div className="notif-time">
-                                    {new Date(n.createdAt).toLocaleTimeString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(n.createdAt).toLocaleTimeString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { hour: '2-digit', minute: '2-digit', hour12: locale === 'en' })}
                                   </div>
                                 </div>
                               </div>
