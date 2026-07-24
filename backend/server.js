@@ -44,6 +44,7 @@ import { validateTender } from './services/tenderValidation.js';
 import { recomputeReferencePrices, getReferencePrice } from './services/referenceEngine.js';
 import { recordCommission, generateWeeklyStatements } from './services/commissionEngine.js';
 import { checkForCollusion } from './services/collusionDetection.js';
+import { setScoreWeights } from './services/compositeScoring.js';
 
 // ─── JWT Secret bootstrap ──────────────────────────────────────────────────
 if (!process.env.JWT_SECRET) {
@@ -1504,6 +1505,14 @@ async function startServer() {
     await db.collection('aiChatLogs').createIndex({ userId: 1, createdAt: -1 });
     // Backs the admin Support tab's status filter + open-ticket stat tile.
     await db.collection('supportMessages').createIndex({ status: 1, createdAt: -1 });
+
+    // Restores the admin-configured Bloc C score weights, if any were ever
+    // saved (see PUT /api/admin/score-weights) — otherwise compositeScoring.js
+    // keeps its built-in default (Price 35 / Quality 25 / Souk 25 / Logistics 15).
+    const savedWeights = await db.collection('settings').findOne({ _id: 'scoreWeights' });
+    if (savedWeights) {
+      setScoreWeights({ price: savedWeights.price, quality: savedWeights.quality, souk: savedWeights.souk, logistics: savedWeights.logistics });
+    }
 
     // Recover precise timers for auctions still pending from before a restart
     const pendingAuctions = await db.collection('auctions').find({ status: 'pending' }).toArray();

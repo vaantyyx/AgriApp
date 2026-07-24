@@ -8,8 +8,19 @@
 // neutral score below rather than being penalized or favored — same
 // cold-start philosophy as Blocs A and D.
 
-export const SCORE_WEIGHTS = { price: 0.35, quality: 0.25, souk: 0.25, logistics: 0.15 };
+export const DEFAULT_SCORE_WEIGHTS = { price: 0.35, quality: 0.25, souk: 0.25, logistics: 0.15 };
+// A live binding (ES module `let` export, not a snapshot) — computeCompositeScore()
+// below always reads the current value, so admin-saved weights (see
+// setScoreWeights) take effect immediately, no restart needed.
+export let SCORE_WEIGHTS = { ...DEFAULT_SCORE_WEIGHTS };
 export const NEUTRAL_NORMALIZED_SCORE = 0.5;
+
+/** Called once at server startup (loaded from the `settings` collection, if
+ * saved before) and again whenever an admin saves new weights from the
+ * dashboard — see PUT /api/admin/score-weights. */
+export function setScoreWeights(weights) {
+  SCORE_WEIGHTS = { ...weights };
+}
 
 /** Maps a 1-5 star average to 0-1. No history yet (count 0) => neutral, not penalized. */
 export function normalizeStarAverage(average, count) {

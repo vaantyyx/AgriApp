@@ -6,6 +6,7 @@ import authMiddleware from '../middleware/authMiddleware.js';
 import adminMiddleware from '../middleware/adminMiddleware.js';
 import { logger } from '../utils/logger.js';
 import { markStatementPaid } from '../services/commissionEngine.js';
+import { SCORE_WEIGHTS, setScoreWeights } from '../services/compositeScoring.js';
 
 const router = express.Router();
 router.use(authMiddleware, adminMiddleware);
@@ -611,6 +612,44 @@ router.post('/support-messages/:id/resolve', async (req, res) => {
     res.json({ message: 'Statut mis à jour.', status: newStatus });
   } catch (err) {
     logger.error({ err }, 'ADMIN RESOLVE SUPPORT MESSAGE ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ─── GET /api/admin/score-weights ────────────────────────────────────────────
+// Bloc C — the composite bid-scoring weights (Prix/Qualité/Souk/Logistique).
+// SCORE_WEIGHTS is a live module binding, so this always reflects whatever
+// was last saved (or the built-in default, before any admin ever changes it).
+router.get('/score-weights', async (req, res) => {
+  res.json({ weights: SCORE_WEIGHTS });
+});
+
+// ─── PUT /api/admin/score-weights ────────────────────────────────────────────
+router.put('/score-weights', async (req, res) => {
+  try {
+    const { price, quality, souk, logistics } = req.body;
+    const weights = { price: Number(price), quality: Number(quality), souk: Number(souk), logistics: Number(logistics) };
+
+    if (Object.values(weights).some(w => !Number.isFinite(w) || w < 0 || w > 1)) {
+      return res.status(400).json({ error: 'Chaque pondération doit être un nombre entre 0 et 1.' });
+    }
+    const total = weights.price + weights.quality + weights.souk + weights.logistics;
+    if (Math.abs(total - 1) > 0.01) {
+      return res.status(400).json({ error: 'La somme des pondérations doit être égale à 100%.' });
+    }
+
+    const db = getDb();
+    await db.collection('settings').updateOne(
+      { _id: 'scoreWeights' },
+      { $set: { ...weights, updatedAt: new Date(), updatedBy: req.user.userId } },
+      { upsert: true }
+    );
+    // Takes effect immediately for every auction scored from now on — no restart needed.
+    setScoreWeights(weights);
+
+    res.json({ message: 'Pondérations mises à jour.', weights });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN UPDATE SCORE WEIGHTS ERROR');
     res.status(500).json({ error: 'Erreur serveur.' });
   }
 });

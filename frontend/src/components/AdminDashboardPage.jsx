@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2, MessageCircle } from 'lucide-react';
+import { Users, Gavel, Search, ChevronLeft, ChevronRight, CheckCircle2, XCircle, KeyRound, X, Eye, EyeOff, FileText, MapPin, Menu, Ban, RotateCcw, MessageSquare, Trash2, MessageCircle, TrendingUp, Wallet, Receipt, SlidersHorizontal, Save, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../context/LanguageContext';
 import { BACKEND_URL } from '../utils/config.js';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -762,6 +762,154 @@ function SupportMessageModal({ message, onToggleResolved, onClose }) {
   );
 }
 
+const DEFAULT_WEIGHT_PERCENTS = { price: 35, quality: 25, souk: 25, logistics: 15 };
+
+function WeightSlider({ label, desc, value, onChange, color }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>{label}</label>
+        <span style={{ fontSize: '0.9rem', fontWeight: 800, color }}>{value}%</span>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        className="radius-slider"
+        style={{ width: '100%', accentColor: color }}
+      />
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>{desc}</p>
+    </div>
+  );
+}
+
+// Bloc C's composite bid score is a weighted sum of 4 criteria — this panel
+// lets the admin retune those weights (backend default: Price 35 / Quality 25
+// / Souk 25 / Logistics 15). Not a paginated list like the other tabs, so it
+// gets its own settings-form layout instead of the shared table wrapper.
+function ScoreWeightsPanel({ authHeaders, showToast }) {
+  const { t, locale, dir } = useTranslation();
+  const [percents, setPercents] = useState(DEFAULT_WEIGHT_PERCENTS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${BACKEND_URL}/api/admin/score-weights`, { headers: authHeaders })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!active || !data) return;
+        setPercents({
+          price: Math.round(data.weights.price * 100),
+          quality: Math.round(data.weights.quality * 100),
+          souk: Math.round(data.weights.souk * 100),
+          logistics: Math.round(data.weights.logistics * 100),
+        });
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [authHeaders]);
+
+  const total = percents.price + percents.quality + percents.souk + percents.logistics;
+  const isValid = total === 100;
+
+  const handleSave = async () => {
+    if (!isValid) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/score-weights`, {
+        method: 'PUT',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          price: percents.price / 100,
+          quality: percents.quality / 100,
+          souk: percents.souk / 100,
+          logistics: percents.logistics / 100,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>{t('adminLoading')}</p>;
+  }
+
+  return (
+    <div className="glass-panel" style={{ maxWidth: 560, padding: 24, textAlign: 'start' }} dir={dir}>
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 24, lineHeight: 1.6 }}>
+        {locale === 'ar'
+          ? 'يُرتَّب كل عرض تلقائيًا حسب مجموع مرجّح لأربعة معايير. يجب أن يكون المجموع 100%.'
+          : (locale === 'en'
+            ? 'Every bid is automatically ranked by a weighted sum of four criteria. The total must equal 100%.'
+            : "Chaque offre est classée automatiquement par une somme pondérée de quatre critères. Le total doit être égal à 100%.")}
+      </p>
+
+      <WeightSlider
+        label={locale === 'ar' ? 'السعر' : (locale === 'en' ? 'Price' : 'Prix')}
+        desc={locale === 'ar' ? 'الأرخص أفضل (مقارنة بباقي العروض على نفس المزاد).' : (locale === 'en' ? 'Cheaper is better (compared against the other bids on the same auction).' : "Moins cher = meilleur score (comparé aux autres offres de la même enchère).")}
+        value={percents.price}
+        onChange={v => setPercents(p => ({ ...p, price: v }))}
+        color="#10b981"
+      />
+      <WeightSlider
+        label={locale === 'ar' ? 'الجودة' : (locale === 'en' ? 'Quality' : 'Qualité')}
+        desc={locale === 'ar' ? 'متوسط تقييم الجودة بعد التسليم لهذا المنتج (محايد لمنتج بلا سجل).' : (locale === 'en' ? "The producer's average post-delivery quality rating (neutral for a producer with no history yet)." : "Note qualité moyenne du producteur après livraison (neutre pour un producteur sans historique).")}
+        value={percents.quality}
+        onChange={v => setPercents(p => ({ ...p, quality: v }))}
+        color="#3b82f6"
+      />
+      <WeightSlider
+        label={locale === 'ar' ? 'موثوقية السوق' : (locale === 'en' ? 'Souk Score' : 'Souk Score')}
+        desc={locale === 'ar' ? 'متوسط تقييم المشترين لهذا المنتج (الانضباط، الالتزام بالمواعيد).' : (locale === 'en' ? "The producer's average buyer rating (reliability, punctuality)." : "Note moyenne des acheteurs pour ce producteur (fiabilité, ponctualité).")}
+        value={percents.souk}
+        onChange={v => setPercents(p => ({ ...p, souk: v }))}
+        color="#f59e0b"
+      />
+      <WeightSlider
+        label={locale === 'ar' ? 'اللوجستيك' : (locale === 'en' ? 'Logistics' : 'Logistique')}
+        desc={locale === 'ar' ? 'الأقرب وسلسلة تبريد متوفرة = أفضل.' : (locale === 'en' ? 'Closer and cold-chain capable is better.' : "Plus proche et capacité de chaîne du froid = meilleur score.")}
+        value={percents.logistics}
+        onChange={v => setPercents(p => ({ ...p, logistics: v }))}
+        color="#8b5cf6"
+      />
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, background: isValid ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${isValid ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`, marginBottom: 20 }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isValid ? 'var(--primary)' : '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {!isValid && <AlertCircle size={14} />}
+          {locale === 'ar' ? 'المجموع' : (locale === 'en' ? 'Total' : 'Total')} : {total}%
+        </span>
+        {!isValid && (
+          <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>
+            {locale === 'ar' ? 'يجب أن يكون 100%' : (locale === 'en' ? 'Must equal 100%' : 'Doit être égal à 100%')}
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <button type="button" className="btn btn-secondary" style={{ flex: 1, minWidth: 0 }} onClick={() => setPercents(DEFAULT_WEIGHT_PERCENTS)}>
+          {locale === 'ar' ? 'إعادة الضبط الافتراضي' : (locale === 'en' ? 'Reset to default' : 'Réinitialiser')}
+        </button>
+        <button type="button" className="btn btn-primary" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }} disabled={!isValid || saving} onClick={handleSave}>
+          {saving ? <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Save size={15} />}
+          {t('saveBtn')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboardPage({ token }) {
   const { t, dir, locale } = useTranslation();
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
@@ -771,6 +919,9 @@ export default function AdminDashboardPage({ token }) {
   const [users, setUsers] = useState([]);
   const [auctions, setAuctions] = useState([]);
   const [supportMessages, setSupportMessages] = useState([]);
+  const [referencePrices, setReferencePrices] = useState([]);
+  const [buyerAccounts, setBuyerAccounts] = useState([]);
+  const [weeklyStatements, setWeeklyStatements] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -838,11 +989,60 @@ export default function AdminDashboardPage({ token }) {
     }
   }, [authHeaders]);
 
+  const fetchReferencePrices = useCallback(async (targetPage) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: targetPage, limit: 20 });
+      const res = await fetch(`${BACKEND_URL}/api/admin/reference-prices?${params}`, { headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        setReferencePrices(data.prices);
+        setTotalPages(data.totalPages);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
+  const fetchBuyerAccounts = useCallback(async (targetPage) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: targetPage, limit: 20 });
+      const res = await fetch(`${BACKEND_URL}/api/admin/buyer-accounts?${params}`, { headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        setBuyerAccounts(data.accounts);
+        setTotalPages(data.totalPages);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
+  const fetchWeeklyStatements = useCallback(async (targetPage) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: targetPage, limit: 20 });
+      const res = await fetch(`${BACKEND_URL}/api/admin/weekly-statements?${params}`, { headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        setWeeklyStatements(data.statements);
+        setTotalPages(data.totalPages);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders]);
+
   const fetchTab = useCallback((targetPage) => {
     if (tab === 'users') fetchUsers(targetPage, search);
     else if (tab === 'auctions') fetchAuctions(targetPage);
-    else fetchSupportMessages(targetPage);
-  }, [tab, search, fetchUsers, fetchAuctions, fetchSupportMessages]);
+    else if (tab === 'support') fetchSupportMessages(targetPage);
+    else if (tab === 'referencePrices') fetchReferencePrices(targetPage);
+    else if (tab === 'buyerAccounts') fetchBuyerAccounts(targetPage);
+    else if (tab === 'weeklyStatements') fetchWeeklyStatements(targetPage);
+    // 'scoreWeights' is a settings form, not a paginated list — ScoreWeightsPanel fetches its own data.
+  }, [tab, search, fetchUsers, fetchAuctions, fetchSupportMessages, fetchReferencePrices, fetchBuyerAccounts, fetchWeeklyStatements]);
 
   // Data-fetching-on-dependency-change effects: each callback sets a loading
   // flag / result state after its own fetch, not derived-state-from-props.
@@ -877,6 +1077,21 @@ export default function AdminDashboardPage({ token }) {
         setSupportMessages(prev => prev.map(x => x.id === msg.id ? { ...x, status: data.status } : x));
         setViewingSupportMessage(prev => prev && prev.id === msg.id ? { ...prev, status: data.status } : prev);
         fetchStats();
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    }
+  };
+
+  const handleMarkStatementPaid = async (statement) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/weekly-statements/${statement.id}/mark-paid`, { method: 'POST', headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+        setWeeklyStatements(prev => prev.map(x => x.id === statement.id ? { ...x, status: 'paid', paidAt: data.statement?.paidAt || new Date().toISOString() } : x));
       } else {
         showToast(data.error || t('adminActionError'), 'error');
       }
@@ -994,7 +1209,7 @@ export default function AdminDashboardPage({ token }) {
           onClose={() => setViewingSupportMessage(null)}
         />
       )}
-      <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
+      <div className="dash-page-scroll" style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto', boxSizing: 'border-box' }}>
         {stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 28 }}>
             <StatTile label={t('adminStatUsers')} value={stats.totalUsers} />
@@ -1009,7 +1224,7 @@ export default function AdminDashboardPage({ token }) {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
           <button
             onClick={() => setTab('users')}
             className={tab === 'users' ? 'btn btn-primary' : 'btn btn-secondary'}
@@ -1036,6 +1251,34 @@ export default function AdminDashboardPage({ token }) {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setTab('referencePrices')}
+            className={tab === 'referencePrices' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: '0.875rem' }}
+          >
+            <TrendingUp size={15} /> {t('adminReferencePricesTab')}
+          </button>
+          <button
+            onClick={() => setTab('buyerAccounts')}
+            className={tab === 'buyerAccounts' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: '0.875rem' }}
+          >
+            <Wallet size={15} /> {t('adminBuyerAccountsTab')}
+          </button>
+          <button
+            onClick={() => setTab('weeklyStatements')}
+            className={tab === 'weeklyStatements' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: '0.875rem' }}
+          >
+            <Receipt size={15} /> {t('adminWeeklyStatementsTab')}
+          </button>
+          <button
+            onClick={() => setTab('scoreWeights')}
+            className={tab === 'scoreWeights' ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', fontSize: '0.875rem' }}
+          >
+            <SlidersHorizontal size={15} /> {t('adminScoreWeightsTab')}
+          </button>
         </div>
 
         {tab === 'users' && (
@@ -1053,6 +1296,10 @@ export default function AdminDashboardPage({ token }) {
           </form>
         )}
 
+        {tab === 'scoreWeights' ? (
+          <ScoreWeightsPanel authHeaders={authHeaders} showToast={showToast} />
+        ) : (
+        <>
         <div style={{ borderRadius: 14, border: '1px solid var(--border)', overflowX: 'auto', background: 'var(--bg-panel)' }}>
           {tab === 'users' ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: '0.85rem' }}>
@@ -1132,7 +1379,7 @@ export default function AdminDashboardPage({ token }) {
                 )}
               </tbody>
             </table>
-          ) : (
+          ) : tab === 'support' ? (
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: '0.85rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
@@ -1172,6 +1419,110 @@ export default function AdminDashboardPage({ token }) {
                 )}
               </tbody>
             </table>
+          ) : tab === 'referencePrices' ? (
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760, fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColCrop')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColWilaya')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColCurrentPrice')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColPreviousPrice')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColRawMedian')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColSeasonalModifier')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColSampleSize')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColComputedAt')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {referencePrices.map((p, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{p.crop}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.wilaya}</td>
+                    <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--primary)' }}>{p.price} {t('currencyDA')}/{p.unit}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.previousPrice != null ? `${p.previousPrice} ${t('currencyDA')}` : '-'}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.rawMedian != null ? `${p.rawMedian} ${t('currencyDA')}` : '-'}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.seasonalModifier != null ? `×${p.seasonalModifier}` : '-'}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.sampleSize ?? '-'}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.computedAt ? new Date(p.computedAt).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short' }) : '-'}</td>
+                  </tr>
+                ))}
+                {!loading && referencePrices.length === 0 && (
+                  <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoReferencePrices')}</td></tr>
+                )}
+              </tbody>
+            </table>
+          ) : tab === 'buyerAccounts' ? (
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640, fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColBuyer')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColEmail')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColOutstandingBalance')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColTotalSettled')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColUpdatedAt')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buyerAccounts.map((a, i) => {
+                  const overCap = a.outstandingBalance >= 50000;
+                  return (
+                    <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td style={{ padding: '10px 16px', fontWeight: 600 }}>{a.buyerName || '-'}</td>
+                      <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{a.buyerEmail || '-'}</td>
+                      <td style={{ padding: '10px 16px' }}>
+                        <span style={{ fontWeight: 700, color: overCap ? '#ef4444' : 'var(--text-main)' }}>{a.outstandingBalance} {t('currencyDA')}</span>
+                        {overCap && <span style={{ marginInlineStart: 8, padding: '2px 8px', borderRadius: 99, fontSize: '0.68rem', fontWeight: 700, background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>{t('adminOverCapBadge')}</span>}
+                      </td>
+                      <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{a.totalSettled ?? 0} {t('currencyDA')}</td>
+                      <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{a.updatedAt ? new Date(a.updatedAt).toLocaleDateString(localeTag) : '-'}</td>
+                    </tr>
+                  );
+                })}
+                {!loading && buyerAccounts.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoBuyerAccounts')}</td></tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720, fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.03)', textAlign: dir === 'rtl' ? 'right' : 'left' }}>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColBuyer')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColPeriod')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColEntryCount')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColTotalAmount')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColStatus')}</th>
+                  <th style={{ padding: '10px 16px' }}>{t('adminColActions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weeklyStatements.map(s => (
+                  <tr key={s.id} style={{ borderTop: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{s.buyerName || '-'}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>
+                      {s.periodStart ? new Date(s.periodStart).toLocaleDateString(localeTag) : '-'} → {s.periodEnd ? new Date(s.periodEnd).toLocaleDateString(localeTag) : '-'}
+                    </td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{s.entryCount}</td>
+                    <td style={{ padding: '10px 16px', fontWeight: 700 }}>{s.totalAmount} {t('currencyDA')}</td>
+                    <td style={{ padding: '10px 16px' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700, background: s.status === 'paid' ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)', color: s.status === 'paid' ? 'var(--primary)' : '#f59e0b' }}>
+                        {s.status === 'paid' ? t('adminStatementPaid') : t('adminStatementPending')}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 16px' }}>
+                      {s.status !== 'paid' && (
+                        <button onClick={() => handleMarkStatementPaid(s)} className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }}>
+                          {t('adminMarkPaidBtn')}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {!loading && weeklyStatements.length === 0 && (
+                  <tr><td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)' }}>{t('adminNoWeeklyStatements')}</td></tr>
+                )}
+              </tbody>
+            </table>
           )}
         </div>
 
@@ -1185,6 +1536,8 @@ export default function AdminDashboardPage({ token }) {
               {t('adminNextPage')} {dir === 'rtl' ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
 
