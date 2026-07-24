@@ -106,6 +106,9 @@ router.put('/', async (req, res) => {
       if (typeof name !== 'string' || name.trim().length < 2) {
         return res.status(400).json({ error: 'Le nom doit contenir au moins 2 caractères.' });
       }
+      if (name.trim().length > 100) {
+        return res.status(400).json({ error: 'Le nom ne doit pas dépasser 100 caractères.' });
+      }
       updates.name = name.trim();
     }
     // Self-service email changes are admin-only for now — buyers/producers have

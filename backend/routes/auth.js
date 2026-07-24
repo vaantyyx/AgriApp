@@ -57,6 +57,9 @@ router.post('/register', async (req, res) => {
     if (typeof name !== 'string' || name.trim().length < 2) {
       return res.status(400).json({ error: 'Le nom doit contenir au minimum 2 caractères.' });
     }
+    if (name.trim().length > 100) {
+      return res.status(400).json({ error: 'Le nom ne doit pas dépasser 100 caractères.' });
+    }
     // Validate phone format if provided
     if (phone && typeof phone === 'string') {
       if (!/^\+213[0-9]{8,10}$/.test(phone.replace(/\s/g, ''))) {

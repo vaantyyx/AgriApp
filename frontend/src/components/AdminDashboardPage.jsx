@@ -1318,7 +1318,7 @@ export default function AdminDashboardPage({ token }) {
               <tbody>
                 {users.map(u => (
                   <tr key={u.id} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{u.name}</td>
+                    <td style={{ padding: '10px 16px', fontWeight: 600, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={u.name}>{u.name}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{u.email}</td>
                     <td style={{ padding: '10px 16px' }}>{u.role === 'buyer' ? t('role_buyer') : u.role === 'producer' ? t('role_producer') : u.role}</td>
                     <td style={{ padding: '10px 16px' }}>{u.isVerified ? <CheckCircle2 size={16} style={{ color: 'var(--primary)' }} /> : <XCircle size={16} style={{ color: 'var(--text-muted)' }} />}</td>

@@ -389,7 +389,7 @@ export default function RegisterPage({ onNavigateToLogin }) {
             <label htmlFor="reg-name" className="text-start">{t('fullNameLabel')}</label>
             <div className="input-icon-wrap">
               <input id="reg-name" type="text" placeholder={t('fullNamePlaceholder')}
-                value={form.name} onChange={handleChange('name')}
+                value={form.name} onChange={handleChange('name')} maxLength={100}
                 className="input-with-leading-icon" required />
               <User size={18} className="input-icon-leading" />
             </div>
