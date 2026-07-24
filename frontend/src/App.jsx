@@ -685,10 +685,14 @@ export default function App() {
             />
           } />
           <Route path="/login" element={
-            <LoginPage
-              onLoginSuccess={handleLoginSuccess}
-              onNavigateToRegister={() => navigate('/register')}
-            />
+            user && token ? (
+              <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace />
+            ) : (
+              <LoginPage
+                onLoginSuccess={handleLoginSuccess}
+                onNavigateToRegister={() => navigate('/register')}
+              />
+            )
           } />
           <Route path="/register" element={
             <RegisterPage onNavigateToLogin={() => navigate('/login')} />
