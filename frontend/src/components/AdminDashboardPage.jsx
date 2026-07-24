@@ -313,7 +313,12 @@ function ActionMenu({ user, onView, onChangePassword, onEditName, onToggleActive
       const rect = btnRef.current.getBoundingClientRect();
       const openUpward = rect.bottom + estimatedHeight > window.innerHeight;
       setCoords({
-        ...(openUpward ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
+        // The stylesheet's .action-menu-dropdown rule hardcodes `top: calc(100% + 6px)`
+        // for its default (non-portaled) position. Both top and bottom must be set
+        // explicitly here — one to a real value, the other to 'auto' — or that
+        // stylesheet default leaks in and fights whichever side we actually want.
+        top: openUpward ? 'auto' : rect.bottom + 6,
+        bottom: openUpward ? window.innerHeight - rect.top + 6 : 'auto',
         ...(dir === 'rtl' ? { left: rect.left } : { right: window.innerWidth - rect.right }),
       });
     }
