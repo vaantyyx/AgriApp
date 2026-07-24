@@ -59,4 +59,6 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
-      - run: npm audit --audit-level=high
+      # Fails on any high/critical vulnerability except advisories explicitly
+      # allowlisted (with a documented reason) in scripts/check-audit.mjs.
+      - run: node scripts/check-audit.mjs
