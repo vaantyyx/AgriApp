@@ -717,6 +717,10 @@ io.on('connection', async (socket) => {
       socket.emit('error', { message: 'Champs obligatoires manquants (Titre, Produit, Quantité, Unité).' });
       return;
     }
+    if (String(title).trim().length > 150) {
+      socket.emit('error', { message: 'Le titre ne doit pas dépasser 150 caractères.' });
+      return;
+    }
 
     const roundConfig = normalizeRoundConfig(rawRoundConfig);
     if (roundConfig.enabled && !(firstLot?.priceCeiling > 0)) {
@@ -763,7 +767,7 @@ io.on('connection', async (socket) => {
         radiusKm,
         isSearchZoneChanged: !!isSearchZoneChanged,
         
-        title: String(title).slice(0, 200),
+        title: String(title).slice(0, 150),
         auctionType: String(auctionType || 'open').slice(0, 100),
         deliveryLocation: String(deliveryLocation || '').slice(0, 300),
         description: String(description || '').slice(0, 1000),
@@ -871,6 +875,10 @@ io.on('connection', async (socket) => {
       socket.emit('error', { message: 'Champs obligatoires manquants (Titre, Produit, Quantité, Unité).' });
       return;
     }
+    if (String(title).trim().length > 150) {
+      socket.emit('error', { message: 'Le titre ne doit pas dépasser 150 caractères.' });
+      return;
+    }
 
     const roundConfig = normalizeRoundConfig(rawRoundConfig);
     if (roundConfig.enabled && !(firstLot?.priceCeiling > 0)) {
@@ -901,7 +909,7 @@ io.on('connection', async (socket) => {
       const updates = {
         radiusKm,
         isSearchZoneChanged: !!isSearchZoneChanged,
-        title: String(title).slice(0, 200),
+        title: String(title).slice(0, 150),
         auctionType: String(auctionType || 'open').slice(0, 100),
         deliveryLocation: String(deliveryLocation || '').slice(0, 300),
         description: String(description || '').slice(0, 1000),

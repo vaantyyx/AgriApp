@@ -621,7 +621,7 @@ export default function BuyerDashboard({ user, auctions, onCreateAuction, onAcce
                       <input
                         id="auction-title" type="text"
                         placeholder={locale === 'ar' ? 'مثال: طلب بطاطس درجة أولى' : (locale === 'en' ? 'Ex: Potato request grade 1' : 'Ex: Demande de pommes de terre qualité 1')}
-                        value={title} onChange={e => setTitle(e.target.value)}
+                        value={title} onChange={e => setTitle(e.target.value)} maxLength={150}
                       />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>

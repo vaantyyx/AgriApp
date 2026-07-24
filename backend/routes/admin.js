@@ -412,6 +412,28 @@ router.get('/auctions/:id', async (req, res) => {
   }
 });
 
+// ─── DELETE /api/admin/auctions/:id ──────────────────────────────────────────
+// Hard delete for abusive/garbage listings — unlike the buyer's own delete
+// (buyer-only, pending-only, keeps an "auction_canceled" notice for producers),
+// this works on an auction in any status and wipes every notification tied to
+// it outright, with no exception kept around.
+router.delete('/auctions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getDb();
+    const auction = await db.collection('auctions').findOne({ id });
+    if (!auction) return res.status(404).json({ error: 'Enchère introuvable.' });
+
+    await db.collection('notifications').deleteMany({ auctionId: id });
+    await db.collection('auctions').deleteOne({ id });
+
+    res.json({ message: 'Enchère supprimée.' });
+  } catch (err) {
+    logger.error({ err }, 'ADMIN DELETE AUCTION ERROR');
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 // ─── GET /api/admin/reference-prices ────────────────────────────────────────
 // Bloc A — read-only visibility into the reference engine (services/referenceEngine.js).
 // There is no write endpoint on purpose: prices are only ever computed from

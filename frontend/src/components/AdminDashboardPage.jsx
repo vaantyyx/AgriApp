@@ -1258,6 +1258,23 @@ export default function AdminDashboardPage({ token }) {
     fetchUsers(1, search);
   };
 
+  const handleDeleteAuction = async (a) => {
+    if (!window.confirm(t('adminConfirmDeleteAuction', { title: a.title }))) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/admin/auctions/${a.id}`, { method: 'DELETE', headers: authHeaders });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(t('adminActionSuccess'));
+        setAuctions(prev => prev.filter(x => x.id !== a.id));
+        fetchStats();
+      } else {
+        showToast(data.error || t('adminActionError'), 'error');
+      }
+    } catch {
+      showToast(t('adminActionError'), 'error');
+    }
+  };
+
   const handleToggleResolved = async (msg) => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/admin/support-messages/${msg.id}/resolve`, { method: 'POST', headers: authHeaders });
@@ -1582,21 +1599,32 @@ export default function AdminDashboardPage({ token }) {
               <tbody>
                 {auctions.map(a => (
                   <tr key={a.id} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{a.title}</td>
+                    <td style={{ padding: '10px 16px', fontWeight: 600, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.title}>{a.title}</td>
                     <td style={{ padding: '10px 16px' }}>{a.status}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{a.buyerName}</td>
                     <td style={{ padding: '10px 16px' }}>{a.bidsCount}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{a.createdAt ? new Date(a.createdAt).toLocaleDateString(localeTag) : '-'}</td>
                     <td style={{ padding: '10px 16px' }}>
-                      <button
-                        onClick={() => setViewingAuctionId(a.id)}
-                        className="btn btn-secondary"
-                        title={locale === 'ar' ? 'عرض' : (locale === 'en' ? 'View' : 'Voir')}
-                        aria-label={locale === 'ar' ? 'عرض' : (locale === 'en' ? 'View' : 'Voir')}
-                        style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 5 }}
-                      >
-                        <Eye size={13} />
-                      </button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          onClick={() => setViewingAuctionId(a.id)}
+                          className="btn btn-secondary"
+                          title={locale === 'ar' ? 'عرض' : (locale === 'en' ? 'View' : 'Voir')}
+                          aria-label={locale === 'ar' ? 'عرض' : (locale === 'en' ? 'View' : 'Voir')}
+                          style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 5 }}
+                        >
+                          <Eye size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAuction(a)}
+                          className="btn btn-secondary"
+                          title={t('adminDeleteAuctionBtn')}
+                          aria-label={t('adminDeleteAuctionBtn')}
+                          style={{ padding: '5px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 5, color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

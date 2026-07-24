@@ -638,7 +638,7 @@ export default function BuyerAuctionsPage({ user, auctions, onCreateAuction, onU
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label htmlFor="auction-title">{locale === 'ar' ? 'عنوان المزاد' : (locale === 'en' ? "Auction title" : "Titre de l'enchère")} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
-                    <input id="auction-title" type="text" placeholder={locale === 'ar' ? 'مثال: طلب بطاطس' : (locale === 'en' ? 'Ex: Potato request' : 'Ex: Demande de pommes de terre')} value={title} onChange={e => setTitle(e.target.value)} disabled={!!viewingAuctionId} />
+                    <input id="auction-title" type="text" placeholder={locale === 'ar' ? 'مثال: طلب بطاطس' : (locale === 'en' ? 'Ex: Potato request' : 'Ex: Demande de pommes de terre')} value={title} onChange={e => setTitle(e.target.value)} maxLength={150} disabled={!!viewingAuctionId} />
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label htmlFor="auction-type">{locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? "Auction type" : "Type d'enchère")} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
