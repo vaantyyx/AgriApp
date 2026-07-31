@@ -5,7 +5,7 @@ import {
   Image as ImageIcon,
   ClipboardList, Layers, CalendarClock, FileSearch,
   ChevronRight, ChevronLeft, AlertTriangle,
-  Gavel, Clock, Repeat2, TrendingDown, TrendingUp, Hash,
+  Gavel, Repeat2, TrendingDown, Hash,
   Eye, Pencil, Trash2, Percent,
 } from 'lucide-react';
 import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName } from '../utils/wilayaCoordinates.js';
@@ -38,7 +38,34 @@ const CALIBRE_OPTIONS = ['petit', 'moyen', 'gros', 'extra'];
 const DELIVERY_WINDOW_OPTIONS = [24, 48, 72];
 
 function newLot(seq) {
-  return { seq, designation: '', cultureTypeId: '', productId: '', wilayaId: '', unit: 'tonnes', quantity: '', priceCeiling: '', priceReserve: '', calibre: '', deliveryWindowHours: '' };
+  return { seq, cultureTypeId: '', productId: '', wilayaId: '', unit: 'tonnes', quantity: '', priceCeiling: '', calibre: '', deliveryWindowHours: '' };
+}
+
+// The buyer no longer types a title/désignation/lieu de livraison — the "besoin"
+// they describe through the lots is enough to derive human-readable versions,
+// consistent everywhere the auction is displayed (own list, producer view, admin).
+function productLabel(productId, locale) {
+  const p = products.find(p => p.id === productId);
+  return p ? (p.name[locale] || p.name.fr) : '';
+}
+function wilayaLabel(wilayaId) {
+  const w = WILAYA_COORDS[parseInt(wilayaId)];
+  return w ? w.name : '';
+}
+function computeAuctionTitle(lots, locale) {
+  const names = lots.map(l => productLabel(l.productId, locale)).filter(Boolean);
+  if (names.length === 0) return '';
+  if (names.length === 1) return `${names[0]} — ${lots[0].quantity || ''} ${lots[0].unit || ''}`.trim();
+  return `${names[0]} +${names.length - 1}`;
+}
+function computeDeliveryLocation(lots) {
+  const names = [...new Set(lots.map(l => wilayaLabel(l.wilayaId)).filter(Boolean))];
+  return names.join(', ');
+}
+function computeLotDesignation(lot, locale, t) {
+  const productName = productLabel(lot.productId, locale);
+  const calibreLabel = lot.calibre ? t('calibre_' + lot.calibre) : '';
+  return calibreLabel ? `${productName} — ${calibreLabel}` : productName;
 }
 
 /** Formats an ISO date string for a <input type="datetime-local"> value. */
@@ -51,11 +78,10 @@ function toDatetimeLocalValue(iso) {
 }
 
 const STEPS = [
-  { id: 1, icon: ClipboardList, labelFr: 'Informations générales', labelAr: 'معلومات عامة', labelEn: 'General information' },
-  { id: 2, icon: Layers, labelFr: 'Lots', labelAr: 'الأقسام', labelEn: 'Lots' },
-  { id: 3, icon: MapPin, labelFr: 'Zone géographique', labelAr: 'المنطقة الجغرافية', labelEn: 'Geographic zone' },
-  { id: 4, icon: CalendarClock, labelFr: 'Dates & Paramètres', labelAr: 'التواريخ والإعدادات', labelEn: 'Dates & Parameters' },
-  { id: 5, icon: FileSearch, labelFr: 'Récapitulatif', labelAr: 'ملخص', labelEn: 'Summary' },
+  { id: 1, icon: Layers, labelFr: 'Lots', labelAr: 'الأقسام', labelEn: 'Lots' },
+  { id: 2, icon: MapPin, labelFr: 'Zone géographique', labelAr: 'المنطقة الجغرافية', labelEn: 'Geographic zone' },
+  { id: 3, icon: CalendarClock, labelFr: 'Dates & Paramètres', labelAr: 'التواريخ والإعدادات', labelEn: 'Dates & Parameters' },
+  { id: 4, icon: FileSearch, labelFr: 'Récapitulatif', labelAr: 'ملخص', labelEn: 'Summary' },
 ];
 
 function StepIndicator({ currentStep, locale }) {
@@ -120,11 +146,13 @@ function StarPicker({ value, onChange }) {
   );
 }
 
-// Bloc A — live reference-price hint shown while composing a lot (before the
-// tender even exists), so the buyer can set a price ceiling that isn't
-// arbitrary. Distinct from auction.validation.referenceUsed, which is a
-// snapshot frozen at the moment a tender was actually submitted.
-function ReferencePriceHint({ productId, wilayaId, unit, onLookup }) {
+// Bloc A/C — live reference-price + locked-floor hint shown while composing a
+// lot (before the tender even exists), so the buyer can set a price ceiling
+// that isn't arbitrary. Distinct from auction.validation.referenceUsed, which
+// is a snapshot frozen at the moment a tender was actually submitted.
+// `onResolved` bubbles the reference (with its derived floor/corridor) up to
+// the wizard so Step 4's recap can show the same numbers without a 2nd fetch.
+function ReferencePriceHint({ productId, wilayaId, unit, priceCeiling, onLookup, onResolved }) {
   const { t } = useTranslation();
   const [reference, setReference] = useState(null);
   const [checked, setChecked] = useState(false);
@@ -134,21 +162,41 @@ function ReferencePriceHint({ productId, wilayaId, unit, onLookup }) {
   // than a synchronous setState here — avoids an extra render pass per change.
   useEffect(() => {
     let cancelled = false;
-    if (!productId || !wilayaId || !onLookup) return;
+    if (!productId || !wilayaId || !onLookup) { onResolved?.(null); return; }
     onLookup(productId, wilayaId, unit).then(ref => {
-      if (!cancelled) { setReference(ref); setChecked(true); }
+      if (!cancelled) { setReference(ref); setChecked(true); onResolved?.(ref); }
     });
     return () => { cancelled = true; };
+    // onResolved is a fresh inline closure from the parent every render (keyed
+    // on lot index) — including it here would refire the lookup every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, wilayaId, unit, onLookup]);
 
   if (!productId || !wilayaId || !checked) return null;
   if (!reference) {
     return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, gridColumn: '1 / -1' }}>{t('referencePriceUnavailable')}</p>;
   }
+  const ceiling = parseFloat(priceCeiling);
+  const belowFloor = ceiling > 0 && ceiling < reference.floor;
   return (
-    <p style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600, marginTop: 4, gridColumn: '1 / -1' }}>
-      {t('referencePriceHint', { price: Math.round(reference.price), count: reference.sampleSize })}
-    </p>
+    <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+      <p style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+        {t('referencePriceHint', { price: Math.round(reference.price), count: reference.sampleSize })}
+      </p>
+      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+        {t('referenceFloorCorridorHint', {
+          floor: Math.round(reference.floor),
+          corridorMin: Math.round(reference.corridorMin),
+          corridorMax: Math.round(reference.corridorMax),
+        })}
+      </p>
+      {belowFloor && (
+        <p style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600, marginTop: 2 }}>
+          <AlertTriangle size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+          {t('priceCeilingBelowFloorWarning', { floor: Math.round(reference.floor) })}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -313,23 +361,31 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
   const [deleteConfirmAuctionId, setDeleteConfirmAuctionId] = useState(null);
 
   // Wizard form state
-  const [title, setTitle] = useState('');
   const [auctionType, setAuctionType] = useState('open');
-  const [deliveryLocation, setDeliveryLocation] = useState('');
-  const [generalDescription, setGeneralDescription] = useState('');
   const [lots, setLots] = useState([newLot(1)]);
   const [radiusKm, setRadiusKm] = useState(100);
   const [isSearchZoneChanged, setIsSearchZoneChanged] = useState(false);
   const [startDatetime, setStartDatetime] = useState('');
   const [endDatetime, setEndDatetime] = useState('');
-  const [autoProlongate, setAutoProlongate] = useState(false);
-  const [prolongationMinutes, setProlongationMinutes] = useState(10);
-  const [maxProlongations, setMaxProlongations] = useState(3);
-  const [roundModeEnabled, setRoundModeEnabled] = useState(false);
-  const [roundTotalRounds, setRoundTotalRounds] = useState(3);
-  const [roundDurationHours, setRoundDurationHours] = useState(8);
-  const [roundMaxDecreasePercent, setRoundMaxDecreasePercent] = useState(5);
-  const [roundInitialMinPercent, setRoundInitialMinPercent] = useState(80);
+  // Bloc C mechanism (dégression bornée 3 rounds/-5%, anti-sniping) is core
+  // protection for the producer, not something the buyer configures or turns
+  // off — fixed constants, mirrored server-side, only roundDurationHours is
+  // derived (from the shortest lot delivery window).
+  const ROUND_TOTAL_ROUNDS = 3;
+  const ROUND_MAX_DECREASE_PERCENT = 5;
+  const ROUND_INITIAL_MIN_PERCENT = 80;
+  const AUTO_PROLONGATION_MINUTES = 10;
+  const AUTO_MAX_PROLONGATIONS = 3;
+  const roundDurationHours = React.useMemo(() => {
+    const windows = lots.map(l => parseFloat(l.deliveryWindowHours)).filter(h => h > 0);
+    const shortest = windows.length > 0 ? Math.min(...windows) : 24;
+    return Math.min(Math.max(shortest / 3, 8), 24);
+  }, [lots]);
+  // Bloc A/C — reference/floor/corridor per lot, bubbled up from each lot's
+  // ReferencePriceHint so the Step 5 recap can reuse it without refetching.
+  const [lotReferences, setLotReferences] = useState({});
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [acknowledgedAt, setAcknowledgedAt] = useState(null);
   const [stepError, setStepError] = useState('');
 
   const [producerCount, setProducerCount] = useState(0);
@@ -371,46 +427,40 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
   const validateStep = (step) => {
     setStepError('');
     if (step === 1) {
-      if (!title.trim()) { setStepError("Le titre de l'enchère est obligatoire."); return false; }
-      if (!deliveryLocation.trim()) { setStepError('Le lieu de livraison est obligatoire.'); return false; }
-    }
-    if (step === 2) {
       for (let i = 0; i < lots.length; i++) {
         const l = lots[i];
-        if (!l.designation.trim()) { setStepError(`Lot ${l.seq} : désignation obligatoire.`); return false; }
         if (!l.cultureTypeId) { setStepError(`Lot ${l.seq} : sélectionnez un type de culture.`); return false; }
         if (!l.productId) { setStepError(`Lot ${l.seq} : sélectionnez un produit.`); return false; }
-        if (!l.wilayaId) { setStepError(`Lot ${l.seq} : sélectionnez la wilaya d'origine.`); return false; }
+        if (!l.wilayaId) { setStepError(`Lot ${l.seq} : sélectionnez la wilaya de livraison.`); return false; }
         if (!l.quantity || parseFloat(l.quantity) <= 0) { setStepError(`Lot ${l.seq} : quantité invalide.`); return false; }
         if (!l.priceCeiling || parseFloat(l.priceCeiling) <= 0) { setStepError(`Lot ${l.seq} : prix plafond invalide.`); return false; }
         if (!CALIBRE_OPTIONS.includes(l.calibre)) { setStepError(`Lot ${l.seq} : sélectionnez un calibre.`); return false; }
         if (!DELIVERY_WINDOW_OPTIONS.includes(parseInt(l.deliveryWindowHours, 10))) { setStepError(`Lot ${l.seq} : sélectionnez une fenêtre de livraison.`); return false; }
       }
     }
-    if (step === 4) {
+    if (step === 3) {
       if (!startDatetime) { setStepError('La date de début est obligatoire.'); return false; }
       if (!endDatetime) { setStepError('La date de fin est obligatoire.'); return false; }
       if (new Date(endDatetime) <= new Date(startDatetime)) { setStepError('La date de fin doit être après le début.'); return false; }
-      if (roundModeEnabled) {
-        if (!roundTotalRounds || !roundDurationHours || !roundMaxDecreasePercent || !roundInitialMinPercent) {
-          setStepError(locale === 'ar' ? 'يرجى تعبئة إعدادات المزاد التنازلي.' : (locale === 'en' ? 'Please fill in the progressive auction settings.' : 'Veuillez remplir les paramètres de l’enchère dégressive.'));
-          return false;
-        }
+    }
+    if (step === 4) {
+      if (!acknowledged) {
+        setStepError(locale === 'ar' ? 'يجب الإقرار بالقواعد قبل الإطلاق.' : (locale === 'en' ? 'You must acknowledge the rules before launching.' : "Vous devez cocher la case d'acquittement avant de lancer l'enchère."));
+        return false;
       }
     }
     return true;
   };
 
-  const goNext = () => { if (!validateStep(wizardStep)) return; setWizardStep(s => Math.min(s + 1, 5)); };
+  const goNext = () => { if (!validateStep(wizardStep)) return; setWizardStep(s => Math.min(s + 1, 4)); };
   const goPrev = () => { setStepError(''); setWizardStep(s => Math.max(s - 1, 1)); };
 
   const resetWizard = () => {
-    setTitle(''); setAuctionType('open'); setDeliveryLocation(''); setGeneralDescription('');
+    setAuctionType('open');
     setLots([newLot(1)]); setRadiusKm(100); setIsSearchZoneChanged(false);
-    setStartDatetime(''); setEndDatetime(''); setAutoProlongate(false);
-    setProlongationMinutes(10); setMaxProlongations(3);
-    setRoundModeEnabled(false); setRoundTotalRounds(3); setRoundDurationHours(8);
-    setRoundMaxDecreasePercent(5); setRoundInitialMinPercent(80); setStepError('');
+    setStartDatetime(''); setEndDatetime('');
+    setLotReferences({}); setAcknowledged(false); setAcknowledgedAt(null);
+    setStepError('');
   };
 
   const openWizard = () => {
@@ -421,23 +471,13 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
 
   const openEditWizard = (auction) => {
     setEditingAuctionId(auction.id);
-    setTitle(auction.title || auction.product || '');
     setAuctionType(auction.auctionType || 'open');
-    setDeliveryLocation(auction.deliveryLocation || '');
-    setGeneralDescription(auction.description || '');
     setLots(auction.lots && auction.lots.length > 0 ? auction.lots.map(l => ({ ...l })) : [newLot(1)]);
     setRadiusKm(auction.radiusKm || 100);
     setIsSearchZoneChanged(auction.isSearchZoneChanged || false);
     setStartDatetime(toDatetimeLocalValue(auction.startAt));
     setEndDatetime(toDatetimeLocalValue(auction.endAt));
-    setAutoProlongate(auction.autoProlongate || false);
-    setProlongationMinutes(auction.prolongationMinutes || 10);
-    setMaxProlongations(auction.maxProlongations || 3);
-    setRoundModeEnabled(auction.roundConfig?.enabled || false);
-    setRoundTotalRounds(auction.roundConfig?.totalRounds || 3);
-    setRoundDurationHours(auction.roundConfig?.roundDurationHours || 8);
-    setRoundMaxDecreasePercent(auction.roundConfig?.maxDecreasePercent || 5);
-    setRoundInitialMinPercent(auction.roundConfig?.initialMinPercent || 80);
+    setLotReferences({}); setAcknowledged(false); setAcknowledgedAt(null);
     setStepError('');
     setWizardStep(1);
     setWizardOpen(true);
@@ -451,23 +491,13 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
   const openViewWizard = (auction) => {
     setViewingAuctionId(auction.id);
     setEditingAuctionId(null);
-    setTitle(auction.title || auction.product || '');
     setAuctionType(auction.auctionType || 'open');
-    setDeliveryLocation(auction.deliveryLocation || '');
-    setGeneralDescription(auction.description || '');
     setLots(auction.lots && auction.lots.length > 0 ? auction.lots.map(l => ({ ...l })) : [newLot(1)]);
     setRadiusKm(auction.radiusKm || 100);
     setIsSearchZoneChanged(auction.isSearchZoneChanged || false);
     setStartDatetime(toDatetimeLocalValue(auction.startAt));
     setEndDatetime(toDatetimeLocalValue(auction.endAt));
-    setAutoProlongate(auction.autoProlongate || false);
-    setProlongationMinutes(auction.prolongationMinutes || 10);
-    setMaxProlongations(auction.maxProlongations || 3);
-    setRoundModeEnabled(auction.roundConfig?.enabled || false);
-    setRoundTotalRounds(auction.roundConfig?.totalRounds || 3);
-    setRoundDurationHours(auction.roundConfig?.roundDurationHours || 8);
-    setRoundMaxDecreasePercent(auction.roundConfig?.maxDecreasePercent || 5);
-    setRoundInitialMinPercent(auction.roundConfig?.initialMinPercent || 80);
+    setLotReferences({}); setAcknowledged(!!auction.acknowledgedAt); setAcknowledgedAt(auction.acknowledgedAt || null);
     setStepError('');
     setWizardStep(1);
     setWizardOpen(true);
@@ -481,29 +511,32 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
         // deriving state from a prop.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         openViewWizard(found);
-        setWizardStep(5);
+        setWizardStep(4);
       }
     }
   }, [highlightAuctionId, auctions]);
 
   const handleSubmit = () => {
     if (!validateStep(4)) return;
+    const computedTitle = computeAuctionTitle(lots, locale);
+    const computedDeliveryLocation = computeDeliveryLocation(lots);
     const payload = {
-      title: title.trim(), auctionType, deliveryLocation: deliveryLocation.trim(),
-      description: generalDescription.trim(),
-      lots: lots.map(l => ({ seq: l.seq, designation: l.designation.trim(), cultureTypeId: l.cultureTypeId, productId: l.productId, wilayaId: l.wilayaId, unit: l.unit, quantity: parseFloat(l.quantity), priceCeiling: parseFloat(l.priceCeiling), priceReserve: parseFloat(l.priceReserve), calibre: l.calibre, deliveryWindowHours: parseInt(l.deliveryWindowHours, 10) })),
+      title: computedTitle, auctionType, deliveryLocation: computedDeliveryLocation,
+      description: '',
+      lots: lots.map(l => ({ seq: l.seq, designation: computeLotDesignation(l, locale, t), cultureTypeId: l.cultureTypeId, productId: l.productId, wilayaId: l.wilayaId, unit: l.unit, quantity: parseFloat(l.quantity), priceCeiling: parseFloat(l.priceCeiling), calibre: l.calibre, deliveryWindowHours: parseInt(l.deliveryWindowHours, 10) })),
       radius: radiusKm, isSearchZoneChanged,
       startAt: new Date(startDatetime).toISOString(), endAt: new Date(endDatetime).toISOString(),
-      autoProlongate, prolongationMinutes: autoProlongate ? parseInt(prolongationMinutes) : null,
-      maxProlongations: autoProlongate ? parseInt(maxProlongations) : null,
-      product: lots[0]?.designation || title, quantity: lots[0]?.quantity || 1, unit: lots[0]?.unit || 'tonnes',
-      roundConfig: roundModeEnabled ? {
+      // Bloc C mechanism is always on — not a buyer choice (see the constants above).
+      autoProlongate: true, prolongationMinutes: AUTO_PROLONGATION_MINUTES, maxProlongations: AUTO_MAX_PROLONGATIONS,
+      product: computeLotDesignation(lots[0], locale, t) || computedTitle, quantity: lots[0]?.quantity || 1, unit: lots[0]?.unit || 'tonnes',
+      roundConfig: {
         enabled: true,
-        totalRounds: parseInt(roundTotalRounds, 10),
-        roundDurationHours: parseFloat(roundDurationHours),
-        maxDecreasePercent: parseFloat(roundMaxDecreasePercent),
-        initialMinPercent: parseFloat(roundInitialMinPercent),
-      } : { enabled: false },
+        totalRounds: ROUND_TOTAL_ROUNDS,
+        roundDurationHours,
+        maxDecreasePercent: ROUND_MAX_DECREASE_PERCENT,
+        initialMinPercent: ROUND_INITIAL_MIN_PERCENT,
+      },
+      acknowledgedAt,
     };
     if (editingAuctionId) {
       onUpdateAuction(editingAuctionId, payload);
@@ -534,6 +567,7 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
       invalid_price: { ar: 'سعر غير صالح', en: 'Invalid price ceiling', fr: 'Prix plafond invalide' },
       invalid_quantity: { ar: 'كمية غير صالحة', en: 'Invalid quantity', fr: 'Quantité invalide' },
       invalid_dates: { ar: 'تواريخ غير متوافقة', en: 'Invalid date range', fr: 'Dates incohérentes' },
+      price_below_floor: { ar: 'السقف أقل من السعر الأدنى المسموح', en: 'Ceiling below the allowed floor', fr: 'Plafond sous le plancher autorisé' },
     };
     const entry = labels[reason];
     if (!entry) return null;
@@ -628,38 +662,8 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
 
           <div className="glass-panel animate-fade-in" style={{ padding: '28px 32px' }}>
 
-            {/* STEP 1 */}
+            {/* STEP 1 — general info (auction type) folded into the Lots step */}
             {wizardStep === 1 && (
-              <div>
-                <h3 className="wizard-section-title mb-20">
-                  <ClipboardList size={20} style={{ color: 'var(--primary)' }} />
-                  {locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="auction-title">{locale === 'ar' ? 'عنوان المزاد' : (locale === 'en' ? "Auction title" : "Titre de l'enchère")} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
-                    <input id="auction-title" type="text" placeholder={locale === 'ar' ? 'مثال: طلب بطاطس' : (locale === 'en' ? 'Ex: Potato request' : 'Ex: Demande de pommes de terre')} value={title} onChange={e => setTitle(e.target.value)} maxLength={150} disabled={!!viewingAuctionId} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="auction-type">{locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? "Auction type" : "Type d'enchère")} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
-                    <select id="auction-type" value={auctionType} onChange={e => setAuctionType(e.target.value)} disabled={!!viewingAuctionId}>
-                      {AUCTION_TYPES.map(at => <option key={at.value} value={at.value}>{locale === 'ar' ? at.labelAr : (locale === 'en' ? at.labelEn : at.labelFr)}</option>)}
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label htmlFor="delivery-location">{locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
-                    <input id="delivery-location" type="text" placeholder={locale === 'ar' ? 'مثال: ورقلة' : (locale === 'en' ? 'Ex: Algiers, industrial zone' : 'Ex: Alger, Zone industrielle')} value={deliveryLocation} onChange={e => setDeliveryLocation(e.target.value)} disabled={!!viewingAuctionId} />
-                  </div>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label>{locale === 'ar' ? 'وصف تفصيلي' : (locale === 'en' ? 'Detailed description' : 'Description détaillée')}</label>
-                    <textarea rows={4} placeholder={locale === 'ar' ? 'وصف تفصيلي...' : (locale === 'en' ? 'Describe your need in detail...' : 'Décrivez votre besoin...')} value={generalDescription} onChange={e => setGeneralDescription(e.target.value)} disabled={!!viewingAuctionId} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2 */}
-            {wizardStep === 2 && (
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                   <h3 className="wizard-section-title">
@@ -669,6 +673,12 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                   {!viewingAuctionId && <button type="button" onClick={addLot} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 14px', gap: 6 }}>
                     <Plus size={14} /> {locale === 'ar' ? 'إضافة قسم' : (locale === 'en' ? 'Add lot' : 'Ajouter un lot')}
                   </button>}
+                </div>
+                <div className="form-group" style={{ margin: '0 0 20px' }}>
+                  <label htmlFor="auction-type">{locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? "Auction type" : "Type d'enchère")} {!viewingAuctionId && <span className="required-asterisk">*</span>}</label>
+                  <select id="auction-type" value={auctionType} onChange={e => setAuctionType(e.target.value)} disabled={!!viewingAuctionId}>
+                    {AUCTION_TYPES.map(at => <option key={at.value} value={at.value}>{locale === 'ar' ? at.labelAr : (locale === 'en' ? at.labelEn : at.labelFr)}</option>)}
+                  </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                   {lots.map((lot, idx) => {
@@ -687,10 +697,6 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                           )}
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px' }}>
-                          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
-                            <label>{locale === 'ar' ? 'التسمية' : (locale === 'en' ? 'Designation' : 'Désignation')} <span className="required-asterisk">*</span></label>
-                            <input type="text" placeholder={locale === 'ar' ? 'مثال: بطاطس مميزة' : (locale === 'en' ? 'Ex: Premium potatoes' : 'Ex: Pommes de terre calibre supérieur')} value={lot.designation} onChange={e => updateLot(idx, 'designation', e.target.value)} />
-                          </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label>{locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')} <span className="required-asterisk">*</span></label>
                             <select value={lot.cultureTypeId} onChange={e => updateLot(idx, 'cultureTypeId', e.target.value)}>
@@ -706,35 +712,21 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>{locale === 'ar' ? 'ولاية المنشأ' : (locale === 'en' ? 'Origin wilaya' : "Wilaya d'origine")} <span className="required-asterisk">*</span></label>
+                            <label>{locale === 'ar' ? 'ولاية التسليم' : (locale === 'en' ? 'Delivery wilaya' : 'Wilaya de livraison')} <span className="required-asterisk">*</span></label>
                             <select value={lot.wilayaId} onChange={e => updateLot(idx, 'wilayaId', e.target.value)}>
                               <option value="">{locale === 'ar' ? '-- اختر الولاية --' : (locale === 'en' ? '-- Select wilaya --' : '-- Choisir wilaya --')}</option>
                               {WILAYA_LIST.map(w => <option key={w.id} value={w.id}>{w.id < 10 ? `0${w.id}` : w.id} – {w.name}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>{locale === 'ar' ? 'الوحدة' : (locale === 'en' ? 'Unit' : 'Unité')} <span className="required-asterisk">*</span></label>
-                            <select value={lot.unit} onChange={e => updateLot(idx, 'unit', e.target.value)}>
+                            <label>{locale === 'ar' ? 'الوحدة' : (locale === 'en' ? 'Unit' : 'Unité')}</label>
+                            <select value={lot.unit} disabled title={t('autoFilledFieldTooltip')}>
                               {['tonnes', 'kg', 'cagettes', 'palettes', 'sacs'].map(u => <option key={u} value={u}>{t('unit_' + u)}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label>{locale === 'ar' ? 'الكمية المطلوبة' : (locale === 'en' ? 'Required quantity' : 'Quantité')} <span className="required-asterisk">*</span></label>
                             <input type="number" step="any" min="0" placeholder="0" value={lot.quantity} onChange={e => updateLot(idx, 'quantity', e.target.value)} />
-                          </div>
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label><TrendingDown size={13} style={{ color: 'var(--danger)' }} /> {locale === 'ar' ? 'السعر الأقصى (سقف)' : (locale === 'en' ? 'Maximum price (ceiling)' : 'Prix plafond (max)')} <span className="required-asterisk">*</span></label>
-                            <div className="input-suffix-wrap">
-                              <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 50000' : (locale === 'en' ? 'E.g. 50000' : 'Ex: 50000')} value={lot.priceCeiling} onChange={e => updateLot(idx, 'priceCeiling', e.target.value)} className="input-with-suffix" />
-                              <span className="input-suffix-label">{t('currencyDA')}</span>
-                            </div>
-                          </div>
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label><TrendingUp size={13} style={{ color: 'var(--primary)' }} /> {locale === 'ar' ? 'سعر الاحتياط (حد أدنى)' : (locale === 'en' ? 'Reserve price (min)' : 'Prix de réserve (min)')}</label>
-                            <div className="input-suffix-wrap">
-                              <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 30000' : (locale === 'en' ? 'E.g. 30000' : 'Ex: 30000')} value={lot.priceReserve} onChange={e => updateLot(idx, 'priceReserve', e.target.value)} className="input-with-suffix" />
-                              <span className="input-suffix-label">{t('currencyDA')}</span>
-                            </div>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label>{t('calibreLabel')} <span className="required-asterisk">*</span></label>
@@ -750,7 +742,20 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                               {DELIVERY_WINDOW_OPTIONS.map(h => <option key={h} value={h}>{t('deliveryWindow_' + h)}</option>)}
                             </select>
                           </div>
-                          <ReferencePriceHint key={`${lot.productId}-${lot.wilayaId}-${lot.unit}`} productId={lot.productId} wilayaId={lot.wilayaId} unit={lot.unit} onLookup={onLookupReferencePrice} />
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label><TrendingDown size={13} style={{ color: 'var(--danger)' }} /> {locale === 'ar' ? 'السقف الميزانياتي' : (locale === 'en' ? 'Budget ceiling (max price)' : 'Plafond budgétaire (prix max)')} <span className="required-asterisk">*</span></label>
+                            <div className="input-suffix-wrap">
+                              <input type="number" step="any" min="0" placeholder={locale === 'ar' ? 'مثال: 50000' : (locale === 'en' ? 'E.g. 50000' : 'Ex: 50000')} value={lot.priceCeiling} onChange={e => updateLot(idx, 'priceCeiling', e.target.value)} className="input-with-suffix" />
+                              <span className="input-suffix-label">{t('currencyDA')}</span>
+                            </div>
+                          </div>
+                          <ReferencePriceHint
+                            key={`${lot.productId}-${lot.wilayaId}-${lot.unit}`}
+                            productId={lot.productId} wilayaId={lot.wilayaId} unit={lot.unit}
+                            priceCeiling={lot.priceCeiling}
+                            onLookup={onLookupReferencePrice}
+                            onResolved={ref => setLotReferences(prev => ({ ...prev, [idx]: ref }))}
+                          />
                         </div>
                       </div>
                     );
@@ -759,8 +764,8 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
               </div>
             )}
 
-            {/* STEP 3 */}
-            {wizardStep === 3 && (
+            {/* STEP 2 */}
+            {wizardStep === 2 && (
               <div>
                 <h3 className="wizard-section-title mb-8">
                   <MapPin size={20} style={{ color: 'var(--primary)' }} />
@@ -777,8 +782,8 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
               </div>
             )}
 
-            {/* STEP 4 */}
-            {wizardStep === 4 && (
+            {/* STEP 3 */}
+            {wizardStep === 3 && (
               <div>
                 <h3 className="wizard-section-title mb-20">
                   <CalendarClock size={20} style={{ color: 'var(--primary)' }} />
@@ -796,88 +801,62 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                     </div>
                   </div>
                   <div className="bordered-card" style={{ padding: '18px 22px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={autoProlongate}
-                        onChange={() => setAutoProlongate(p => !p)}
-                      />
-                      <div className={`toggle-switch-track ${autoProlongate ? 'on' : ''}`}>
-                        <div className={`toggle-switch-knob ${autoProlongate ? 'on' : ''}`} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div className={`toggle-switch-track on`} aria-hidden="true">
+                        <div className={`toggle-switch-knob on`} />
                       </div>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 7 }}>
                           <Repeat2 size={16} style={{ color: 'var(--primary)' }} /> {locale === 'ar' ? 'تمديد تلقائي' : (locale === 'en' ? 'Auto prolongation' : 'Prolongation automatique')}
+                          <span className="badge badge-open" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>{t('alwaysOnBadge')}</span>
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                          {locale === 'ar' ? 'تمديد المزاد تلقائيًا عند وجود عرض في اللحظة الأخيرة.' : (locale === 'en' ? 'Automatically extend the auction if a bid arrives at the last moment.' : 'Prolonge l\'enchère si une offre arrive en fin de session.')}
+                          {locale === 'ar' ? 'تمديد المزاد تلقائيًا عند وجود عرض في اللحظة الأخيرة. لا يمكن تعطيله.' : (locale === 'en' ? 'Automatically extends the auction if a bid arrives at the last moment. Cannot be disabled.' : "Prolonge automatiquement l'enchère si une offre arrive en fin de session. Ne peut pas être désactivé.")}
                         </div>
                       </div>
-                    </label>
-                    {autoProlongate && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px', marginTop: 20 }}>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label htmlFor="prolong-minutes"><Clock size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {locale === 'ar' ? 'مدة التمديد (دقائق)' : (locale === 'en' ? 'Extension duration (min)' : 'Durée prolongation (min)')}</label>
-                          <input id="prolong-minutes" type="number" min="1" max="120" value={prolongationMinutes} onChange={e => setProlongationMinutes(e.target.value)} />
-                        </div>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label htmlFor="max-prolongs"><Hash size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {locale === 'ar' ? 'الحد الأقصى للتمديدات' : (locale === 'en' ? 'Max number of extensions' : 'Nombre max de prolongations')}</label>
-                          <input id="max-prolongs" type="number" min="1" max="20" value={maxProlongations} onChange={e => setMaxProlongations(e.target.value)} />
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
 
                   <div className="bordered-card" style={{ padding: '18px 22px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: viewingAuctionId ? 'default' : 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={roundModeEnabled}
-                        disabled={!!viewingAuctionId}
-                        onChange={() => setRoundModeEnabled(p => !p)}
-                      />
-                      <div className={`toggle-switch-track ${roundModeEnabled ? 'on' : ''}`}>
-                        <div className={`toggle-switch-knob ${roundModeEnabled ? 'on' : ''}`} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div className={`toggle-switch-track on`} aria-hidden="true">
+                        <div className={`toggle-switch-knob on`} />
                       </div>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 7 }}>
                           <Percent size={16} style={{ color: 'var(--primary)' }} /> {t('roundModeToggleTitle')}
+                          <span className="badge badge-open" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>{t('alwaysOnBadge')}</span>
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                          {t('roundModeToggleDesc')}
+                          {t('roundModeAlwaysOnDesc')}
                         </div>
                       </div>
-                    </label>
-                    {roundModeEnabled && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px', marginTop: 20 }}>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label htmlFor="round-total"><Hash size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundTotalRoundsLabel')}</label>
-                          <input id="round-total" type="number" min="2" max="5" value={roundTotalRounds} disabled={!!viewingAuctionId} onChange={e => setRoundTotalRounds(e.target.value)} />
-                        </div>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label htmlFor="round-duration"><Clock size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundDurationLabel')}</label>
-                          <input id="round-duration" type="number" min="8" max="24" value={roundDurationHours} disabled={!!viewingAuctionId} onChange={e => setRoundDurationHours(e.target.value)} />
-                        </div>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label htmlFor="round-decrease"><TrendingDown size={13} style={{ color: 'var(--danger)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundMaxDecreaseLabel')}</label>
-                          <input id="round-decrease" type="number" min="1" max="20" value={roundMaxDecreasePercent} disabled={!!viewingAuctionId} onChange={e => setRoundMaxDecreasePercent(e.target.value)} />
-                        </div>
-                        <div className="form-group" style={{ margin: 0 }}>
-                          <label htmlFor="round-initial-min"><TrendingUp size={13} style={{ color: 'var(--primary)', marginRight: 5, verticalAlign: 'middle' }} /> {t('roundInitialMinLabel')}</label>
-                          <input id="round-initial-min" type="number" min="50" max="99" value={roundInitialMinPercent} disabled={!!viewingAuctionId} onChange={e => setRoundInitialMinPercent(e.target.value)} />
-                        </div>
-                      </div>
-                    )}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 20px', marginTop: 20 }}>
+                      <SummaryRow label={t('roundTotalRoundsLabel')} value={ROUND_TOTAL_ROUNDS} />
+                      <SummaryRow label={t('roundDurationLabel')} value={`${roundDurationHours.toFixed(1)} h`} />
+                      <SummaryRow label={t('roundMaxDecreaseLabel')} value={`-${ROUND_MAX_DECREASE_PERCENT}%`} />
+                      <SummaryRow label={t('roundInitialMinLabel')} value={`${ROUND_INITIAL_MIN_PERCENT}%`} />
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 12 }}>
+                      {t('roundDurationDerivedHint')}
+                    </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* STEP 5 */}
-            {wizardStep === 5 && (() => {
+            {/* STEP 4 — read-only confirmation screen (Bloc 1-4 of the simplified form) */}
+            {wizardStep === 4 && (() => {
               const activeAuction = myAuctions.find(a => a.id === viewingAuctionId);
+              const computedTitle = computeAuctionTitle(lots, locale);
+              const computedDeliveryLocation = computeDeliveryLocation(lots);
+              const totalEstimatedValue = lots.reduce((sum, l) => sum + (parseFloat(l.quantity) || 0) * (parseFloat(l.priceCeiling) || 0), 0);
+              const first = lots[0] || {};
+              const belowFloorLots = lots.filter((l, idx) => {
+                const ref = lotReferences[idx];
+                return ref && parseFloat(l.priceCeiling) > 0 && parseFloat(l.priceCeiling) < ref.floor;
+              });
               return (
                 <div>
                   <h3 className="wizard-section-title mb-20">
@@ -885,27 +864,50 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                     {locale === 'ar' ? 'ملخص المزاد' : (locale === 'en' ? "Auction summary" : "Récapitulatif de l'enchère")}
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* Bloc 1 — phrase résumé */}
+                    {!viewingAuctionId && (
+                      <div className="bordered-card-sm" style={{ background: 'var(--surface-alt, rgba(16,185,129,0.06))' }}>
+                        <p style={{ fontSize: '0.92rem', lineHeight: 1.6, color: 'var(--text-main)' }}>
+                          {locale === 'ar' ? (
+                            <>أنت على وشك إطلاق مزاد على <strong>{first.quantity} {t('unit_' + first.unit)}</strong> من <strong>{getProductName(first.productId)}</strong>، تسليم خلال <strong>{first.deliveryWindowHours} ساعة</strong> إلى <strong>{getWilayaName(first.wilayaId)}</strong>، بسقف <strong>{first.priceCeiling} {t('currencyDA')}</strong>، على <strong>{ROUND_TOTAL_ROUNDS} جولات</strong>.{lots.length > 1 && ` (+${lots.length - 1})`}</>
+                          ) : locale === 'en' ? (
+                            <>You are about to launch an auction for <strong>{first.quantity} {t('unit_' + first.unit)}</strong> of <strong>{getProductName(first.productId)}</strong>, delivery within <strong>{first.deliveryWindowHours}h</strong> to <strong>{getWilayaName(first.wilayaId)}</strong>, with a ceiling of <strong>{first.priceCeiling} {t('currencyDA')}</strong>, over <strong>{ROUND_TOTAL_ROUNDS} rounds</strong>.{lots.length > 1 && ` (+${lots.length - 1} lots)`}</>
+                          ) : (
+                            <>Vous êtes sur le point de lancer une enchère sur <strong>{first.quantity} {t('unit_' + first.unit)}</strong> de <strong>{getProductName(first.productId)}</strong>, livraison sous <strong>{first.deliveryWindowHours}h</strong> à <strong>{getWilayaName(first.wilayaId)}</strong>, avec un plafond de <strong>{first.priceCeiling} {t('currencyDA')}</strong>, sur <strong>{ROUND_TOTAL_ROUNDS} rounds</strong>.{lots.length > 1 && ` (+${lots.length - 1} lots)`}</>
+                          )}
+                        </p>
+                      </div>
+                    )}
                     <div className="bordered-card-sm">
                       <div className="summary-box-title">{locale === 'ar' ? 'المعلومات العامة' : (locale === 'en' ? 'General information' : 'Informations générales')}</div>
-                      <SummaryRow label={locale === 'ar' ? 'العنوان' : (locale === 'en' ? 'Title' : 'Titre')} value={title} />
+                      <SummaryRow label={locale === 'ar' ? 'العنوان' : (locale === 'en' ? 'Title' : 'Titre')} value={viewingAuctionId ? (activeAuction?.title || computedTitle) : computedTitle} />
                       <SummaryRow label={locale === 'ar' ? 'النوع' : (locale === 'en' ? 'Type' : 'Type')} value={getAuctionTypeLabel(auctionType)} />
-                      <SummaryRow label={locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} value={deliveryLocation} />
+                      <SummaryRow label={locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} value={viewingAuctionId ? (activeAuction?.deliveryLocation || computedDeliveryLocation) : computedDeliveryLocation} />
+                      <SummaryRow label={t('maxEstimatedValueLabel')} value={`${Math.round(totalEstimatedValue).toLocaleString()} ${t('currencyDA')}`} />
                     </div>
                     <div className="bordered-card-sm">
                       <div className="summary-box-title">{locale === 'ar' ? 'الأقسام' : (locale === 'en' ? 'Lots' : 'Lots')} ({lots.length})</div>
-                      {lots.map(lot => (
-                        <div key={lot.seq} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
-                          <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: 4, fontSize: '0.9rem' }}>{locale === 'ar' ? 'قسم' : (locale === 'en' ? 'Lot' : 'Lot')} {lot.seq} — {lot.designation}</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: '0.8rem', color: 'var(--text-body)' }}>
-                            <span>🌿 {getCultureName(lot.cultureTypeId)} / {getProductName(lot.productId)}</span>
-                            <span>📍 {getWilayaName(lot.wilayaId)}</span>
-                            <span>📦 {lot.quantity} {t('unit_' + lot.unit)}</span>
-                            <span style={{ color: 'var(--danger)' }}>⬆ {lot.priceCeiling} {t('currencyDA')}</span>
-                            {lot.calibre && <span>📏 {t('calibre_' + lot.calibre)}</span>}
-                            {lot.deliveryWindowHours && <span>⏱ {t('deliveryWindow_' + lot.deliveryWindowHours)}</span>}
+                      {lots.map((lot, idx) => {
+                        const ref = lotReferences[idx];
+                        return (
+                          <div key={lot.seq} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: 4, fontSize: '0.9rem' }}>{locale === 'ar' ? 'قسم' : (locale === 'en' ? 'Lot' : 'Lot')} {lot.seq} — {computeLotDesignation(lot, locale, t)}</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: '0.8rem', color: 'var(--text-body)' }}>
+                              <span>🌿 {getCultureName(lot.cultureTypeId)} / {getProductName(lot.productId)}</span>
+                              <span>📍 {getWilayaName(lot.wilayaId)}</span>
+                              <span>📦 {lot.quantity} {t('unit_' + lot.unit)}</span>
+                              <span style={{ color: 'var(--danger)' }}>⬆ {lot.priceCeiling} {t('currencyDA')}</span>
+                              {lot.calibre && <span>📏 {t('calibre_' + lot.calibre)}</span>}
+                              {lot.deliveryWindowHours && <span>⏱ {t('deliveryWindow_' + lot.deliveryWindowHours)}</span>}
+                            </div>
+                            {ref && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                                {t('referenceFloorCorridorHint', { floor: Math.round(ref.floor), corridorMin: Math.round(ref.corridorMin), corridorMax: Math.round(ref.corridorMax) })}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     <div className="bordered-card-sm">
                       <div className="summary-box-title">{locale === 'ar' ? 'المنطقة والتواريخ' : (locale === 'en' ? 'Zone & Dates' : 'Zone & Dates')}</div>
@@ -913,12 +915,36 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                       <SummaryRow label={locale === 'ar' ? 'منتجون في المنطقة' : (locale === 'en' ? 'Producers in zone' : 'Producteurs dans la zone')} value={`${producerCount}`} />
                       <SummaryRow label={locale === 'ar' ? 'بداية' : (locale === 'en' ? 'Start' : 'Début')} value={startDatetime ? new Date(startDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { hour12: locale === 'en' }) : '—'} />
                       <SummaryRow label={locale === 'ar' ? 'نهاية' : (locale === 'en' ? 'End' : 'Fin')} value={endDatetime ? new Date(endDatetime).toLocaleString(locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ', { hour12: locale === 'en' }) : '—'} />
-                      {roundModeEnabled && (
-                        <>
-                          <SummaryRow label={t('roundModeToggleTitle')} value={`${roundTotalRounds} × ${roundDurationHours}h, -${roundMaxDecreasePercent}%/tour`} />
-                        </>
-                      )}
+                      <SummaryRow label={t('roundModeToggleTitle')} value={`${ROUND_TOTAL_ROUNDS} × ${roundDurationHours.toFixed(1)}h, -${ROUND_MAX_DECREASE_PERCENT}%/tour`} />
                     </div>
+
+                    {/* Bloc 4 — acquittement, only while the auction hasn't launched yet */}
+                    {!viewingAuctionId && (
+                      <div className="bordered-card-sm">
+                        {belowFloorLots.length > 0 && (
+                          <div className="inline-alert-danger" style={{ marginBottom: 14 }}>
+                            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />{t('priceCeilingBelowFloorWarning', { floor: Math.round(lotReferences[lots.indexOf(belowFloorLots[0])]?.floor || 0) })}
+                          </div>
+                        )}
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={acknowledged}
+                            onChange={() => {
+                              setAcknowledged(p => {
+                                const next = !p;
+                                setAcknowledgedAt(next ? new Date().toISOString() : null);
+                                return next;
+                              });
+                            }}
+                            style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0 }}
+                          />
+                          <span style={{ fontSize: '0.82rem', lineHeight: 1.5, color: 'var(--text-body)' }}>
+                            {t('acknowledgmentText')}
+                          </span>
+                        </label>
+                      </div>
+                    )}
 
                     {/* Active auction offers list */}
                     {activeAuction && (
@@ -1026,11 +1052,12 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
           {/* Wizard Nav */}
           <div className="wizard-nav-row">
             <button type="button" onClick={goPrev} disabled={wizardStep === 1} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: wizardStep === 1 ? 0.4 : 1 }}>
-              <ChevronLeft size={16} /> {locale === 'ar' ? 'السابق' : (locale === 'en' ? 'Previous' : 'Précédent')}
+              <ChevronLeft size={16} />
+              {wizardStep === 4 && !viewingAuctionId ? t('modifyBtn') : (locale === 'ar' ? 'السابق' : (locale === 'en' ? 'Previous' : 'Précédent'))}
             </button>
             {viewingAuctionId ? (
-              wizardStep < 5 ? (
-                <button type="button" onClick={() => setWizardStep(s => Math.min(s + 1, 5))} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              wizardStep < 4 ? (
+                <button type="button" onClick={() => setWizardStep(s => Math.min(s + 1, 4))} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {locale === 'ar' ? 'التالي' : (locale === 'en' ? 'Next' : 'Suivant')} <ChevronRight size={16} />
                 </button>
               ) : (
@@ -1039,12 +1066,12 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                 </button>
               )
             ) : (
-              wizardStep < 5 ? (
+              wizardStep < 4 ? (
                 <button type="button" onClick={goNext} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {locale === 'ar' ? 'التالي' : (locale === 'en' ? 'Next' : 'Suivant')} <ChevronRight size={16} />
                 </button>
               ) : (
-                <button type="button" onClick={handleSubmit} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button type="button" onClick={handleSubmit} disabled={!acknowledged} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: acknowledged ? 1 : 0.5, cursor: acknowledged ? 'pointer' : 'not-allowed' }}>
                   <Gavel size={16} /> {editingAuctionId ? t('saveChangesBtn') : (locale === 'ar' ? 'نشر المزاد' : (locale === 'en' ? "Publish auction" : "Publier l'enchère"))}
                 </button>
               )

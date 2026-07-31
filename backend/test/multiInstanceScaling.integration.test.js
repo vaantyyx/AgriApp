@@ -170,8 +170,9 @@ test('an event handled by instance A is broadcast to a socket connected to insta
       auctionType: 'open',
       deliveryLocation: TEST_WILAYA,
       description: 'Multi-instance scaling test',
-      lots: [{ designation: 'Test cross-instance', quantity: 10, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
+      lots: [{ designation: 'Test cross-instance', quantity: 10, unit: 'tonnes', priceCeiling: 1000, calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 100,
+      acknowledgedAt: new Date().toISOString(),
     });
 
     const [createdAuction] = await producerSeesCreated;

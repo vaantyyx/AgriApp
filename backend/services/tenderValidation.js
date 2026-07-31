@@ -14,7 +14,7 @@ import { getWilayaNameById } from './auctionMatching.js';
 // A tender ceiling below this fraction of the reference is rejected outright.
 // Set below Bloc C's compounding round floor (72.2%) since this is only the
 // coarse first gate, before any rounds run.
-const MIN_FAIR_RATIO = 0.70;
+export const MIN_FAIR_RATIO = 0.70;
 
 // Bloc B — the buyer picks these two himself when submitting the tender
 // (crop, calibre, volume, delivery window, ceiling price); the system never

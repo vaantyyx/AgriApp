@@ -162,8 +162,9 @@ test('create_auction -> place_bid -> accept_bid end-to-end flow', async () => {
       auctionType: 'open',
       deliveryLocation: TEST_WILAYA,
       description: 'Integration test',
-      lots: [{ designation: 'Tomate test', quantity: 10, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
+      lots: [{ designation: 'Tomate test', quantity: 10, unit: 'tonnes', priceCeiling: 1000, calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 100,
+      acknowledgedAt: new Date().toISOString(),
     });
     const [createdAuction] = await producerSeesCreated;
     const auctionId = createdAuction.id;
@@ -173,14 +174,16 @@ test('create_auction -> place_bid -> accept_bid end-to-end flow', async () => {
       buyerSocket, 'auction_updated',
       (auction) => auction.id === auctionId && (auction.bids || []).length > 0,
     );
+    // Auction is created with a priceCeiling of 1000 and rounds are now always-on
+    // (round 1 accepts [80%, 100%] of the reference, i.e. [800, 1000]).
     producerSocket.emit('place_bid', {
       auctionId,
-      lines: [{ price: 42.5, quantity: 10, optionName: 'Standard', unit: 'tonnes', comments: '', images: [] }],
+      lines: [{ price: 900, quantity: 10, optionName: 'Standard', unit: 'tonnes', comments: '', images: [] }],
     });
     const [auctionWithBid] = await buyerSeesBid;
     assert.equal(auctionWithBid.bids.length, 1);
     const bidId = auctionWithBid.bids[0].id;
-    assert.equal(auctionWithBid.bids[0].lines[0].price, 42.5);
+    assert.equal(auctionWithBid.bids[0].lines[0].price, 900);
 
     const producerSeesAccepted = waitForEvent(
       producerSocket, 'auction_updated',
@@ -232,6 +235,7 @@ test('progressive ("enchère dégressive contrôlée") auction caps each round\'
       lots: [{ designation: 'Ble test', quantity: 10, unit: 'tonnes', priceCeiling: 1000, calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 100,
       roundConfig: { enabled: true, totalRounds: 3, roundDurationHours: 8, maxDecreasePercent: 5, initialMinPercent: 80 },
+      acknowledgedAt: new Date().toISOString(),
     });
     const [createdAuction] = await producerSeesCreated;
     const auctionId = createdAuction.id;
@@ -318,8 +322,9 @@ test('a producer outside the auction zone cannot bid', async () => {
       auctionType: 'open',
       deliveryLocation: TEST_WILAYA,
       description: 'Zone test',
-      lots: [{ designation: 'Orge test', quantity: 5, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
+      lots: [{ designation: 'Orge test', quantity: 5, unit: 'tonnes', priceCeiling: 1000, calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 10,
+      acknowledgedAt: new Date().toISOString(),
     });
     const [createdAuction] = await waitForEvent(buyerSocket, 'auction_created', (a) => a.title === auctionTitle);
 
@@ -382,8 +387,9 @@ test('a dual-role account is never notified about, nor able to bid on, its own a
       auctionType: 'open',
       deliveryLocation: TEST_WILAYA,
       description: 'Dual-role self-exclusion test',
-      lots: [{ designation: 'Tomate test', quantity: 10, unit: 'tonnes', calibre: 'moyen', deliveryWindowHours: 72 }],
+      lots: [{ designation: 'Tomate test', quantity: 10, unit: 'tonnes', priceCeiling: 1000, calibre: 'moyen', deliveryWindowHours: 72 }],
       radius: 100,
+      acknowledgedAt: new Date().toISOString(),
     });
     const [createdAuction] = await producerSeesCreated;
     const auctionId = createdAuction.id;

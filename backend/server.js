@@ -39,8 +39,9 @@ import {
   normalizeRoundConfig,
   computeRoundPriceBounds,
   getWilayaNameById,
+  HARD_FLOOR_RATIO,
 } from './services/auctionMatching.js';
-import { validateTender } from './services/tenderValidation.js';
+import { validateTender, MIN_FAIR_RATIO } from './services/tenderValidation.js';
 import { recomputeReferencePrices, getReferencePrice } from './services/referenceEngine.js';
 import { recordCommission, generateWeeklyStatements } from './services/commissionEngine.js';
 import { checkForCollusion } from './services/collusionDetection.js';
@@ -293,7 +294,18 @@ app.get('/api/reference-prices/lookup', authMiddleware, async (req, res) => {
     const reference = await getReferencePrice(String(productId), wilayaName, unit ? String(unit) : 'tonnes', db);
     res.json({
       reference: reference
-        ? { price: reference.price, sampleSize: reference.sampleSize, computedAt: reference.computedAt }
+        ? {
+            price: reference.price,
+            sampleSize: reference.sampleSize,
+            computedAt: reference.computedAt,
+            // Bloc C's hard floor (protects the producer through all rounds) and
+            // Bloc B's coarser rejection floor — both derived here so the buyer's
+            // create form and the frontend's validation share one source of truth.
+            floor: reference.price * HARD_FLOOR_RATIO,
+            rejectionFloor: reference.price * MIN_FAIR_RATIO,
+            corridorMin: reference.price * 0.8,
+            corridorMax: reference.price,
+          }
         : null,
     });
   } catch (err) {
@@ -749,10 +761,7 @@ io.on('connection', async (socket) => {
       isSearchZoneChanged,
       startAt,
       endAt,
-      autoProlongate,
-      prolongationMinutes,
-      maxProlongations,
-      roundConfig: rawRoundConfig,
+      acknowledgedAt,
     } = data;
 
     const firstLot = Array.isArray(lots) && lots.length > 0 ? lots[0] : null;
@@ -768,12 +777,32 @@ io.on('connection', async (socket) => {
       socket.emit('error', { message: 'Le titre ne doit pas dépasser 150 caractères.' });
       return;
     }
-
-    const roundConfig = normalizeRoundConfig(rawRoundConfig);
-    if (roundConfig.enabled && !(firstLot?.priceCeiling > 0)) {
-      socket.emit('error', { message: "Un prix plafond (prix de référence) est requis pour une enchère dégressive." });
+    if (!(firstLot?.priceCeiling > 0)) {
+      socket.emit('error', { message: 'Un prix plafond est requis.' });
       return;
     }
+    if (!acknowledgedAt) {
+      socket.emit('error', { message: "L'accusé de réception des règles de l'enchère est requis avant le lancement." });
+      return;
+    }
+
+    // Bloc C mechanism (dégression bornée, anti-sniping) is core protection for
+    // the producer, not an option the buyer can turn off — always on, and the
+    // round duration is deduced from the shortest lot delivery window rather
+    // than left to the buyer, per the simplified-form design.
+    const minDeliveryWindowHours = Array.isArray(lots) && lots.length > 0
+      ? Math.min(...lots.map(l => parseFloat(l.deliveryWindowHours)).filter(h => h > 0))
+      : 24;
+    const roundConfig = normalizeRoundConfig({
+      enabled: true,
+      totalRounds: 3,
+      roundDurationHours: (Number.isFinite(minDeliveryWindowHours) ? minDeliveryWindowHours : 24) / 3,
+      maxDecreasePercent: 5,
+      initialMinPercent: 80,
+    });
+    const autoProlongate = true;
+    const prolongationMinutes = 10;
+    const maxProlongations = 3;
 
     try {
       const db = getDb();
@@ -826,6 +855,11 @@ io.on('connection', async (socket) => {
         autoProlongate: !!autoProlongate,
         prolongationMinutes: prolongationMinutes ? parseInt(prolongationMinutes, 10) : null,
         maxProlongations: maxProlongations ? parseInt(maxProlongations, 10) : null,
+
+        // Audit trail for the buyer's contractual acknowledgment screen — the
+        // exact timestamp they confirmed having seen the rules, kept alongside
+        // validation.referenceUsed (the frozen reference) in case of dispute.
+        acknowledgedAt: acknowledgedAt || null,
 
         // top-level compatibility fields
         product: String(firstLot?.designation || title).slice(0, 200),
@@ -902,10 +936,7 @@ io.on('connection', async (socket) => {
       isSearchZoneChanged,
       startAt,
       endAt,
-      autoProlongate,
-      prolongationMinutes,
-      maxProlongations,
-      roundConfig: rawRoundConfig,
+      acknowledgedAt,
     } = data;
 
     if (!auctionId) {
@@ -926,12 +957,28 @@ io.on('connection', async (socket) => {
       socket.emit('error', { message: 'Le titre ne doit pas dépasser 150 caractères.' });
       return;
     }
-
-    const roundConfig = normalizeRoundConfig(rawRoundConfig);
-    if (roundConfig.enabled && !(firstLot?.priceCeiling > 0)) {
-      socket.emit('error', { message: "Un prix plafond (prix de référence) est requis pour une enchère dégressive." });
+    if (!(firstLot?.priceCeiling > 0)) {
+      socket.emit('error', { message: 'Un prix plafond est requis.' });
       return;
     }
+    if (!acknowledgedAt) {
+      socket.emit('error', { message: "L'accusé de réception des règles de l'enchère est requis avant le lancement." });
+      return;
+    }
+
+    const minDeliveryWindowHours = Array.isArray(lots) && lots.length > 0
+      ? Math.min(...lots.map(l => parseFloat(l.deliveryWindowHours)).filter(h => h > 0))
+      : 24;
+    const roundConfig = normalizeRoundConfig({
+      enabled: true,
+      totalRounds: 3,
+      roundDurationHours: (Number.isFinite(minDeliveryWindowHours) ? minDeliveryWindowHours : 24) / 3,
+      maxDecreasePercent: 5,
+      initialMinPercent: 80,
+    });
+    const autoProlongate = true;
+    const prolongationMinutes = 10;
+    const maxProlongations = 3;
 
     try {
       const db = getDb();
@@ -966,6 +1013,7 @@ io.on('connection', async (socket) => {
         autoProlongate: !!autoProlongate,
         prolongationMinutes: prolongationMinutes ? parseInt(prolongationMinutes, 10) : null,
         maxProlongations: maxProlongations ? parseInt(maxProlongations, 10) : null,
+        acknowledgedAt: acknowledgedAt || null,
         product: String(firstLot?.designation || title).slice(0, 200),
         quantity: parseFloat(lotQuantity),
         unit: String(lotUnit).slice(0, 50),
