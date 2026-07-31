@@ -3,11 +3,15 @@ name: Keep Backend Awake
 # Render's free tier spins the backend down after ~15 minutes with no
 # incoming traffic, which makes the first real visitor of the day wait
 # through a cold start (slow enough that the CAPTCHA challenge times out).
-# Pinging the lightweight /health route every 10 minutes keeps the dyno
-# warm without ever coming close to that threshold.
+# Pinging the lightweight /health route keeps the dyno warm.
+#
+# GitHub Actions caps scheduled workflows at 5-minute granularity — any
+# cron expression finer than that (e.g. every minute, let alone every
+# 30s) is silently throttled down to this floor, so `*/5` is the fastest
+# honest schedule; writing anything shorter wouldn't run any more often.
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
