@@ -3,9 +3,10 @@ import { Shield, Save, X, Edit3, CheckCircle, AlertCircle, Camera, User, Mail, P
 import { useTranslation } from '../context/LanguageContext';
 import SecuritySettingsTab from './SecuritySettingsTab';
 import { BACKEND_URL } from '../utils/config.js';
-import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
+import { WILAYA_COORDS, wilayaDisplayName } from '../utils/wilayaCoordinates.js';
+import { loadCitiesData, communeDisplayName } from '../utils/citiesData.js';
 
-const WILAYA_LIST = Object.entries(WILAYA_COORDS).map(([id, w]) => ({ id: parseInt(id), name: w.name })).sort((a, b) => a.id - b.id);
+const WILAYA_LIST = Object.entries(WILAYA_COORDS).map(([id, w]) => ({ id: parseInt(id), name: w.name, nameAr: w.nameAr })).sort((a, b) => a.id - b.id);
 
 function Avatar({ photoUrl, name, size = 96 }) {
   const initials = name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
@@ -31,7 +32,14 @@ export default function AdminProfilePage({ token, user: initialUser, onUserUpdat
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('profile');
+  const [communes, setCommunes] = useState([]);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    loadCitiesData().then(d => { if (active) setCommunes(d.communes || []); });
+    return () => { active = false; };
+  }, []);
 
   const showToast = (message, type = 'success') => { setToast({ message, type }); setTimeout(() => setToast(null), 3500); };
   const photoUrl = profile?.profilePhoto ? `${BACKEND_URL}/uploads/${profile.profilePhoto}?token=${token}` : null;
@@ -196,8 +204,8 @@ export default function AdminProfilePage({ token, user: initialUser, onUserUpdat
                 { icon: <User size={16} />, label: t('fullNameLabel'), value: profile?.name },
                 { icon: <Mail size={16} />, label: t('emailLabel'), value: profile?.email },
                 { icon: <Phone size={16} />, label: t('phoneLabel'), value: profile?.phone || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('phoneNotProvided')}</span> },
-                { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: profile?.wilaya || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
-                { icon: <MapPin size={16} />, label: t('communeLabel'), value: profile?.commune || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
+                { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: wilayaDisplayName(profile?.wilaya, locale) || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
+                { icon: <MapPin size={16} />, label: t('communeLabel'), value: communeDisplayName(communes, profile?.commune, locale) || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
               ].map((item, i) => (
                 <div key={i} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                   <div style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }}>{item.icon}</div>
@@ -226,7 +234,7 @@ export default function AdminProfilePage({ token, user: initialUser, onUserUpdat
                 <label htmlFor="admin-edit-wilaya">{t('wilayaLabel')}</label>
                 <select id="admin-edit-wilaya" value={form.wilaya} onChange={e => setForm(prev => ({ ...prev, wilaya: e.target.value }))} style={{ width: '100%' }}>
                   <option value="">{t('selectPlaceholder')}</option>
-                  {WILAYA_LIST.map(w => <option key={w.id} value={w.name}>{w.id < 10 ? `0${w.id}` : w.id} – {w.name}</option>)}
+                  {WILAYA_LIST.map(w => <option key={w.id} value={w.name}>{w.id < 10 ? `0${w.id}` : w.id} – {locale === 'ar' ? w.nameAr : w.name}</option>)}
                 </select>
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>

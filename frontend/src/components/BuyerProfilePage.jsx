@@ -225,11 +225,25 @@ export default function BuyerProfilePage({ token, user: initialUser, roles, onAd
     </div>
   );
 
+  // Stored wilaya/commune are always the canonical French/Latin name (see
+  // handleWilayaChange/handleCommuneChange) — this only translates the
+  // display, by matching that name against cities.json's Arabic fields.
+  const displayWilayaName = (latinName) => {
+    if (locale !== 'ar' || !latinName) return latinName;
+    const w = wilayas.find(w => w.wilaya_name_latin.toLowerCase() === latinName.toLowerCase());
+    return w ? w.wilaya_name_arabic : latinName;
+  };
+  const displayCommuneName = (latinName) => {
+    if (locale !== 'ar' || !latinName) return latinName;
+    const c = allCommunes.find(c => c.commune_name_latin.toLowerCase() === latinName.toLowerCase());
+    return c ? c.commune_name_arabic : latinName;
+  };
+
   const displayPhone = profile?.phone || null;
-  const locationParts = [profile?.commune, profile?.wilaya].filter(Boolean);
+  const locationParts = [displayCommuneName(profile?.commune), displayWilayaName(profile?.wilaya)].filter(Boolean);
   const displayLocation = locationParts.length > 0 ? locationParts.join(', ') : null;
-  const wilayaOptions = wilayas.map(w => ({ value: w.wilaya_id, label: `${String(w.wilaya_id).padStart(2, '0')} - ${w.wilaya_name_latin}` }));
-  const communeOptions = communes.map(c => ({ value: c.commune_id, label: c.commune_name_latin }));
+  const wilayaOptions = wilayas.map(w => ({ value: w.wilaya_id, label: `${String(w.wilaya_id).padStart(2, '0')} - ${locale === 'ar' ? w.wilaya_name_arabic : w.wilaya_name_latin}` }));
+  const communeOptions = communes.map(c => ({ value: c.commune_id, label: locale === 'ar' ? c.commune_name_arabic : c.commune_name_latin }));
   const memberDateStr = profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-DZ' : (locale === 'fr' ? 'fr-DZ' : 'en-US'), { month: 'long', year: 'numeric' }) : '—';
   const completion = computeBuyerCompletion(profile);
 
@@ -356,8 +370,8 @@ export default function BuyerProfilePage({ token, user: initialUser, roles, onAd
                   { icon: <User size={16} />, label: t('fullNameLabel'), value: profile?.name },
                   { icon: <Mail size={16} />, label: t('emailLabel'), value: profile?.email },
                   { icon: <Phone size={16} />, label: t('phoneLabel'), value: displayPhone || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('phoneNotProvided')}</span> },
-                  { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: profile?.wilaya || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
-                  { icon: <MapPin size={16} />, label: t('communeLabel'), value: profile?.commune || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
+                  { icon: <MapPin size={16} />, label: t('wilayaLabel'), value: displayWilayaName(profile?.wilaya) || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('wilayaNotProvided')}</span> },
+                  { icon: <MapPin size={16} />, label: t('communeLabel'), value: displayCommuneName(profile?.commune) || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('communeNotProvided')}</span> },
                   { icon: <User size={16} />, label: locale === 'ar' ? 'نوع الكيان' : (locale === 'en' ? 'Entity type' : "Type d'entité"), value: profile?.entity_type === 'entreprise' ? (locale === 'ar' ? 'مؤسسة' : (locale === 'en' ? 'Company' : 'Entreprise')) : (locale === 'ar' ? 'فرد' : (locale === 'en' ? 'Individual' : 'Particulier')) },
                   ...(profile?.entity_type === 'entreprise' ? [
                     { icon: <ShoppingBag size={16} />, label: locale === 'ar' ? 'الاسم التجاري' : (locale === 'en' ? 'Trade name' : 'Nom commercial'), value: profile?.nom_commercial || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not provided' : 'Non renseigné')}</span> },
@@ -404,13 +418,13 @@ export default function BuyerProfilePage({ token, user: initialUser, roles, onAd
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>{t('wilayaLabel')}</label>
                   <SearchableSelect options={wilayaOptions} value={form.wilaya_id} onChange={handleWilayaChange} placeholder={t('selectPlaceholder')} />
-                  {profile?.wilaya && !form.wilaya_id && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'fr' ? 'Actuellement' : (locale === 'ar' ? 'حالياً' : 'Currently')} : <strong>{profile.wilaya}</strong></p>}
+                  {profile?.wilaya && !form.wilaya_id && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'fr' ? 'Actuellement' : (locale === 'ar' ? 'حالياً' : 'Currently')} : <strong>{displayWilayaName(profile.wilaya)}</strong></p>}
                 </div>
                 {/* Commune */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label>{t('communeLabel')}</label>
                   <SearchableSelect options={communeOptions} value={form.commune_id} onChange={handleCommuneChange} placeholder={form.wilaya_id ? t('selectPlaceholder') : t('wilayaFirst')} disabled={communes.length === 0} />
-                  {profile?.commune && !form.commune_id && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'fr' ? 'Actuellement' : (locale === 'ar' ? 'حالياً' : 'Currently')} : <strong>{profile.commune}</strong></p>}
+                  {profile?.commune && !form.commune_id && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>{locale === 'fr' ? 'Actuellement' : (locale === 'ar' ? 'حالياً' : 'Currently')} : <strong>{displayCommuneName(profile.commune)}</strong></p>}
                 </div>
                 {/* Bio */}
                 <div className="form-group" style={{ marginBottom: 0 }}>

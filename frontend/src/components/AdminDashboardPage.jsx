@@ -6,8 +6,27 @@ import { BACKEND_URL } from '../utils/config.js';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { wilayaDisplayName } from '../utils/wilayaCoordinates.js';
+import { cultureTypes, products, irrigationSystems, soilTypes } from '../utils/referenceData.js';
+import { loadCitiesData, communeDisplayName } from '../utils/citiesData.js';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+// Looks up the translated label for a French canonical value stored on a
+// record — cultureTypes/products key by name.fr, irrigationSystems/soilTypes
+// key by value. Falls back to the raw stored string when there's no match
+// (e.g. free-text legacy data), so nothing ever disappears.
+function frLabel(list, frValue, locale, { byName } = {}) {
+  if (!frValue) return frValue;
+  const entry = byName
+    ? list.find(item => item.name.fr === frValue)
+    : list.find(item => item.value === frValue);
+  if (!entry) return frValue;
+  return entry.name[locale] || entry.name.fr;
+}
+function unitLabel(unit, t) {
+  return unit ? (t('unit_' + unit) || unit) : unit;
+}
 
 function StatTile({ label, value }) {
   return (
@@ -388,6 +407,7 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAiChats, setShowAiChats] = useState(false);
+  const [communes, setCommunes] = useState([]);
   const cardRef = useRef(null);
   useEscapeKey(true, onClose);
   useFocusTrap(cardRef, true);
@@ -402,6 +422,12 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [userId, authHeaders]);
+
+  useEffect(() => {
+    let active = true;
+    loadCitiesData().then(d => { if (active) setCommunes(d.communes || []); });
+    return () => { active = false; };
+  }, []);
 
   const docUrl = (key) => `${BACKEND_URL}/uploads/${key}?token=${token}`;
   const yesNo = (v) => v ? (locale === 'ar' ? 'نعم' : (locale === 'en' ? 'Yes' : 'Oui')) : (locale === 'ar' ? 'لا' : (locale === 'en' ? 'No' : 'Non'));
@@ -436,8 +462,8 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
             <DetailSection title={locale === 'ar' ? 'معلومات الاتصال' : (locale === 'en' ? 'Contact' : 'Contact')}>
               <DetailRow label={t('adminColEmail')} value={detail.email} />
               <DetailRow label={locale === 'ar' ? 'الهاتف' : (locale === 'en' ? 'Phone' : 'Téléphone')} value={detail.phone || '-'} />
-              <DetailRow label={locale === 'ar' ? 'الولاية' : (locale === 'en' ? 'Wilaya' : 'Wilaya')} value={detail.wilaya || '-'} />
-              <DetailRow label={locale === 'ar' ? 'البلدية' : (locale === 'en' ? 'Commune' : 'Commune')} value={detail.commune || '-'} />
+              <DetailRow label={locale === 'ar' ? 'الولاية' : (locale === 'en' ? 'Wilaya' : 'Wilaya')} value={wilayaDisplayName(detail.wilaya, locale) || '-'} />
+              <DetailRow label={locale === 'ar' ? 'البلدية' : (locale === 'en' ? 'Commune' : 'Commune')} value={communeDisplayName(communes, detail.commune, locale) || '-'} />
               {detail.bio && <DetailRow label={locale === 'ar' ? 'نبذة' : (locale === 'en' ? 'Bio' : 'Bio')} value={detail.bio} />}
             </DetailSection>
 
@@ -541,18 +567,18 @@ function UserDetailModal({ userId, token, authHeaders, onClose }) {
                     {detail.parcelles.map(p => (
                       <div key={p.id} style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
                         <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <MapPin size={13} style={{ color: 'var(--primary)' }} /> {p.intitule} — {p.wilayaName || '-'}
+                          <MapPin size={13} style={{ color: 'var(--primary)' }} /> {p.intitule} — {wilayaDisplayName(p.wilayaName, locale) || '-'}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-body)', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
                           <span>{locale === 'ar' ? 'المساحة' : (locale === 'en' ? 'Area' : 'Superficie')}: {p.superficie ?? '-'} ha</span>
-                          {p.irrigationMethod && <span>{locale === 'ar' ? 'الري' : (locale === 'en' ? 'Irrigation' : 'Irrigation')}: {p.irrigationMethod}</span>}
-                          {p.soilType && <span>{locale === 'ar' ? 'نوع التربة' : (locale === 'en' ? 'Soil' : 'Sol')}: {p.soilType}</span>}
+                          {p.irrigationMethod && <span>{locale === 'ar' ? 'الري' : (locale === 'en' ? 'Irrigation' : 'Irrigation')}: {frLabel(irrigationSystems, p.irrigationMethod, locale)}</span>}
+                          {p.soilType && <span>{locale === 'ar' ? 'نوع التربة' : (locale === 'en' ? 'Soil' : 'Sol')}: {frLabel(soilTypes, p.soilType, locale)}</span>}
                         </div>
                         {p.cultures.length > 0 && (
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-body)', marginTop: 6 }}>
                             {p.cultures.map((c, i) => (
                               <span key={i} style={{ display: 'inline-block', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: 999, marginRight: 4, marginBottom: 4 }}>
-                                {c.type_culture}{c.sous_type_culture?.length > 0 ? ` (${c.sous_type_culture.join(', ')})` : ''}
+                                {frLabel(cultureTypes, c.type_culture, locale, { byName: true })}{c.sous_type_culture?.length > 0 ? ` (${c.sous_type_culture.map(st => frLabel(products, st, locale, { byName: true })).join(', ')})` : ''}
                               </span>
                             ))}
                           </div>
@@ -644,6 +670,7 @@ function AuctionDetailModal({ auctionId, authHeaders, onClose }) {
   const localeTag = locale === 'ar' ? 'ar-DZ' : locale === 'en' ? 'en-US' : 'fr-DZ';
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [communes, setCommunes] = useState([]);
   const cardRef = useRef(null);
   useEscapeKey(true, onClose);
   useFocusTrap(cardRef, true);
@@ -658,6 +685,12 @@ function AuctionDetailModal({ auctionId, authHeaders, onClose }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [auctionId, authHeaders]);
+
+  useEffect(() => {
+    let active = true;
+    loadCitiesData().then(d => { if (active) setCommunes(d.communes || []); });
+    return () => { active = false; };
+  }, []);
 
   const fmtDate = (iso) => iso ? new Date(iso).toLocaleString(localeTag, { dateStyle: 'medium', timeStyle: 'short', hour12: locale === 'en' }) : '-';
 
@@ -674,19 +707,19 @@ function AuctionDetailModal({ auctionId, authHeaders, onClose }) {
             <div style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>{detail.title || detail.product}</h3>
               <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: detail.status === 'open' ? 'rgba(16,185,129,0.12)' : detail.status === 'pending' ? 'rgba(245,158,11,0.12)' : 'rgba(148,163,184,0.12)', color: detail.status === 'open' ? 'var(--primary)' : detail.status === 'pending' ? '#f59e0b' : 'var(--text-muted)' }}>
-                {detail.status}
+                {t('adminAuctionStatus_' + detail.status) || detail.status}
               </span>
             </div>
 
             <DetailSection title={locale === 'ar' ? 'المشتري' : (locale === 'en' ? 'Buyer' : 'Acheteur')}>
               <DetailRow label={t('adminColName')} value={detail.buyerName} />
-              <DetailRow label={locale === 'ar' ? 'الولاية' : (locale === 'en' ? 'Wilaya' : 'Wilaya')} value={detail.buyerWilaya || '-'} />
-              <DetailRow label={locale === 'ar' ? 'البلدية' : (locale === 'en' ? 'Commune' : 'Commune')} value={detail.buyerCommune || '-'} />
+              <DetailRow label={locale === 'ar' ? 'الولاية' : (locale === 'en' ? 'Wilaya' : 'Wilaya')} value={wilayaDisplayName(detail.buyerWilaya, locale) || '-'} />
+              <DetailRow label={locale === 'ar' ? 'البلدية' : (locale === 'en' ? 'Commune' : 'Commune')} value={communeDisplayName(communes, detail.buyerCommune, locale) || '-'} />
             </DetailSection>
 
             <DetailSection title={locale === 'ar' ? 'معلومات عامة' : (locale === 'en' ? 'General' : 'Général')}>
-              <DetailRow label={locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? 'Type' : 'Type')} value={detail.auctionType} />
-              <DetailRow label={locale === 'ar' ? 'المنتج' : (locale === 'en' ? 'Product' : 'Produit')} value={`${detail.product} (${detail.quantity} ${detail.unit})`} />
+              <DetailRow label={locale === 'ar' ? 'نوع المزاد' : (locale === 'en' ? 'Type' : 'Type')} value={t('adminAuctionType_' + detail.auctionType) || detail.auctionType} />
+              <DetailRow label={locale === 'ar' ? 'المنتج' : (locale === 'en' ? 'Product' : 'Produit')} value={`${detail.product} (${detail.quantity} ${unitLabel(detail.unit, t)})`} />
               <DetailRow label={locale === 'ar' ? 'مكان التسليم' : (locale === 'en' ? 'Delivery location' : 'Lieu de livraison')} value={detail.deliveryLocation || '-'} />
               <DetailRow label={locale === 'ar' ? 'السعر المرجعي' : (locale === 'en' ? 'Reference price' : 'Prix de référence')} value={detail.targetPrice ? `${detail.targetPrice} ${t('currencyDA')}` : '-'} />
               <DetailRow label={locale === 'ar' ? 'نطاق البحث' : (locale === 'en' ? 'Search radius' : 'Rayon de recherche')} value={`${detail.radiusKm || 0} ${t('unitKm')}`} />
@@ -714,7 +747,7 @@ function AuctionDetailModal({ auctionId, authHeaders, onClose }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {detail.lots.map((lot, idx) => (
                     <div key={idx} style={{ padding: 10, borderRadius: 8, border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', fontSize: '0.8rem', color: 'var(--text-body)' }}>
-                      <strong style={{ color: 'var(--text-main)' }}>{lot.designation || `Lot ${idx + 1}`}</strong> — {lot.quantity} {lot.unit}
+                      <strong style={{ color: 'var(--text-main)' }}>{lot.designation || `Lot ${idx + 1}`}</strong> — {lot.quantity} {unitLabel(lot.unit, t)}
                       {lot.priceCeiling && <span> · {locale === 'ar' ? 'سقف' : 'plafond'}: {lot.priceCeiling} {t('currencyDA')}</span>}
                       {lot.priceReserve && <span> · {locale === 'ar' ? 'احتياط' : 'réserve'}: {lot.priceReserve} {t('currencyDA')}</span>}
                     </div>
@@ -740,7 +773,7 @@ function AuctionDetailModal({ auctionId, authHeaders, onClose }) {
                           {(bid.lines || []).map(line => (
                             <div key={line.id} style={{ fontSize: '0.8rem', color: 'var(--text-body)' }}>
                               {line.optionName && <strong>{line.optionName}: </strong>}
-                              {line.price} {t('currencyDA')} / {line.unit} {line.quantity ? `· ${line.quantity} ${line.unit}` : ''}
+                              {line.price} {t('currencyDA')} / {unitLabel(line.unit, t)} {line.quantity ? `· ${line.quantity} ${unitLabel(line.unit, t)}` : ''}
                               {line.comments && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{line.comments}</div>}
                             </div>
                           ))}
@@ -1733,7 +1766,7 @@ export default function AdminDashboardPage({ token }) {
                 {sortedAuctions.map(a => (
                   <tr key={a.id} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 16px', fontWeight: 600, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.title}>{a.title}</td>
-                    <td style={{ padding: '10px 16px' }}>{a.status}</td>
+                    <td style={{ padding: '10px 16px' }}>{t('adminAuctionStatus_' + a.status) || a.status}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{a.buyerName}</td>
                     <td style={{ padding: '10px 16px' }}>{a.bidsCount}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{a.createdAt ? new Date(a.createdAt).toLocaleDateString(localeTag) : '-'}</td>
@@ -1823,9 +1856,9 @@ export default function AdminDashboardPage({ token }) {
               <tbody>
                 {sortedReferencePrices.map((p, i) => (
                   <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{p.crop}</td>
-                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.wilaya}</td>
-                    <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--primary)' }}>{p.price} {t('currencyDA')}/{p.unit}</td>
+                    <td style={{ padding: '10px 16px', fontWeight: 600 }}>{frLabel(products, p.crop, locale, { byName: true })}</td>
+                    <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{wilayaDisplayName(p.wilaya, locale)}</td>
+                    <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--primary)' }}>{p.price} {t('currencyDA')}/{unitLabel(p.unit, t)}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.previousPrice != null ? `${p.previousPrice} ${t('currencyDA')}` : '-'}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.rawMedian != null ? `${p.rawMedian} ${t('currencyDA')}` : '-'}</td>
                     <td style={{ padding: '10px 16px', color: 'var(--text-muted)' }}>{p.seasonalModifier != null ? `×${p.seasonalModifier}` : '-'}</td>
