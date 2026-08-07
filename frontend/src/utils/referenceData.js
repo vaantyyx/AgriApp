@@ -40,3 +40,22 @@ export const products = [
   { id: '27', cultureTypeId: '5', name: { fr: 'Raisin de table', ar: 'عنب المائدة', en: 'Table grape' } },
   { id: '28', cultureTypeId: '5', name: { fr: 'Raisin de cuve', ar: 'عنب التحويل', en: 'Wine grape' } }
 ];
+
+// Canonical value is always stored/kept in French (matches existing backend
+// data — irrigationMethod/soilType are free French strings), only the
+// display label is translated.
+export const irrigationSystems = [
+  { value: 'Goutte à goutte', name: { fr: 'Goutte à goutte', ar: 'الري بالتنقيط', en: 'Drip irrigation' } },
+  { value: 'Aspersion', name: { fr: 'Aspersion', ar: 'الري بالرش', en: 'Sprinkler irrigation' } },
+  { value: 'Gravitaire', name: { fr: 'Gravitaire', ar: 'الري بالجاذبية', en: 'Gravity irrigation' } },
+  { value: 'Pluvial', name: { fr: 'Pluvial', ar: 'الري المطري', en: 'Rainfed' } },
+  { value: 'Pivot', name: { fr: 'Pivot', ar: 'الري المحوري (المرش المحوري)', en: 'Center pivot irrigation' } }
+];
+
+export const soilTypes = [
+  { value: 'Argileux', name: { fr: 'Argileux', ar: 'طيني', en: 'Clay' } },
+  { value: 'Sableux', name: { fr: 'Sableux', ar: 'رملي', en: 'Sandy' } },
+  { value: 'Limoneux', name: { fr: 'Limoneux', ar: 'طميي', en: 'Silty' } },
+  { value: 'Calcaire', name: { fr: 'Calcaire', ar: 'كلسي', en: 'Calcareous' } },
+  { value: 'Humifère', name: { fr: 'Humifère', ar: 'دبالي', en: 'Humus-rich' } }
+];

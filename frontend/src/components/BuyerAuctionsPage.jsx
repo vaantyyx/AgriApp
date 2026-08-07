@@ -9,7 +9,7 @@ import {
   Eye, Pencil, Trash2, Percent,
 } from 'lucide-react';
 import { WILAYA_COORDS, getCommuneCoords, getCoordsForWilayaName } from '../utils/wilayaCoordinates.js';
-import { cultureTypes, products } from '../utils/referenceData.js';
+import { cultureTypes, products, irrigationSystems } from '../utils/referenceData.js';
 import { BACKEND_URL } from '../utils/config.js';
 import { useTranslation } from '../context/LanguageContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -29,7 +29,7 @@ const AUCTION_TYPES = [
   { value: 'smart', labelFr: 'Enchère intelligente', labelAr: 'مزاد ذكي', labelEn: 'Smart auction' },
 ];
 
-const WILAYA_LIST = Object.entries(WILAYA_COORDS).map(([id, w]) => ({ id: parseInt(id), name: w.name })).sort((a, b) => a.id - b.id);
+const WILAYA_LIST = Object.entries(WILAYA_COORDS).map(([id, w]) => ({ id: parseInt(id), name: w.name, nameAr: w.nameAr })).sort((a, b) => a.id - b.id);
 
 // Bloc B — buyer-submitted tender fields. Fixed lists, not free text: the
 // buyer picks the calibre and the delivery window himself (24/48/72h) — the
@@ -38,7 +38,7 @@ const CALIBRE_OPTIONS = ['petit', 'moyen', 'gros', 'extra'];
 const DELIVERY_WINDOW_OPTIONS = [24, 48, 72];
 
 function newLot(seq) {
-  return { seq, cultureTypeId: '', productId: '', wilayaId: '', unit: 'tonnes', quantity: '', priceCeiling: '', calibre: '', deliveryWindowHours: '' };
+  return { seq, cultureTypeId: '', productId: '', wilayaId: '', unit: 'tonnes', quantity: '', priceCeiling: '', calibre: '', deliveryWindowHours: '', irrigationMethod: '' };
 }
 
 // The buyer no longer types a title/désignation/lieu de livraison — the "besoin"
@@ -48,9 +48,10 @@ function productLabel(productId, locale) {
   const p = products.find(p => p.id === productId);
   return p ? (p.name[locale] || p.name.fr) : '';
 }
-function wilayaLabel(wilayaId) {
+function wilayaLabel(wilayaId, locale) {
   const w = WILAYA_COORDS[parseInt(wilayaId)];
-  return w ? w.name : '';
+  if (!w) return '';
+  return locale === 'ar' ? w.nameAr : w.name;
 }
 function computeAuctionTitle(lots, locale) {
   const names = lots.map(l => productLabel(l.productId, locale)).filter(Boolean);
@@ -58,8 +59,8 @@ function computeAuctionTitle(lots, locale) {
   if (names.length === 1) return `${names[0]} — ${lots[0].quantity || ''} ${lots[0].unit || ''}`.trim();
   return `${names[0]} +${names.length - 1}`;
 }
-function computeDeliveryLocation(lots) {
-  const names = [...new Set(lots.map(l => wilayaLabel(l.wilayaId)).filter(Boolean))];
+function computeDeliveryLocation(lots, locale) {
+  const names = [...new Set(lots.map(l => wilayaLabel(l.wilayaId, locale)).filter(Boolean))];
   return names.join(', ');
 }
 function computeLotDesignation(lot, locale, t) {
@@ -523,7 +524,7 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
     const payload = {
       title: computedTitle, auctionType, deliveryLocation: computedDeliveryLocation,
       description: '',
-      lots: lots.map(l => ({ seq: l.seq, designation: computeLotDesignation(l, locale, t), cultureTypeId: l.cultureTypeId, productId: l.productId, wilayaId: l.wilayaId, unit: l.unit, quantity: parseFloat(l.quantity), priceCeiling: parseFloat(l.priceCeiling), calibre: l.calibre, deliveryWindowHours: parseInt(l.deliveryWindowHours, 10) })),
+      lots: lots.map(l => ({ seq: l.seq, designation: computeLotDesignation(l, locale, t), cultureTypeId: l.cultureTypeId, productId: l.productId, wilayaId: l.wilayaId, unit: l.unit, quantity: parseFloat(l.quantity), priceCeiling: parseFloat(l.priceCeiling), calibre: l.calibre, deliveryWindowHours: parseInt(l.deliveryWindowHours, 10), irrigationMethod: l.irrigationMethod || null })),
       radius: radiusKm, isSearchZoneChanged,
       startAt: new Date(startDatetime).toISOString(), endAt: new Date(endDatetime).toISOString(),
       // Bloc C mechanism is always on — not a buyer choice (see the constants above).
@@ -549,7 +550,8 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
   const getAuctionTypeLabel = (val) => { const f = AUCTION_TYPES.find(a => a.value === val); return f ? (locale === 'ar' ? f.labelAr : (locale === 'en' ? f.labelEn : f.labelFr)) : val; };
   const getProductName = (pid) => { const p = products.find(p => p.id === pid); return p ? (p.name[locale] || p.name.fr) : pid; };
   const getCultureName = (cid) => { const c = cultureTypes.find(c => c.id === cid); return c ? (c.name[locale] || c.name.fr) : cid; };
-  const getWilayaName = (wid) => { const w = WILAYA_COORDS[parseInt(wid)]; return w ? w.name : wid; };
+  const getWilayaName = (wid) => { const w = WILAYA_COORDS[parseInt(wid)]; return w ? (locale === 'ar' ? w.nameAr : w.name) : wid; };
+  const getIrrigationName = (value) => { const io = irrigationSystems.find(x => x.value === value); return io ? (io.name[locale] || io.name.fr) : value; };
 
   const myAuctions = auctions.filter(a => a.isOwner);
 
@@ -715,13 +717,13 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                             <label>{locale === 'ar' ? 'ولاية التسليم' : (locale === 'en' ? 'Delivery wilaya' : 'Wilaya de livraison')} <span className="required-asterisk">*</span></label>
                             <select value={lot.wilayaId} onChange={e => updateLot(idx, 'wilayaId', e.target.value)}>
                               <option value="">{locale === 'ar' ? '-- اختر الولاية --' : (locale === 'en' ? '-- Select wilaya --' : '-- Choisir wilaya --')}</option>
-                              {WILAYA_LIST.map(w => <option key={w.id} value={w.id}>{w.id < 10 ? `0${w.id}` : w.id} – {w.name}</option>)}
+                              {WILAYA_LIST.map(w => <option key={w.id} value={w.id}>{w.id < 10 ? `0${w.id}` : w.id} – {locale === 'ar' ? w.nameAr : w.name}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
                             <label>{locale === 'ar' ? 'الوحدة' : (locale === 'en' ? 'Unit' : 'Unité')}</label>
                             <select value={lot.unit} disabled title={t('autoFilledFieldTooltip')}>
-                              {['tonnes', 'kg', 'cagettes', 'palettes', 'sacs'].map(u => <option key={u} value={u}>{t('unit_' + u)}</option>)}
+                              {['tonnes', 'quintal', 'kg'].map(u => <option key={u} value={u}>{t('unit_' + u)}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
@@ -740,6 +742,13 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                             <select value={lot.deliveryWindowHours} onChange={e => updateLot(idx, 'deliveryWindowHours', e.target.value)}>
                               <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
                               {DELIVERY_WINDOW_OPTIONS.map(h => <option key={h} value={h}>{t('deliveryWindow_' + h)}</option>)}
+                            </select>
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label>{locale === 'ar' ? 'نظام الري (اختياري)' : (locale === 'en' ? 'Irrigation system (optional)' : "Système d'irrigation (optionnel)")}</label>
+                            <select value={lot.irrigationMethod} onChange={e => updateLot(idx, 'irrigationMethod', e.target.value)}>
+                              <option value="">{locale === 'ar' ? '-- بدون تفضيل --' : (locale === 'en' ? '-- No preference --' : '-- Sans préférence --')}</option>
+                              {irrigationSystems.map(io => <option key={io.value} value={io.value}>{io.name[locale] || io.name.fr}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
@@ -850,7 +859,7 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
             {wizardStep === 4 && (() => {
               const activeAuction = myAuctions.find(a => a.id === viewingAuctionId);
               const computedTitle = computeAuctionTitle(lots, locale);
-              const computedDeliveryLocation = computeDeliveryLocation(lots);
+              const computedDeliveryLocation = computeDeliveryLocation(lots, locale);
               const totalEstimatedValue = lots.reduce((sum, l) => sum + (parseFloat(l.quantity) || 0) * (parseFloat(l.priceCeiling) || 0), 0);
               const first = lots[0] || {};
               const belowFloorLots = lots.filter((l, idx) => {
@@ -899,6 +908,7 @@ export default function BuyerAuctionsPage({ user, token, auctions, onCreateAucti
                               <span style={{ color: 'var(--danger)' }}>⬆ {lot.priceCeiling} {t('currencyDA')}</span>
                               {lot.calibre && <span>📏 {t('calibre_' + lot.calibre)}</span>}
                               {lot.deliveryWindowHours && <span>⏱ {t('deliveryWindow_' + lot.deliveryWindowHours)}</span>}
+                              {lot.irrigationMethod && <span>💧 {getIrrigationName(lot.irrigationMethod)}</span>}
                             </div>
                             {ref && (
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>

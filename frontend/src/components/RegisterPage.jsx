@@ -256,12 +256,12 @@ export default function RegisterPage({ onNavigateToLogin }) {
 
   const wilayaOptions = wilayas.map(w => ({
     value: w.wilaya_id,
-    label: `${String(w.wilaya_id).padStart(2, '0')} - ${w.wilaya_name_latin}`,
+    label: `${String(w.wilaya_id).padStart(2, '0')} - ${locale === 'ar' && w.wilaya_name_arabic ? w.wilaya_name_arabic : w.wilaya_name_latin}`,
   }));
 
   const communeOptions = communes.map(c => ({
     value: c.commune_id,
-    label: c.commune_name_latin,
+    label: locale === 'ar' && c.commune_name_arabic ? c.commune_name_arabic : c.commune_name_latin,
   }));
 
   return (

@@ -5,42 +5,23 @@ import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { WILAYA_COORDS } from '../utils/wilayaCoordinates.js';
+import { WILAYA_COORDS, wilayaDisplayName } from '../utils/wilayaCoordinates.js';
 import { BACKEND_URL } from '../utils/config.js';
+import { cultureTypes as cultureTypesData, products as productsData, irrigationSystems, soilTypes } from '../utils/referenceData.js';
 
-const cultureTypes = [
-  { value: 'Grandes Cultures', label: 'Grandes Cultures' },
-  { value: 'Arboriculture', label: 'Arboriculture' },
-  { value: 'Maraîchage', label: 'Maraîchage' },
-  { value: 'Fourrage', label: 'Fourrage' },
-  { value: 'Viticulture', label: 'Viticulture' }
-];
+// Canonical storage stays French (type_culture/sous_type_culture/irrigationMethod/
+// soilType are plain French strings in the DB) — only the label shown in the
+// dropdown is translated, via the fr/ar/en names in referenceData.js.
+const cultureTypes = cultureTypesData.map(ct => ({ value: ct.name.fr, name: ct.name }));
+const subTypes = Object.fromEntries(cultureTypesData.map(ct => [
+  ct.name.fr,
+  productsData.filter(p => p.cultureTypeId === ct.id).map(p => ({ value: p.name.fr, name: p.name }))
+]));
 
-const subTypes = {
-  'Grandes Cultures': ['Blé Dur', 'Blé Tendre', 'Orge', 'Maïs', 'Avoine', 'Légumineuses'],
-  'Arboriculture': ['Olivier', 'Pommier', 'Agrumes', 'Datte', 'Amandier', 'Cerisier', 'Figuier', 'Abricotier'],
-  'Maraîchage': ['Tomate', 'Pomme de terre', 'Oignon', 'Piment', 'Laitue', 'Carotte', 'Melon', 'Pastèque'],
-  'Fourrage': ['Luzerne', 'Sorgho', 'Bersim', 'Maïs fourrager'],
-  'Viticulture': ['Raisin de table', 'Raisin de cuve']
-};
+const irrigationOptions = irrigationSystems;
+const soilOptions = soilTypes;
 
-const irrigationOptions = [
-  { value: 'Goutte à goutte', label: 'Goutte à goutte' },
-  { value: 'Aspersion', label: 'Aspersion' },
-  { value: 'Gravitaire', label: 'Gravitaire' },
-  { value: 'Pluvial', label: 'Pluvial' },
-  { value: 'Pivot', label: 'Pivot' }
-];
-
-const soilOptions = [
-  { value: 'Argileux', label: 'Argileux' },
-  { value: 'Sableux', label: 'Sableux' },
-  { value: 'Limoneux', label: 'Limoneux' },
-  { value: 'Calcaire', label: 'Calcaire' },
-  { value: 'Humifère', label: 'Humifère' }
-];
-
-const WILAYA_LIST = Object.entries(WILAYA_COORDS).map(([id, w]) => ({ id: parseInt(id), name: w.name })).sort((a, b) => a.id - b.id);
+const WILAYA_LIST = Object.entries(WILAYA_COORDS).map(([id, w]) => ({ id: parseInt(id), name: w.name, nameAr: w.nameAr })).sort((a, b) => a.id - b.id);
 
 const getCultureColor = (type, isSecondary = false) => {
   const colors = {
@@ -57,6 +38,13 @@ const getPrimaryCultureType = (parcelle) => {
   if (parcelle.cultures && parcelle.cultures.length > 0) return parcelle.cultures[0].type_culture;
   return 'Grandes Cultures';
 };
+
+// Looks up the translated label for a French canonical value stored on the record.
+function frLabel(list, frValue, locale) {
+  const entry = list.find(item => item.value === frValue);
+  if (!entry) return frValue;
+  return entry.name[locale] || entry.name.fr;
+}
 
 export default function ProducerParcellesPage({ parcelles, token, fetchParcelles, loadingParcelles }) {
   const { locale } = useTranslation();
@@ -319,19 +307,19 @@ export default function ProducerParcellesPage({ parcelles, token, fetchParcelles
                     <MapPin size={15} style={{ color: 'var(--text-muted)', marginTop: 2, flexShrink: 0 }} />
                     <div>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', fontWeight: 600 }}>{locale === 'ar' ? 'الموقع' : (locale === 'en' ? 'Location' : 'Localisation')}</span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>{p.wilayaName ? p.wilayaName : (locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not located' : 'Non localisée'))}</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>{p.wilayaName ? wilayaDisplayName(p.wilayaName, locale) : (locale === 'ar' ? 'غير محدد' : (locale === 'en' ? 'Not located' : 'Non localisée'))}</span>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     <div style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.08)', borderRadius: 8, padding: '8px 12px' }}>
                       <div style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 'bold', textTransform: 'uppercase' }}>{locale === 'ar' ? 'الزراعات' : (locale === 'en' ? 'Crops' : 'Cultures')}</div>
                       <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-main)', marginTop: 2, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                        {p.cultures && p.cultures.length > 0 ? (p.cultures.length === 1 ? p.cultures[0].type_culture : `Multi (${p.cultures.length})`) : (locale === 'ar' ? 'لا يوجد' : (locale === 'en' ? 'None' : 'Aucune'))}
+                        {p.cultures && p.cultures.length > 0 ? (p.cultures.length === 1 ? frLabel(cultureTypes, p.cultures[0].type_culture, locale) : `Multi (${p.cultures.length})`) : (locale === 'ar' ? 'لا يوجد' : (locale === 'en' ? 'None' : 'Aucune'))}
                       </div>
                     </div>
                     <div style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.08)', borderRadius: 8, padding: '8px 12px' }}>
                       <div style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 'bold', textTransform: 'uppercase' }}>{locale === 'ar' ? 'الري' : (locale === 'en' ? 'Irrigation' : 'Irrigation')}</div>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-main)', marginTop: 2, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{p.irrigationMethod || 'Pluvial'}</div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-main)', marginTop: 2, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{frLabel(irrigationOptions, p.irrigationMethod || 'Pluvial', locale)}</div>
                     </div>
                   </div>
                   <div style={{ marginTop: 'auto', paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -399,7 +387,7 @@ export default function ProducerParcellesPage({ parcelles, token, fetchParcelles
                             <label style={{ fontSize: '0.7rem' }}>{locale === 'ar' ? 'نوع الزراعة' : (locale === 'en' ? 'Crop type' : 'Type de culture')}</label>
                             <select value={c.type_culture} onChange={e => handleUpdateCulture(index, 'type_culture', e.target.value)} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 10px', color: 'var(--text-main)', fontSize: '0.85rem' }}>
                               <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
-                              {cultureTypes.map(ct => <option key={ct.value} value={ct.value}>{ct.label}</option>)}
+                              {cultureTypes.map(ct => <option key={ct.value} value={ct.value}>{ct.name[locale] || ct.name.fr}</option>)}
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
@@ -407,10 +395,10 @@ export default function ProducerParcellesPage({ parcelles, token, fetchParcelles
                             <div style={{ maxHeight: '120px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 6, background: 'var(--bg-input)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                               {!c.type_culture ? <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: 4 }}>{locale === 'ar' ? 'اختر النوع' : (locale === 'en' ? 'Choose the type' : 'Choisir le type')}</span> : (
                                 (subTypes[c.type_culture] || []).map(st => {
-                                  const isChecked = (c.sous_type_culture || []).includes(st);
+                                  const isChecked = (c.sous_type_culture || []).includes(st.value);
                                   return (
-                                    <label key={st} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-                                      <input type="checkbox" checked={isChecked} onChange={() => handleToggleSousType(index, st)} style={{ width: '12px', height: '12px', accentColor: 'var(--primary)' }} /> {st}
+                                    <label key={st.value} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                                      <input type="checkbox" checked={isChecked} onChange={() => handleToggleSousType(index, st.value)} style={{ width: '12px', height: '12px', accentColor: 'var(--primary)' }} /> {st.name[locale] || st.name.fr}
                                     </label>
                                   );
                                 })
@@ -430,14 +418,14 @@ export default function ProducerParcellesPage({ parcelles, token, fetchParcelles
                       <label>{locale === 'ar' ? 'نظام الري' : (locale === 'en' ? 'Irrigation system' : "Système d'irrigation")}</label>
                       <select value={formIrrigationMethod} onChange={e => setFormIrrigationMethod(e.target.value)} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.875rem' }}>
                         <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
-                        {irrigationOptions.map(io => <option key={io.value} value={io.value}>{io.label}</option>)}
+                        {irrigationOptions.map(io => <option key={io.value} value={io.value}>{io.name[locale] || io.name.fr}</option>)}
                       </select>
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>{locale === 'ar' ? 'نوع التربة' : (locale === 'en' ? 'Soil type' : 'Nature du sol')}</label>
                       <select value={formSoilType} onChange={e => setFormSoilType(e.target.value)} style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.875rem' }}>
                         <option value="">{locale === 'ar' ? '-- اختر --' : (locale === 'en' ? '-- Select --' : '-- Choisir --')}</option>
-                        {soilOptions.map(so => <option key={so.value} value={so.value}>{so.label}</option>)}
+                        {soilOptions.map(so => <option key={so.value} value={so.value}>{so.name[locale] || so.name.fr}</option>)}
                       </select>
                     </div>
                   </div>
@@ -449,7 +437,7 @@ export default function ProducerParcellesPage({ parcelles, token, fetchParcelles
                     <label>{locale === 'ar' ? 'الولاية' : (locale === 'en' ? 'Wilaya' : 'Wilaya')} <span style={{ color: 'var(--danger)' }}>*</span></label>
                     <select value={formWilayaId} onChange={e => handleWilayaSelect(e.target.value)} required style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 14px', color: 'var(--text-main)', fontSize: '0.875rem' }}>
                       <option value="">{locale === 'ar' ? '-- اختر الولاية --' : (locale === 'en' ? '-- Select wilaya --' : '-- Choisir wilaya --')}</option>
-                      {WILAYA_LIST.map(w => <option key={w.id} value={w.id}>{w.id} – {w.name}</option>)}
+                      {WILAYA_LIST.map(w => <option key={w.id} value={w.id}>{w.id} – {locale === 'ar' ? w.nameAr : w.name}</option>)}
                     </select>
                   </div>
                 </div>

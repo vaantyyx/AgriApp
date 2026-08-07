@@ -277,6 +277,7 @@ export const translations = {
 
     // Units
     unit_tonnes: "طن",
+    unit_quintal: "قنطار (q)",
     unit_kg: "كغ",
     currencyDA: "دج",
     unitKm: "كم",
@@ -1066,6 +1067,7 @@ export const translations = {
 
     // Units
     unit_tonnes: "Tonnes",
+    unit_quintal: "Quintal (q)",
     unit_kg: "Kilogrammes (kg)",
     currencyDA: "DA",
     unitKm: "km",
@@ -1855,6 +1857,7 @@ export const translations = {
 
     // Units
     unit_tonnes: "Tons",
+    unit_quintal: "Quintal (q)",
     unit_kg: "Kilograms (kg)",
     currencyDA: "DA",
     unitKm: "km",
