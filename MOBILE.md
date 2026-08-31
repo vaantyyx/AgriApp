@@ -45,7 +45,7 @@ pas le site. Donc :
 
 | Élément | Détail |
 |---|---|
-| Icône + splash | Générés depuis `public/img/sougra-logo.png` via `@capacitor/assets`. Sources dans `frontend/assets/`. Régénérer : `node <script inline>` puis `npx capacitor-assets generate --android`. |
+| Icône + splash | Générés depuis `public/img/sougra-logo.png`. Sources 1024²/2732² dans `frontend/assets/`. Régénérer (outil non installé, tiré à la volée) : `npx @capacitor/assets@3 generate --android`. |
 | Safe areas | `StatusBar.overlaysWebView(true)` + `frontend/src/mobile.css` (scopé `html.cap-native`, inerte sur le web). Couleur des icônes de la barre d'état suit le thème clair/sombre. |
 | Bouton retour Android | `frontend/src/mobile/useAndroidBackButton.js` : ferme d'abord une modale ouverte, sinon `navigate(-1)`, sinon quitte l'app. |
 | Splash | Masqué par `frontend/src/mobile/bridge.js` dès le premier rendu web. |
@@ -57,6 +57,8 @@ le propriétaire du compte Google peut créer).
 
 **Client** — `frontend/src/mobile/push.js` : demande la permission, enregistre le
 token FCM auprès de `POST /api/push/register`, gère le tap sur une notif.
+**Désactivé par défaut** (`VITE_ENABLE_PUSH=false` dans `.env.mobile`) : sans
+Firebase, `PushNotifications.register()` fait planter l'app Android.
 
 **Backend** — `routes/push.js` stocke les tokens (`pushTokens`), `services/pushService.js`
 envoie via `firebase-admin` (déjà appelé sur « nouvelle enchère » et « nouvelle
@@ -71,10 +73,11 @@ offre » dans `server.js`). Tout est **no-op tant que Firebase n'est pas configu
 3. Ajouter le plugin Gradle Google Services :
    - `frontend/android/build.gradle` → `classpath 'com.google.gms:google-services:4.4.2'`
    - `frontend/android/app/build.gradle` → `apply plugin: 'com.google.gms.google-services'` (en bas)
-4. Backend : générer une clé de compte de service (Firebase → Paramètres →
+4. Passer **`VITE_ENABLE_PUSH=true`** dans `frontend/.env.mobile`.
+5. Backend : générer une clé de compte de service (Firebase → Paramètres →
    Comptes de service → *Générer une nouvelle clé privée*) et la mettre dans la
    variable d'env **`FIREBASE_SERVICE_ACCOUNT`** (JSON en une ligne) sur Render.
-5. Redéployer le backend, rebuild l'app. `firebase-admin` s'installe tout seul
+6. Redéployer le backend, rebuild l'app. `firebase-admin` s'installe tout seul
    (`optionalDependencies`).
 
 ### Tester

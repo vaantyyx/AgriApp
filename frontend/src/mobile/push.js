@@ -17,6 +17,13 @@ let started = false;
  */
 export async function initPush(getAuthToken, onOpen) {
   if (!Capacitor.isNativePlatform() || started) return;
+
+  // Opt-in: PushNotifications.register() throws a *native* crash on Android
+  // when no Firebase project is wired in (Default FirebaseApp not initialized).
+  // Keep this off until google-services.json + the Gradle plugin are added,
+  // then set VITE_ENABLE_PUSH=true in .env.mobile. See MOBILE.md.
+  if (import.meta.env.VITE_ENABLE_PUSH !== 'true') return;
+
   started = true;
 
   const { PushNotifications } = await import('@capacitor/push-notifications');
