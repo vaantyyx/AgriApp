@@ -23,6 +23,8 @@ import captchaRoutes from './routes/captcha.js';
 import supportRoutes from './routes/support.js';
 import adminRoutes from './routes/admin.js';
 import aiRoutes from './routes/ai.js';
+import pushRoutes from './routes/push.js';
+import { sendPushToUser } from './services/pushService.js';
 import { CAPTCHA_CATEGORIES } from './services/captchaCategories.js';
 import { logger } from './utils/logger.js';
 import authMiddleware from './middleware/authMiddleware.js';
@@ -85,9 +87,19 @@ app.use(pinoHttp({ logger, autoLogging: { ignore: (req) => req.url === '/health'
 app.use(compression());
 
 // CORS — restrict to frontend origin only (comma-separated ALLOWED_ORIGINS env var, falls back to local dev origins)
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'];
+// Capacitor native shells (Android/iOS) always present one of these fixed
+// localhost origins — a real browser can never send them, so they're safe to
+// allow unconditionally on top of the configured web origins. Without this,
+// every API call, Socket.IO connection and captcha tile image from the
+// mobile app fails CORS. (Android uses https://localhost because
+// capacitor.config.json sets androidScheme: "https"; iOS uses capacitor://.)
+const CAPACITOR_ORIGINS = ['https://localhost', 'capacitor://localhost'];
+const allowedOrigins = [
+  ...(process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174']),
+  ...CAPACITOR_ORIGINS,
+];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -194,6 +206,7 @@ app.use('/api/captcha', captchaRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/push', pushRoutes);
 
 // Health check
 app.get('/health', async (req, res) => {
@@ -495,6 +508,13 @@ async function notifyMatchingProducers(auction, db, type) {
     // Room-based targeting (not raw socket IDs) so delivery works correctly
     // across instances once the Redis adapter is active — a no-op if empty.
     io.to(userRoom(producer._id.toString())).emit('new_notification', notification);
+
+    // Native push (no-op unless Firebase is configured — see MOBILE.md)
+    sendPushToUser(producer._id.toString(), {
+      title: 'Sougra — nouvelle enchère',
+      body: `${auction.product} · ${auction.quantity} ${auction.unit}`,
+      data: { path: '/notifications', auctionId: String(auction.id) },
+    });
   }
 }
 
@@ -1253,6 +1273,13 @@ io.on('connection', async (socket) => {
 
       // Push real-time notification if buyer is connected
       io.to(userRoom(auction.buyerId)).emit('new_notification', notification);
+
+      // Native push (no-op unless Firebase is configured — see MOBILE.md)
+      sendPushToUser(auction.buyerId, {
+        title: 'Sougra — nouvelle offre',
+        body: `${auction.product} · ${auction.quantity} ${auction.unit}`,
+        data: { path: '/notifications', auctionId: String(auction.id) },
+      });
 
       // Broadcast updated auction (sanitized per receiver)
       const candidateSockets = await getBroadcastCandidateSockets(updatedAuction);

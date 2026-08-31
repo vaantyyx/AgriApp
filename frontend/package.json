@@ -9,9 +9,18 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:mobile": "vite build --mode mobile",
+    "mobile:sync": "npm run build:mobile && cap sync android",
+    "mobile:open": "npm run mobile:sync && cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.18.0",
     "motion": "^12.42.2",
@@ -21,6 +30,8 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

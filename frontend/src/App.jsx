@@ -10,6 +10,8 @@ import { useTheme } from './context/ThemeContext';
 import { BACKEND_URL } from './utils/config.js';
 import { getNotificationTitle, getNotificationBody } from './utils/notificationText.js';
 import { trackVisit } from './utils/trackVisit.js';
+import useAndroidBackButton from './mobile/useAndroidBackButton.js';
+import { initPush } from './mobile/push.js';
 
 // Route-level pages are code-split: each is only downloaded when the user
 // actually navigates to it, instead of bloating the initial bundle.
@@ -100,6 +102,14 @@ export default function App() {
 
   useEffect(() => { userRef.current = user; }, [user]);
   useEffect(() => { localeRef.current = locale; }, [locale]);
+
+  // ── Native (Capacitor) shell integration — all no-ops on the web build ──
+  const tokenRef = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
+  useAndroidBackButton();
+  useEffect(() => {
+    if (token) initPush(() => tokenRef.current, (path) => navigate(path));
+  }, [token, navigate]);
 
   // Covers returning visitors whose cookie consent was already accepted in a
   // previous session — first-time acceptance is tracked from CookieConsent.jsx

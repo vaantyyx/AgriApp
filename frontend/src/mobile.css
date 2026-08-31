@@ -1,0 +1,46 @@
+/* ═══════════════════════════════════════════════════════════════
+   NATIVE (Capacitor) SHELL — device safe-area handling
+   ───────────────────────────────────────────────────────────────
+   Every rule here is scoped to `html.cap-native`, a class added by
+   src/mobile/bridge.js only when running inside the Capacitor app.
+   The plain web build never gets the class, so it is 100% unaffected.
+
+   The status bar overlays the WebView (StatusBar.overlaysWebView =
+   true), so anything pinned to a screen edge must offset itself by
+   the matching env(safe-area-inset-*) value (0 on devices without a
+   notch / gesture bar).
+═══════════════════════════════════════════════════════════════ */
+
+/* --- Top: status bar / notch ------------------------------------ */
+html.cap-native .app-header { padding-top: env(safe-area-inset-top); }
+
+html.cap-native .slp-navbar {
+  padding-top: calc(14px + env(safe-area-inset-top));
+}
+html.cap-native .slp-scroll-progress { top: env(safe-area-inset-top); }
+
+/* Full-height fixed dashboard sidebar */
+html.cap-native .dash-sidebar {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* --- Bottom: gesture nav bar ----------------------------------- */
+html.cap-native .slp-scroll-top,
+html.cap-native .ai-assistant-fab {
+  bottom: calc(24px + env(safe-area-inset-bottom));
+}
+html.cap-native .cookie-banner {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+/* Let scrollable page content clear the gesture bar */
+html.cap-native .page-wrapper {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Kill the pull-to-refresh / rubber-band white flash on the root */
+html.cap-native,
+html.cap-native body {
+  overscroll-behavior-y: none;
+}

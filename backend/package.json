@@ -33,6 +33,9 @@
     "socket.io": "^4.7.5",
     "uuid": "^14.0.0"
   },
+  "optionalDependencies": {
+    "firebase-admin": "^13.0.0"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
